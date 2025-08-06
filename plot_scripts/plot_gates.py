@@ -15,7 +15,7 @@ import numpy as np
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.insert(0, parent_dir)
 
-import metadata_constants
+import gated_project_code.spad_lib.metadata_constants as metadata_constants
 
 
 '''
@@ -23,7 +23,7 @@ This visualized the gate sequences for a single frame accross the laser period.
 '''
 
 if __name__ == "__main__":
-    cap_name = "acq00009"
+    cap_name = "acq00004"
     frame = 0
     img_num = 1
     name = f"IMG{img_num:05d}"
@@ -41,12 +41,13 @@ if __name__ == "__main__":
     #Calculate each gate starting time
     gate_starts = np.array([gate_offset + (gate_step_size * (gate_step)) for gate_step in range(gate_steps)])
 
-    fig, axs = plt.subplots(gate_steps, figsize=(10, 10))
+    #fig, axs = plt.subplots(gate_steps, figsize=(10, 10))
 
     '''
     Plot each gate foor number of gate steps
     '''
     time_resolution = np.linspace(0, metadata['Laser time'], 1000)
+    coding_matrix = np.zeros((1000, gate_steps))
     for gate_step in range(gate_steps):
         gate_start = gate_starts[gate_step]
         gate_end = gate_start + metadata['Gate width']
@@ -59,11 +60,14 @@ if __name__ == "__main__":
 
         gate = np.zeros_like(time_resolution)
         gate[indices] = 1
-        axs[gate_step].plot(gate)
-        axs[gate_step].set_xticks(np.arange(0, 1000)[::100])
-        axs[gate_step].set_xticklabels([])
-        axs[gate_step].set_yticklabels([])
-    axs[-1].set_xticklabels(np.round(time_resolution, 1)[::100])
 
+        coding_matrix[:, gate_step] = gate
 
+        #axs[gate_step].plot(gate)
+        #axs[gate_step].set_xticks(np.arange(0, 1000)[::100])
+        #axs[gate_step].set_xticklabels([])
+        #axs[gate_step].set_yticklabels([])
+    #axs[-1].set_xticklabels(np.round(time_resolution, 1)[::100])
+
+    plt.imshow(np.repeat(coding_matrix.transpose(), 100, axis=0), aspect='auto', cmap='gray')
     plt.show()

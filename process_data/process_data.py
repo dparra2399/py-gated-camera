@@ -16,12 +16,12 @@ import socket
 import time
 from PIL import Image
 import numpy as np
-import metadata_constants
+import gated_project_code.spad_lib.metadata_constants as metadata_constants
 
 
 
 if __name__ == "__main__":
-    cap_name = "acq00010"
+    cap_name = "acq00004"
     frame = 0
     img_num = 1
     name = f"IMG{img_num:05d}"
@@ -51,7 +51,7 @@ if __name__ == "__main__":
 
     fig, axs = plt.subplots(2, figsize=(10, 10))
 
-    x1, y1 = (174, 386)
+    x1, y1 = (340, 220)
 
     axs[0].bar(np.arange(0, metadata['Gate steps']), transient_img[y1, x1, :])
     axs[0].set_xticks(np.arange(0, metadata['Gate steps'])[::3])

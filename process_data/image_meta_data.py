@@ -6,7 +6,7 @@ import time
 from PIL import Image
 
 # Path to the SPAD512S image
-cap_name = "acq00001"
+cap_name = "acq00004"
 frame = 2
 img_num = 1
 name = f"IMG{img_num:05d}"

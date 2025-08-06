@@ -465,9 +465,7 @@ class SPAD512S:
         
         command = bytes("PU," + str(pileup), "utf8")
         self.t.send(command)
-        print('hello')
         msg = self.t.recv(32768)
-        print('world')
         if not (bitDepth in self.intBitDepths and bitDepth != 1 and bitDepth != 4 ): 
             print("Chosen bit depth is invalid. Please use one of the following"
                   " values: %s.\nDefault value of 8bit is used instead!"
@@ -516,7 +514,6 @@ class SPAD512S:
                 datablock = self.t.recv(32768)
                 data.extend(datablock)
                 if data[-4:] == bytearray("DONE", 'utf8'):
-                    print('data')
                     break
             data = data[:-4]
             img_index = 0
