@@ -33,12 +33,18 @@ SPAD1.set_Vex(Vex)
 
 
 # Editable parameters
-intTime = 200 #integration time
+total_time = 500 #integration time
 num_gates = 1 #number of time bins
 im_width = 512 #image width
 bitDepth = 12
-K = 3
-n_tbins = 2000
+K = 5
+n_tbins = 640
+correct_master = False
+decode_depths = True
+save_into_file = True
+voltage = 10
+save_path = '/mnt/researchdrive/research_users/David/gated_project_data'
+save_name = f'hamK{K}_exp1'
 
 
 #Get demodulation functions and split for use with Gated SPAD
@@ -47,6 +53,7 @@ func = getattr(CodingFunctionsFelipe, f"GetHamK{K}")
 gated_demodfs_np, gated_demodfs_arr = decompose_ham_codes(demodfs)
 
 #For each demod function we make a gate sequence
+intTimes = [int(total_time // K)] * K
 coded_vals = np.zeros((im_width, im_width, K))
 for i, item in enumerate(gated_demodfs_arr):
     for j in range(item.shape[-1]):
@@ -64,6 +71,8 @@ for i, item in enumerate(gated_demodfs_arr):
         gate_step_size = 0
         gate_direction = 1
         gate_trig = 0
+        intTime = int(intTimes[i] // item.shape[-1])
+        #intTime = int(total_time // gated_demodfs_np.shape[-1])
 
         #print(f'gate steps: {gate_steps}')
 
@@ -79,9 +88,6 @@ unit = "ms"
 factor_unit = 1e-3
         
 
-correct_master = False
-decode_depths = True
-filter = False
 
 if decode_depths:
     (rep_tau, rep_freq, tbin_res, t_domain, max_depth, tbin_depth_res) = calculate_tof_domain_params(n_tbins, 1./ float(freq[0]))
@@ -91,14 +97,14 @@ if decode_depths:
 
     mhz = int(freq[0][:2])
     #print(mhz)
-    correlations = get_hamiltonain_correlations(demodfs, mhz, 9, interpolate=True)
+    correlations = get_hamiltonain_correlations(demodfs, mhz, voltage, interpolate=True)
 
     # fig, axs = plt.subplots(1, 3)
     # axs[0].plot(demodfs)
     # axs[1].plot(get_voltage_function(mhz, 10))
     # axs[2].plot(correlations)
     # plt.show()
-    #exit()
+    # exit()
 
     norm_coding_matrix = zero_norm_t(correlations)
 
@@ -127,9 +133,6 @@ if decode_depths:
     #axs[0].set_xticks(np.arange(0, metadata['Gate steps'])[::3])
     #axs[0].set_xticklabels(np.round(gate_starts, 1)[::3])
 
-    if filter:
-        depth_map[depth_map < 12.2] = 12.2
-        depth_map[depth_map > 12.8] = 12.8
     axs[2].imshow(depth_map)
     #axs[2].imshow(depth_map[:, :im_width//2])
     #axs[2].plot(x1, y1, 'ro')
@@ -137,3 +140,28 @@ if decode_depths:
     plt.show()
     print(f'min depth map: {np.min(depth_map)}, max depth map: {np.max(depth_map)}')
 
+
+
+if save_into_file:
+    import os
+    np.savez(os.path.join(save_path, save_name),
+         total_time=total_time,
+         num_gates=num_gates,
+         im_width=im_width,
+         bitDepth=bitDepth,
+         n_tbins=n_tbins,
+         iterations=iterations,
+         overlap=overlap,
+         timeout=timeout,
+         pileup=pileup,
+         gate_steps=gate_steps,
+         gate_step_arbitrary=gate_step_arbitrary,
+         gate_step_size=gate_step_size,
+         gate_offset=gate_offset,
+         gate_direction=gate_direction,
+         gate_trig=gate_trig,
+         voltage=voltage,
+         coded_vals=coded_vals,
+         irf=get_voltage_function(mhz, voltage, 'square'))
+
+    

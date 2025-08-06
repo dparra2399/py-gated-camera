@@ -8,7 +8,8 @@ from spad_lib.spad512utils import get_voltage_function
 
 mhz = 10
 voltage = 10
-modfs = get_voltage_function(mhz, voltage)
+illum_type = 'pulse'
+modfs = get_voltage_function(mhz, voltage, illum_type)
 
 print(modfs.shape)
 plt.plot(modfs)

@@ -1,10 +1,10 @@
 import numpy as np
 from scipy.interpolate import interp1d
-
+import matplotlib.pyplot as plt
 EPILSON = 1e-8
 SPEED_OF_LIGHT = 3e8
 
-def get_coarse_coding_matrix(gate_step_size, gate_steps, gate_offset, gate_width, laser_time, n_tbins=2000):
+def get_coarse_coding_matrix(gate_step_size, gate_steps, gate_offset, gate_width, laser_time, n_tbins=2000, irf=None):
 
     gate_starts = np.array([gate_offset + (gate_step_size * (gate_step)) for gate_step in range(gate_steps)])
     #print(gate_starts)
@@ -27,10 +27,14 @@ def get_coarse_coding_matrix(gate_step_size, gate_steps, gate_offset, gate_width
 
         coding_matrix[:, gate_step] = gate
 
+    if irf is not None:
+        irf = irf.squeeze()
+        irf = irf[..., np.newaxis]
+        coding_matrix = np.fft.ifft(np.fft.fft(irf, axis=0).conj() * np.fft.fft(coding_matrix, axis=0), axis=0).real
     return coding_matrix
 
 def get_hamiltonain_correlations(demodfs, mhz, voltage, interpolate=False):
-    modfs = get_voltage_function(mhz, voltage)
+    modfs = get_voltage_function(mhz, voltage, 'square')
     if interpolate:
         f = interp1d(np.linspace(0, 1, len(modfs)), modfs, kind='cubic')
         modfs= f(np.linspace(0, 1, demodfs.shape[0]))
@@ -126,8 +130,8 @@ def split_into_indices(square_array):
     return indices
 
 
-def get_voltage_function(mhz, voltage):
-    function = np.genfromtxt(f'/home/ubilaptop8/2025-Q2-David-P-captures/gated_project_code/voltage_functions/square_{mhz}mhz_{voltage}v.csv',delimiter=',')[:, 1]
+def get_voltage_function(mhz, voltage, illum_type):
+    function = np.genfromtxt(f'/home/ubilaptop8/2025-Q2-David-P-captures/gated_project_code/voltage_functions/{illum_type}_{mhz}mhz_{voltage}v.csv',delimiter=',')[:, 1]
     modfs = function[2:] + 100
     modfs /= np.sum(modfs, keepdims=True)
     return modfs

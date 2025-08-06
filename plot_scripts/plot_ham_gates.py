@@ -11,7 +11,7 @@ import numpy as np
 
 if __name__ == "__main__":
     n_tbins = 2000
-    K = 3
+    K = 4
 
     func = getattr(CodingFunctionsFelipe, f"GetHamK{K}")
 
