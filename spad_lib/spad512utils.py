@@ -1,6 +1,8 @@
 import numpy as np
 from scipy.interpolate import interp1d
 import matplotlib.pyplot as plt
+from felipe_utils import CodingFunctionsFelipe
+
 EPILSON = 1e-8
 SPEED_OF_LIGHT = 3e8
 
@@ -28,17 +30,16 @@ def get_coarse_coding_matrix(gate_step_size, gate_steps, gate_offset, gate_width
         coding_matrix[:, gate_step] = gate
 
     if irf is not None:
+        assert irf.shape[0] == n_tbins
         irf = irf.squeeze()
         irf = irf[..., np.newaxis]
         coding_matrix = np.fft.ifft(np.fft.fft(irf, axis=0).conj() * np.fft.fft(coding_matrix, axis=0), axis=0).real
     return coding_matrix
 
-def get_hamiltonain_correlations(demodfs, mhz, voltage, interpolate=False):
-    modfs = get_voltage_function(mhz, voltage, 'square')
-    if interpolate:
-        f = interp1d(np.linspace(0, 1, len(modfs)), modfs, kind='cubic')
-        modfs= f(np.linspace(0, 1, demodfs.shape[0]))
-
+def get_hamiltonain_correlations(K, mhz, voltage, n_tbins=2000):
+    func = getattr(CodingFunctionsFelipe, f"GetHamK{K}")
+    (modfs, demodfs) = func(N=n_tbins)
+    modfs = get_voltage_function(mhz, voltage, 'square', n_tbins)
     assert modfs.shape[0] == demodfs.shape[0], f'modfs shape: {modfs.shape}, demodfs shape: {demodfs.shape}'
 
     if modfs.ndim == 1: modfs = modfs[:, np.newaxis]
@@ -130,8 +131,16 @@ def split_into_indices(square_array):
     return indices
 
 
-def get_voltage_function(mhz, voltage, illum_type):
-    function = np.genfromtxt(f'/home/ubilaptop8/2025-Q2-David-P-captures/gated_project_code/voltage_functions/{illum_type}_{mhz}mhz_{voltage}v.csv',delimiter=',')[:, 1]
+def get_voltage_function(mhz, voltage, illum_type, n_tbins=None):
+    #function = np.genfromtxt(f'/home/ubilaptop8/2025-Q2-David-P-captures/gated_project_code/voltage_functions/{illum_type}_{mhz}mhz_{voltage}v.csv',delimiter=',')[:, 1]
+    function = np.genfromtxt(f'/Users/davidparra/PycharmProjects/py-gated-camera/voltage_functions/{illum_type}_{mhz}mhz_{voltage}v.csv',delimiter=',')[:, 1]
+
     modfs = function[2:] + 100
+
+    if n_tbins is not None:
+        f = interp1d(np.linspace(0, 1, len(modfs)), modfs, kind='cubic')
+        modfs = f(np.linspace(0, 1, n_tbins))
+
     modfs /= np.sum(modfs, keepdims=True)
+    #modfs = np.roll(modfs, 100, axis=0)
     return modfs

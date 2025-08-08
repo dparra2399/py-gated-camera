@@ -8,7 +8,7 @@ from spad_lib.spad512utils import get_voltage_function
 
 mhz = 10
 voltage = 10
-illum_type = 'pulse'
+illum_type = 'square'
 modfs = get_voltage_function(mhz, voltage, illum_type)
 
 print(modfs.shape)
