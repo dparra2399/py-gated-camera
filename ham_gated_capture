@@ -33,18 +33,18 @@ SPAD1.set_Vex(Vex)
 
 
 # Editable parameters
-total_time = 500 #integration time
+total_time = 100000 #integration time
 num_gates = 1 #number of time bins
 im_width = 512 #image width
 bitDepth = 12
-K = 5
+K = 3
 n_tbins = 640
 correct_master = False
 decode_depths = True
-save_into_file = True
+save_into_file = False
 voltage = 10
 save_path = '/mnt/researchdrive/research_users/David/gated_project_data'
-save_name = f'hamK{K}_exp1'
+save_name = f'hamK{K}_exp2'
 
 
 #Get demodulation functions and split for use with Gated SPAD

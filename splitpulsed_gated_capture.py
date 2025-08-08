@@ -41,7 +41,7 @@ decode_depths = True
 save_into_file = True
 voltage = 10
 save_path = '/mnt/researchdrive/research_users/David/gated_project_data'
-save_name = 'coarse_exp1'
+save_name = 'coarse_exp2'
 
 
 #Make list of gate starts which will be the offet param in the SPAD512

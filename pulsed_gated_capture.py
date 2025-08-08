@@ -31,7 +31,7 @@ SPAD1.set_Vex(Vex)
 
 
 # Editable parameters
-intTime = 100 #integration time
+intTime = 1000000 #integration time
 num_gates = 15 #number of time bins
 im_width = 512 #image width
 bitDepth = 12
