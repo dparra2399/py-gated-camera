@@ -31,17 +31,25 @@ SPAD1.set_Vex(Vex)
 
 
 # Editable parameters
-intTime = 1000000 #integration time
-num_gates = 15 #number of time bins
+intTime = 50 #integration time
+num_gates = 8 #number of time bins
 im_width = 512 #image width
 bitDepth = 12
 n_tbins = 640
+voltage= 10
+correct_master = False
+decode_depths = True
+save_into_file = True
+save_path = '/mnt/researchdrive/research_users/David/gated_project_data'
+save_path = '/home/ubilaptop8/2025-Q2-David-P-captures'
+save_name = 'coarse_gt_exp4'
+
 
 #Don't edit
 iterations = 1
 overlap = 0
 timeout = 0
-pileup = 1
+pileup = 0
 gate_steps =  num_gates
 gate_step_arbitrary = 0
 gate_width = math.ceil((((1/float(freq[0]))*1e12) // num_gates) * 1e-3 )
@@ -61,25 +69,27 @@ print(coded_vals.shape)
 unit = "ms"
 factor_unit = 1e-3
 
-correct_master = False
-decode_depths = True
-
 
 if correct_master:
     coded_vals[:, im_width//2:, :] = np.roll(coded_vals[:, im_width//2:, :], shift=1)
 
+
 if decode_depths:
+
+
     (rep_tau, rep_freq, tbin_res, t_domain, max_depth, tbin_depth_res) = calculate_tof_domain_params(n_tbins, 1./ float(freq[0]))
     # print(rep_freq, rep_tau, tbin_res)
     # print(rep_tau * 1e12)
     #print(gate_step_size,gate_steps, gate_offset, gate_width)
     mhz = int(freq[0][:2])
-    irf = get_voltage_function(mhz, 10, 'pulse')
+    irf = get_voltage_function(mhz, voltage, 'pulse', n_tbins)
+    #irf=None
+    #plt.plot(irf)
+    #plt.show()
     coding_matrix = get_coarse_coding_matrix(gate_width * 1e3, num_gates, 0, gate_width * 1e3, rep_tau * 1e12, n_tbins, irf)
 
-    #fig, axs = plt.subplots(1, 2)
-    #axs[0].imshow(np.repeat(get_coarse_coding_matrix(gate_width * 1e3, num_gates, 0, gate_width * 1e3, rep_tau * 1e12, n_tbins).transpose(), 100, axis=0), aspect='auto')
-    #axs[1].imshow(np.repeat(coding_matrix.transpose(), 100, axis=0), aspect='auto')
+    #plt.imshow(coding_matrix.transpose(), aspect='auto')
+    #print(coding_matrix)
     #plt.show()
     #exit(0)
 
@@ -99,8 +109,9 @@ if decode_depths:
 
     fig, axs = plt.subplots(3, figsize=(10, 10))
 
-    x1, y1 = (78, 420)
-    x2, y2 = (220, 220)
+    x1, y1 = (70, 70)
+    x2, y2 = (220, 330)
+
 
     axs[0].bar(np.arange(0, num_gates), coded_vals[y1, x1, :], color='red')
     axs[1].bar(np.arange(0, num_gates), coded_vals[y2, x2, :], color='blue')
@@ -110,6 +121,42 @@ if decode_depths:
     axs[2].imshow(median_filter(depth_map, size=1))
     axs[2].plot(x1, y1, 'ro')
     axs[2].plot(x2, y2, 'bo')
+
+
+    x, y = 20, 170
+    width, height = 220, 320
+    box = depth_map[y:y+height, x:x+width]
+    wall = depth_map[:x, :y-20]
+
+    print(f'box mean depth: {np.mean(box):.3f} \nwall mean depth: {np.mean(wall):.3f} \
+          \nmean depth between wall and box: {np.mean(wall) - np.mean(box):.3f}')
+
+
     plt.show()
     print('done')
 
+if save_into_file:
+    import os
+    np.savez(os.path.join(save_path, save_name),
+         total_time=intTime,
+         num_gates=num_gates,
+         im_width=im_width,
+         bitDepth=bitDepth,
+         n_tbins=n_tbins,
+         iterations=iterations,
+         overlap=overlap,
+         timeout=timeout,
+         pileup=pileup,
+         gate_steps=gate_steps,
+         gate_step_arbitrary=gate_step_arbitrary,
+         gate_step_size=gate_step_size,
+         gate_offset=gate_offset,
+         gate_direction=gate_direction,
+         gate_trig=gate_trig,
+         gate_width=gate_width,
+         freq=float(freq[0]),
+         voltage=voltage,
+         coded_vals=coded_vals,
+         irf=irf)
+
+    
