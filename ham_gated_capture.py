@@ -33,18 +33,18 @@ SPAD1.set_Vex(Vex)
 
 
 # Editable parameters
-total_time = 500 #integration time
+total_time = 100 #integration time
 num_gates = 1 #number of time bins
 im_width = 512 #image width
 bitDepth = 12
-K = 5
+K = 4
 n_tbins = 640
 correct_master = False
 decode_depths = True
 save_into_file = True
 voltage = 10
 save_path = '/mnt/researchdrive/research_users/David/gated_project_data'
-save_name = f'hamK{K}_exp1'
+save_name = f'hamK{K}_exp7'
 
 
 #Get demodulation functions and split for use with Gated SPAD
@@ -58,12 +58,14 @@ coded_vals = np.zeros((im_width, im_width, K))
 for i, item in enumerate(gated_demodfs_arr):
     for j in range(item.shape[-1]):
         gate = item[:, j]
+        #plt.plot(gate)
+        #plt.show()
         gate_width, gate_offset = get_offset_width_spad512(gate, float(freq[0]))
         print(f'gate width = {gate_width}, gate offset = {gate_offset}')
                 
         #Don't edit
         iterations = 1
-        overlap = 1
+        overlap = 0
         timeout = 0
         pileup = 0
         gate_steps =  1
@@ -71,8 +73,8 @@ for i, item in enumerate(gated_demodfs_arr):
         gate_step_size = 0
         gate_direction = 1
         gate_trig = 0
-        intTime = int(intTimes[i] // item.shape[-1])
-        #intTime = int(total_time // gated_demodfs_np.shape[-1])
+        #intTime = int(intTimes[i] // item.shape[-1])
+        intTime = int(total_time // gated_demodfs_np.shape[-1])
 
         #print(f'gate steps: {gate_steps}')
 
@@ -97,7 +99,7 @@ if decode_depths:
 
     mhz = int(freq[0][:2])
     #print(mhz)
-    correlations = get_hamiltonain_correlations(demodfs, mhz, voltage, interpolate=True)
+    correlations = get_hamiltonain_correlations(K, mhz, voltage, n_tbins)
 
     # fig, axs = plt.subplots(1, 3)
     # axs[0].plot(demodfs)
@@ -110,8 +112,8 @@ if decode_depths:
 
     norm_coded_vals = zero_norm_t(coded_vals)
 
-    print(norm_coded_vals.shape)
-    print(norm_coding_matrix.shape)
+    #print(norm_coded_vals.shape)
+    #print(norm_coding_matrix.shape)
 
     zncc = np.matmul(norm_coding_matrix, norm_coded_vals[..., np.newaxis]).squeeze(-1)
     
@@ -125,21 +127,28 @@ if decode_depths:
 
     fig, axs = plt.subplots(3, figsize=(10, 10))
 
-    x1, y1 = (335, 71)
-    x2, y2 = (320, 220)
+    x1, y1 = (70, 70)
+    x2, y2 = (220, 330)
 
     axs[0].bar(np.arange(0, K), coded_vals[y1, x1, :], color='red')
     axs[1].bar(np.arange(0, K), coded_vals[y2, x2, :], color='blue')
     #axs[0].set_xticks(np.arange(0, metadata['Gate steps'])[::3])
     #axs[0].set_xticklabels(np.round(gate_starts, 1)[::3])
 
-    axs[2].imshow(depth_map)
+    axs[2].imshow(median_filter(depth_map, size=1))
     #axs[2].imshow(depth_map[:, :im_width//2])
-    #axs[2].plot(x1, y1, 'ro')
-    #axs[2].plot(x2, y2, 'bo')
-    plt.show()
-    print(f'min depth map: {np.min(depth_map)}, max depth map: {np.max(depth_map)}')
+    axs[2].plot(x1, y1, 'ro')
+    axs[2].plot(x2, y2, 'bo')
 
+    x, y = 20, 170
+    width, height = 220, 320
+    box = depth_map[y:y+height, x:x+width]
+    wall = depth_map[:x, :y-20]
+
+    print(f'box mean depth: {np.mean(box):.3f} \nwall mean depth: {np.mean(wall):.3f} \
+          \nmean depth between wall and box: {np.mean(wall) - np.mean(box):.3f}')
+
+    plt.show()
 
 
 if save_into_file:
@@ -160,6 +169,7 @@ if save_into_file:
          gate_offset=gate_offset,
          gate_direction=gate_direction,
          gate_trig=gate_trig,
+         freq=float(freq[0]),
          voltage=voltage,
          coded_vals=coded_vals,
          irf=get_voltage_function(mhz, voltage, 'square'))

@@ -132,15 +132,23 @@ def split_into_indices(square_array):
 
 
 def get_voltage_function(mhz, voltage, illum_type, n_tbins=None):
-    #function = np.genfromtxt(f'/home/ubilaptop8/2025-Q2-David-P-captures/gated_project_code/voltage_functions/{illum_type}_{mhz}mhz_{voltage}v.csv',delimiter=',')[:, 1]
-    function = np.genfromtxt(f'/Users/davidparra/PycharmProjects/py-gated-camera/voltage_functions/{illum_type}_{mhz}mhz_{voltage}v.csv',delimiter=',')[:, 1]
+    function = np.genfromtxt(f'/home/ubilaptop8/2025-Q2-David-P-captures/gated_project_code/voltage_functions/{illum_type}_{mhz}mhz_{voltage}v.csv',delimiter=',')[:, 1]
+    #function = np.genfromtxt(f'/Users/davidparra/PycharmProjects/py-gated-camera/voltage_functions/{illum_type}_{mhz}mhz_{voltage}v.csv',delimiter=',')[:, 1]
 
-    modfs = function[2:] + 100
+    modfs = function[2:]
+    if illum_type == 'pulse': 
+        modfs[150:600] = 0
+        #modfs = np.roll(modfs, -np.argmax(modfs), axis=0)
+    elif illum_type == 'square':
+        modfs[180:600] = 0
 
     if n_tbins is not None:
         f = interp1d(np.linspace(0, 1, len(modfs)), modfs, kind='cubic')
         modfs = f(np.linspace(0, 1, n_tbins))
+        #print(modfs)
 
     modfs /= np.sum(modfs, keepdims=True)
+    #plt.plot(modfs)
+    #plt.show()
     #modfs = np.roll(modfs, 100, axis=0)
     return modfs
