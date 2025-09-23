@@ -3,14 +3,14 @@ import os
 from glob import glob
 
 # Path to directory
-folder = "/Volumes/velten/Research_Users/David/gated_project_data"
+folder = "/Volumes/velten/Research_Users/David/gated_project_data/exp5"
 
 # Get all .npz files in the directory
 npz_files = glob(os.path.join(folder, "*.npz"))
 
 for path in npz_files:
-    if path.endswith("exp1.npz"):
-        continue
+    # if path.endswith("exp1.npz"):
+    #     continue
     try:
         # Load the .npz file
         file = np.load(path)
@@ -19,8 +19,9 @@ for path in npz_files:
         params = {k: v for k, v in file.items()}
 
         # Add freq
-        params["gate_width"] = 7  # 10 MHz
-        params["freq"] = 10_000_000
+        params["gate_width"] = 13 # 10 MHz
+        #params.pop("rep_freq")
+        #params["freq"] = 10_000_000
 
         # Resave (overwrite original)
         np.savez(path, **params)

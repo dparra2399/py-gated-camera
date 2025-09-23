@@ -40,6 +40,9 @@ def get_hamiltonain_correlations(K, mhz, voltage, n_tbins=2000):
     func = getattr(CodingFunctionsFelipe, f"GetHamK{K}")
     (modfs, demodfs) = func(N=n_tbins)
     modfs = get_voltage_function(mhz, voltage, 'square', n_tbins)
+    #plt.plot(modfs)
+    #plt.title('Hamiltonian Modulation Function')
+    #plt.show()
     assert modfs.shape[0] == demodfs.shape[0], f'modfs shape: {modfs.shape}, demodfs shape: {demodfs.shape}'
 
     if modfs.ndim == 1: modfs = modfs[:, np.newaxis]
@@ -132,8 +135,8 @@ def split_into_indices(square_array):
 
 
 def get_voltage_function(mhz, voltage, illum_type, n_tbins=None):
-    function = np.genfromtxt(f'/home/ubilaptop8/2025-Q2-David-P-captures/gated_project_code/voltage_functions/{illum_type}_{mhz}mhz_{voltage}v.csv',delimiter=',')[:, 1]
-    #function = np.genfromtxt(f'/Users/davidparra/PycharmProjects/py-gated-camera/voltage_functions/{illum_type}_{mhz}mhz_{voltage}v.csv',delimiter=',')[:, 1]
+    #function = np.genfromtxt(f'/home/ubilaptop8/2025-Q2-David-P-captures/gated_project_code/voltage_functions/{illum_type}_{mhz}mhz_{voltage}v.csv',delimiter=',')[:, 1]
+    function = np.genfromtxt(f'/Users/davidparra/PycharmProjects/py-gated-camera/voltage_functions/{illum_type}_{mhz}mhz_{voltage}v.csv',delimiter=',')[:, 1]
 
     modfs = function[2:]
     if illum_type == 'pulse': 

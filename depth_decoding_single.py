@@ -13,9 +13,13 @@ import matplotlib.patches as patches
 
 import math
 
-correct_master = False
-filename = '/Volumes/velten/Research_Users/David/gated_project_data/exp1/coarse_exp1.npz'
-filename = '/Volumes/velten/Research_Users/David/gated_project_data/exp1/hamK3_exp1.npz'
+correct_master = True
+exp = 6
+n_tbins = 1_024
+
+
+#filename = f'/Volumes/velten/Research_Users/David/gated_project_data/exp{exp}/coarse_exp{exp}.npz'
+filename = f'/Volumes/velten/Research_Users/David/gated_project_data/exp{exp}/hamK3_exp{exp}.npz'
 
 file = np.load(filename)
 
@@ -37,18 +41,21 @@ gate_direction = file["gate_direction"]
 gate_trig = file["gate_trig"]
 voltage = file["voltage"]
 freq = file["freq"]
-gate_width = file["gate_width"]
-n_tbins = 640
 
 (rep_tau, rep_freq, tbin_res, t_domain, max_depth, tbin_depth_res) = calculate_tof_domain_params(n_tbins, 1 / freq)
 mhz = int(freq * 1e-6)
 
 if 'coarse' in filename:
-    irf = get_voltage_function(mhz, voltage, 'pulse')
+    gate_width = file["gate_width"]
+    irf = get_voltage_function(mhz, voltage, 'pulse', n_tbins)
     coding_matrix = get_coarse_coding_matrix(gate_width * 1e3, num_gates, 0, gate_width * 1e3, rep_tau * 1e12, n_tbins, irf)
+    # plt.imshow(coding_matrix.transpose(), aspect='auto')
+    # plt.show()
 elif 'ham' in filename:
     K = coded_vals.shape[-1]
     coding_matrix = get_hamiltonain_correlations(K, mhz, voltage, n_tbins)
+    #plt.plot(coding_matrix)
+    #plt.show()
 else:
     exit(0)
 
@@ -62,16 +69,15 @@ print(norm_coding_matrix.shape)
 zncc = np.matmul(norm_coding_matrix, norm_coded_vals[..., np.newaxis]).squeeze(-1)
 
 if correct_master:
-    zncc[:, im_width // 2:, :] = np.roll(zncc[:, im_width //2:, :], shift=10)
+    zncc[:, im_width // 2:, :] = np.roll(zncc[:, im_width //2:, :], shift=870)
 
 
 depths = np.argmax(zncc, axis=-1)
 
 depth_map = np.reshape(depths, (512, 512)) * tbin_depth_res
 
-
-x1, y1 = (71, 335)
-x2, y2 = (220, 320)
+x1, y1 = (70, 70)
+x2, y2 = (220, 330)
 
 fig = plt.figure(figsize=(12, 8))
 gs = gridspec.GridSpec(2, 2, height_ratios=[1, 2])  # 2 rows, 2 cols
@@ -93,10 +99,10 @@ patch = depth_map[y:y+height, x:x+width]
 
 ax2 = fig.add_subplot(gs[1, 0])
 if correct_master:
-    ax2.imshow(depth_map)
+    ax2.imshow(depth_map, vmin=6, vmax=7.5)
 else:
-    ax2.imshow(gaussian_filter(median_filter(depth_map[:, :im_width // 2], size=7), sigma=10))
-    #ax2.imshow(depth_map[:,:im_width//2])
+    #ax2.imshow(gaussian_filter(median_filter(depth_map[:, :im_width // 2], size=7), sigma=10))
+    ax2.imshow(depth_map[:,:im_width//2])
 ax2.plot(x1, y1, 'ro')
 ax2.plot(x2, y2, 'bo')
 rect = patches.Rectangle((x, y), width, height,
