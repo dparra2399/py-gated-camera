@@ -11,18 +11,20 @@ from felipe_utils import CodingFunctionsFelipe
 import matplotlib.gridspec as gridspec
 import matplotlib.patches as patches
 import math
-import cv2
 import open3d as o3d
 
 
 
 correct_master = False
-exp = 2
+exp = 4
 n_tbins = 1_024
 
 #filename = f'/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/exp{exp}/coarsek3_exp{exp}.npz'
-filename = f'/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/exp{exp}/hamK3_exp{exp}.npz'
+#filename = f'/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/exp{exp}/hamK3_exp{exp}.npz'
 #filename = f'/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/exp{exp}/coarse_gt_exp{exp}.npz'
+filename = f"/mnt/researchdrive/research_users/David/Gated_Camera_Project/gated_project_data/exp{exp}/coarse_gt_exp{exp}.npz"
+
+
 
 file = np.load(filename)
 
@@ -85,15 +87,15 @@ depths = np.argmax(zncc, axis=-1)
 
 depth_map = np.reshape(depths, (512, 512)) * tbin_depth_res
 
-#depth_map = median_filter(depth_map, size=5)
+depth_map = median_filter(depth_map, size=1)
 
 depth_map = depth_map[:, :im_width // 2]
-depth_map[depth_map < 6.5] = 6.5
-depth_map[depth_map > 7.5] = 7.5
+depth_map[depth_map < 6] = 6
+depth_map[depth_map > 6.5] = 6.5
 
 (nr, nc) = depth_map.shape[0:2]
 # FOV along the major axis (in degrees)
-fov_major_axis_deg = 10
+fov_major_axis_deg = 5
 fov_major_axis_rad = np.radians(fov_major_axis_deg)  # Convert to radians
 
 # Calculate focal length
@@ -137,6 +139,7 @@ pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.
 
 o3d.visualization.draw_geometries([pcd], window_name="Mesh ")
 
+exit(0)
 pcd.orient_normals_consistent_tangent_plane(k=30)
 
 o3d.visualization.draw_geometries([pcd], window_name="Mesh ")

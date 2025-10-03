@@ -2,6 +2,10 @@ import os
 import sys
 import glob
 
+
+parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, parent_dir)
+
 from spad_lib.SPAD512S import SPAD512S
 from spad_lib.spad512utils import *
 import numpy as np
@@ -18,14 +22,14 @@ import math
 from felipe_utils.research_utils.signalproc_ops import gaussian_pulse
 
 
-exp_num = 2
-n_tbins = 640
+exp_num = 4
+n_tbins = 1024
 correct_master = False
-folder = f"/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/exp{exp_num}"
+#folder = f"/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/exp{exp_num}"
+#hot_mask_filename = '/Users/davidparra/PycharmProjects/py-gated-camera/masks/hot_pixels.PNG'
 
-#hot_mask_filename = '/home/ubi-user/David_P_folder/py-gated-camera/masks/hot_pixels.PNG'
-hot_mask_filename = '/Users/davidparra/PycharmProjects/py-gated-camera/masks/hot_pixels.PNG'
-
+folder = f"/mnt/researchdrive/research_users/David/Gated_Camera_Project/gated_project_data/exp{exp_num}"
+hot_mask_filename = '/home/ubi-user/David_P_folder/py-gated-camera/masks/hot_pixels.PNG'
 
 #hot_mask = np.load(hot_mask_filename)
 hot_mask = np.array(Image.open(hot_mask_filename))
@@ -34,7 +38,7 @@ hot_mask[hot_mask > 0] = 1
 
 npz_files = glob(os.path.join(folder, "*.npz"))
 
-npz_files = [f for f in npz_files if "3" in os.path.basename(f) or "_gt_" in os.path.basename(f)]
+npz_files = [f for f in npz_files if "k3" in os.path.basename(f).lower() or "_gt_" in os.path.basename(f)]
 
 depths_maps_dict = {}
 #depths_maps_normalized = []
@@ -63,6 +67,8 @@ for path in npz_files:
     (rep_tau, rep_freq, tbin_res, t_domain, max_depth, tbin_depth_res) = calculate_tof_domain_params(n_tbins, 1 / freq)
     mhz = int(freq * 1e-6)
 
+    print(f'voltage: {voltage}')
+
     if 'coarse' in path:
         gate_width = file["gate_width"]
         if num_gates == 3:
@@ -71,7 +77,6 @@ for path in npz_files:
             size = 25
         else:
             size = 12
-
 
         irf = get_voltage_function(mhz, voltage, size, 'pulse', n_tbins)
 
@@ -120,9 +125,9 @@ for path in npz_files:
     filtered = median_filter(depth_map, size=3, mode='nearest')
     depth_map[hot_mask == 1] = filtered[hot_mask == 1]
 
-    if name == 'GroundTruth':
-        tmp = depth_map[:, :im_width // 2]
-        depth_map = cluster_kmeans(tmp, n_clusters=2)
+    #if name == 'GroundTruth':
+    #    tmp = depth_map[:, :im_width // 2]
+    #    depth_map = cluster_kmeans(tmp, n_clusters=2)
 
 
     depths_maps_dict[name] = depth_map
@@ -155,14 +160,14 @@ for i in range(len(depths_maps_dict)+1):
     patch = depth_map[y:y+height, x:x+width]
     ax = fig.add_subplot(gs[0, i])
     if correct_master:
-        ax.imshow(median_filter(depth_map, size=1), vmin=6, vmax=9)
+        ax.imshow(median_filter(depth_map, size=1), vmin=6, vmax=6.5)
     else:
         #ax.imshow(gaussian_filter(median_filter(depth_map[:, :im_width // 2], size=5), sigma=0.0),
         #          vmin=np.nanmin(depth_maps), vmax=np.nanmax(depth_maps))
         #ax.imshow(depth_map[:, :im_width//2], vmin=np.nanmin(depth_maps), vmax=np.nanmax(depth_maps))
         if gt_depth_map is not None:
             #ax.imshow(depth_map[:, :im_width//2], vmin=np.nanmin(gt_depth_map), vmax=np.nanmax(gt_depth_map))
-            ax.imshow(gaussian_filter(median_filter(depth_map[:, :im_width // 2], size=1), sigma=0.0), vmin=6, vmax=9)
+            ax.imshow(gaussian_filter(median_filter(depth_map[:, :im_width // 2], size=1), sigma=0.0), vmin=6, vmax=6.5)
         else:
             ax.imshow(median_filter(depth_map[:, :im_width // 2], size=1))
 
@@ -173,7 +178,7 @@ for i in range(len(depths_maps_dict)+1):
 
     ax2 = fig.add_subplot(gs[1, i])
     if gt_depth_map is not None:
-        ax2.imshow(median_filter(patch[:, :im_width // 2], size=1), vmin=6, vmax=9)
+        ax2.imshow(median_filter(patch[:, :im_width // 2], size=1), vmin=6, vmax=6.5)
     else:
         ax2.imshow(median_filter(patch[:, :im_width // 2], size=1))
 

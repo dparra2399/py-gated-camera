@@ -31,19 +31,26 @@ SPAD1.set_Vex(Vex)
 
 
 # Editable parameters
-total_time = 1000 #integration time
-num_gates = 3 #number of time bins
+total_time = 3000 #integration time
+num_gates = 4 #number of time bins
 im_width = 512 #image width
 bitDepth = 12
 n_tbins = 640
 correct_master = False
 decode_depths = True
-save_into_file = False
-voltage = 10
+save_into_file = True
+if num_gates == 3:
+    voltage = 7
+elif num_gates == 4:
+    voltage = 7.6
+else:
+    voltage = 10
+
+exp_num = 4
 #save_path = '/mnt/researchdrive/research_users/David/gated_project_data'
 save_path = '/home/ubi-user/David_P_folder'
 
-save_name = f'coarsek{num_gates}_exp2'
+save_name = f'coarsek{num_gates}_exp{exp_num}'
 
 
 #Make list of gate starts which will be the offet param in the SPAD512
@@ -104,8 +111,8 @@ if decode_depths:
 
     irf = get_voltage_function(mhz, voltage, size,'pulse', n_tbins)
     #irf=None
-    plt.plot(irf)
-    plt.show()
+    #plt.plot(irf)
+    #plt.show()
     coding_matrix = get_coarse_coding_matrix(gate_width * 1e3, num_gates, 0, gate_width * 1e3, rep_tau * 1e12, n_tbins, irf)
 
     #plt.imshow(coding_matrix.transpose(), aspect='auto')
@@ -138,7 +145,7 @@ if decode_depths:
     #axs[0].set_xticks(np.arange(0, metadata['Gate steps'])[::3])
     #axs[0].set_xticklabels(np.round(gate_starts, 1)[::3])
 
-    axs[2].imshow(median_filter(depth_map, size=1))
+    axs[2].imshow(median_filter(depth_map, size=1), vmin=6, vmax=6.5)
     axs[2].plot(x1, y1, 'ro')
     axs[2].plot(x2, y2, 'bo')
 

@@ -138,8 +138,8 @@ def split_into_indices(square_array):
 
 
 def get_voltage_function(mhz, voltage, size, illum_type, n_tbins=None):
-    #function = np.genfromtxt(f'/home/ubi-user/David_P_folder/py-gated-camera/voltage_functions/{illum_type}_{mhz}mhz_{voltage}v_{size}w.csv',delimiter=',')[:, 1]
-    function = np.genfromtxt(f'/Users/davidparra/PycharmProjects/py-gated-camera/voltage_functions/{illum_type}_{mhz}mhz_{voltage}v_{size}w.csv',delimiter=',')[:, 1]
+    function = np.genfromtxt(f'/home/ubi-user/David_P_folder/py-gated-camera/voltage_functions/{illum_type}_{mhz}mhz_{voltage}v_{size}w.csv',delimiter=',')[:, 1]
+    #function = np.genfromtxt(f'/Users/davidparra/PycharmProjects/py-gated-camera/voltage_functions/{illum_type}_{mhz}mhz_{voltage}v_{size}w.csv',delimiter=',')[:, 1]
 
     modfs = function[2:]
     if illum_type == 'pulse': 
@@ -147,13 +147,14 @@ def get_voltage_function(mhz, voltage, size, illum_type, n_tbins=None):
             modfs[150:600] = 0
         else:
             modfs[modfs < 0] = 0
-            modfs = np.roll(modfs, 20, axis=0)
+            modfs = np.roll(modfs, 40, axis=0)
             modfs = gaussian_filter(modfs, sigma=10)
     elif illum_type == 'square':
         if size == 20:
             modfs[180:600] = 0
         else:
             modfs[modfs < 0] = 0
+        modfs = np.roll(modfs, 5, axis=0)
         modfs = gaussian_filter(modfs, sigma=10)
 
     if n_tbins is not None:

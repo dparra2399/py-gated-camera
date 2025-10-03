@@ -31,7 +31,7 @@ SPAD1.set_Vex(Vex)
 
 
 # Editable parameters
-intTime = 1000000000 #integration time
+intTime = 500000 #integration time
 num_gates = 8 #number of time bins
 im_width = 512 #image width
 bitDepth = 12
@@ -40,9 +40,11 @@ voltage= 10
 correct_master = False
 decode_depths = True
 save_into_file = True
+
+exp_num = 4
 #save_path = '/mnt/researchdrive/research_users/David/gated_project_data'
 save_path = '/home/ubi-user/David_P_folder'
-save_name = 'coarse_gt_exp2'
+save_name = f'coarse_gt_exp{exp_num}'
 
 #Don't edit
 iterations = 1
@@ -61,9 +63,17 @@ print(f'gate steps: {gate_steps}')
 print(f'gate width: {gate_width}')
 print(f'gate step size: {gate_step_size}')
 
-coded_vals = SPAD1.get_gated_intensity(bitDepth, intTime, iterations, gate_steps, gate_step_size, gate_step_arbitrary, gate_width, 
-                                    gate_offset, gate_direction, gate_trig, overlap, 1, pileup, im_width)
+coded_vals = np.zeros((im_width, im_width, num_gates))
 
+current_intTime = intTime
+while current_intTime > 4800:
+    print(f'starting current time {current_intTime}')
+    coded_vals += SPAD1.get_gated_intensity(bitDepth, 4800, iterations, gate_steps, gate_step_size, gate_step_arbitrary, gate_width, 
+                                        gate_offset, gate_direction, gate_trig, overlap, 1, pileup, im_width)
+    current_intTime -= 4800
+
+coded_vals += SPAD1.get_gated_intensity(bitDepth, current_intTime, iterations, gate_steps, gate_step_size, gate_step_arbitrary, gate_width, 
+                                        gate_offset, gate_direction, gate_trig, overlap, 1, pileup, im_width)
 print(coded_vals.shape)
 unit = "ms"
 factor_unit = 1e-3
@@ -97,7 +107,7 @@ if decode_depths:
     #plt.imshow(coding_matrix.transpose(), aspect='auto')
     #print(coding_matrix)
     #plt.show()
-    #exit(0)
+    #exit(0))
 
     norm_coding_matrix = zero_norm_t(coding_matrix)
 
@@ -124,7 +134,7 @@ if decode_depths:
     #axs[0].set_xticks(np.arange(0, metadata['Gate steps'])[::3])
     #axs[0].set_xticklabels(np.round(gate_starts, 1)[::3])
 
-    axs[2].imshow(median_filter(depth_map, size=1))
+    axs[2].imshow(median_filter(depth_map, size=1), vmin=6, vmax=6.5)
     axs[2].plot(x1, y1, 'ro')
     axs[2].plot(x2, y2, 'bo')
 
