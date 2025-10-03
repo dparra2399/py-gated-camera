@@ -10,16 +10,17 @@ from scipy.ndimage import gaussian_filter, median_filter
 from felipe_utils import CodingFunctionsFelipe
 import matplotlib.gridspec as gridspec
 import matplotlib.patches as patches
-
 import math
 
-correct_master = True
-exp = 6
+correct_master = False
+exp = 2
 n_tbins = 1_024
 
 
-#filename = f'/Volumes/velten/Research_Users/David/gated_project_data/exp{exp}/coarse_exp{exp}.npz'
-filename = f'/Volumes/velten/Research_Users/David/gated_project_data/exp{exp}/hamK3_exp{exp}.npz'
+#filename = f'/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/exp{exp}/coarsek3_exp{exp}.npz'
+#filename = f'/Volumes/velten/Research_Users/David/gated_project_data/exp{exp}/hamK3_exp{exp}.npz'
+filename = f'/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/exp{exp}/coarse_gt_exp{exp}.npz'
+
 
 file = np.load(filename)
 
@@ -47,13 +48,19 @@ mhz = int(freq * 1e-6)
 
 if 'coarse' in filename:
     gate_width = file["gate_width"]
-    irf = get_voltage_function(mhz, voltage, 'pulse', n_tbins)
+    if num_gates == 3:
+        size = 34
+    elif num_gates == 4:
+        size = 25
+    else:
+        size = 12
+    irf = get_voltage_function(mhz, voltage, size, 'pulse', n_tbins)
     coding_matrix = get_coarse_coding_matrix(gate_width * 1e3, num_gates, 0, gate_width * 1e3, rep_tau * 1e12, n_tbins, irf)
     # plt.imshow(coding_matrix.transpose(), aspect='auto')
     # plt.show()
 elif 'ham' in filename:
     K = coded_vals.shape[-1]
-    coding_matrix = get_hamiltonain_correlations(K, mhz, voltage, n_tbins)
+    coding_matrix = get_hamiltonain_correlations(K, mhz, voltage, 20, n_tbins)
     #plt.plot(coding_matrix)
     #plt.show()
 else:
@@ -75,6 +82,12 @@ if correct_master:
 depths = np.argmax(zncc, axis=-1)
 
 depth_map = np.reshape(depths, (512, 512)) * tbin_depth_res
+
+tmp = depth_map[:, :im_width//2]
+mask = cluster_kmeans(tmp, n_clusters=2)
+
+plt.imshow(mask)
+plt.show()
 
 x1, y1 = (70, 70)
 x2, y2 = (220, 330)
