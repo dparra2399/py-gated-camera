@@ -1,4 +1,5 @@
 import os
+import sys
 import glob
 
 from spad_lib.SPAD512S import SPAD512S
@@ -12,13 +13,24 @@ from felipe_utils import CodingFunctionsFelipe
 import matplotlib.gridspec as gridspec
 import matplotlib.patches as patches
 from glob import glob
+from PIL import Image
 import math
 from felipe_utils.research_utils.signalproc_ops import gaussian_pulse
+
 
 exp_num = 2
 n_tbins = 640
 correct_master = False
 folder = f"/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/exp{exp_num}"
+
+#hot_mask_filename = '/home/ubi-user/David_P_folder/py-gated-camera/masks/hot_pixels.PNG'
+hot_mask_filename = '/Users/davidparra/PycharmProjects/py-gated-camera/masks/hot_pixels.PNG'
+
+
+#hot_mask = np.load(hot_mask_filename)
+hot_mask = np.array(Image.open(hot_mask_filename))
+hot_mask[hot_mask < 5000] = 0
+hot_mask[hot_mask > 0] = 1
 
 npz_files = glob(os.path.join(folder, "*.npz"))
 
@@ -104,9 +116,14 @@ for path in npz_files:
     depths = np.argmax(zncc, axis=-1)
 
     depth_map = np.reshape(depths, (512, 512)) * tbin_depth_res
+
+    filtered = median_filter(depth_map, size=3, mode='nearest')
+    depth_map[hot_mask == 1] = filtered[hot_mask == 1]
+
     if name == 'GroundTruth':
         tmp = depth_map[:, :im_width // 2]
         depth_map = cluster_kmeans(tmp, n_clusters=2)
+
 
     depths_maps_dict[name] = depth_map
     #depth_map_normalized = (depth_map - np.nanmean(depth_map)) / np.nanstd(depth_map)

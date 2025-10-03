@@ -1,9 +1,10 @@
 import numpy as np
 from scipy.interpolate import interp1d
 import matplotlib.pyplot as plt
-from felipe_utils import CodingFunctionsFelipe
 from scipy.ndimage import gaussian_filter
 from sklearn.cluster import KMeans
+
+from felipe_utils import CodingFunctionsFelipe
 
 EPILSON = 1e-8
 SPEED_OF_LIGHT = 3e8
@@ -41,7 +42,7 @@ def get_coarse_coding_matrix(gate_step_size, gate_steps, gate_offset, gate_width
 def get_hamiltonain_correlations(K, mhz, voltage, size, n_tbins=2000):
     func = getattr(CodingFunctionsFelipe, f"GetHamK{K}")
     (modfs, demodfs) = func(N=n_tbins)
-    modfs = get_voltage_function(mhz, voltage, size, 'square', n_tbins)
+    modfs = get_voltage_function(mhz, voltage, size,'square', n_tbins)
     #plt.plot(modfs)
     #plt.title('Hamiltonian Modulation Function')
     #plt.show()
@@ -137,24 +138,23 @@ def split_into_indices(square_array):
 
 
 def get_voltage_function(mhz, voltage, size, illum_type, n_tbins=None):
-    #function = np.genfromtxt(f'/home/ubilaptop8/2025-Q2-David-P-captures/gated_project_code/voltage_functions/{illum_type}_{mhz}mhz_{voltage}v.csv',delimiter=',')[:, 1]
+    #function = np.genfromtxt(f'/home/ubi-user/David_P_folder/py-gated-camera/voltage_functions/{illum_type}_{mhz}mhz_{voltage}v_{size}w.csv',delimiter=',')[:, 1]
     function = np.genfromtxt(f'/Users/davidparra/PycharmProjects/py-gated-camera/voltage_functions/{illum_type}_{mhz}mhz_{voltage}v_{size}w.csv',delimiter=',')[:, 1]
 
     modfs = function[2:]
-    if illum_type == 'pulse':
+    if illum_type == 'pulse': 
         if size == 12:
             modfs[150:600] = 0
         else:
             modfs[modfs < 0] = 0
-            modfs = gaussian_filter(modfs, sigma=10)
             modfs = np.roll(modfs, 20, axis=0)
+            modfs = gaussian_filter(modfs, sigma=10)
     elif illum_type == 'square':
         if size == 20:
             modfs[180:600] = 0
         else:
             modfs[modfs < 0] = 0
-        #modfs = gaussian_filter(modfs, sigma=10)
-        #modfs = np.roll(modfs, -20, axis=0)
+        modfs = gaussian_filter(modfs, sigma=10)
 
     if n_tbins is not None:
         f = interp1d(np.linspace(0, 1, len(modfs)), modfs, kind='cubic')
@@ -167,13 +167,12 @@ def get_voltage_function(mhz, voltage, size, illum_type, n_tbins=None):
     #modfs = np.roll(modfs, 100, axis=0)
     return modfs
 
-
 def cluster_kmeans(decoded, n_clusters=2):
     siz = decoded.shape
     decoded_depths = np.copy(decoded)
     decoded_depths.flatten()
     kmeans = KMeans(n_clusters=n_clusters, random_state=0, n_init="auto", max_iter=100_000, tol=1e-20,
-                    algorithm='lloyd').fit(decoded_depths.reshape(-1, 1))
+                    algorithm='elkan').fit(decoded_depths.reshape(-1, 1))
     all_means = kmeans.cluster_centers_
 
     nice_nice = kmeans.predict(decoded_depths.reshape(-1, 1)).astype(float)
