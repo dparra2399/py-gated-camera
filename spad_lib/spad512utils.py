@@ -36,10 +36,10 @@ def get_coarse_coding_matrix(gate_step_size, gate_steps, gate_offset, gate_width
         coding_matrix = np.fft.ifft(np.fft.fft(irf, axis=0).conj() * np.fft.fft(coding_matrix, axis=0), axis=0).real
     return coding_matrix
 
-def get_hamiltonain_correlations(K, mhz, voltage, n_tbins=2000):
+def get_hamiltonain_correlations(K, mhz, voltage, size, n_tbins=2000):
     func = getattr(CodingFunctionsFelipe, f"GetHamK{K}")
     (modfs, demodfs) = func(N=n_tbins)
-    modfs = get_voltage_function(mhz, voltage, 'square', n_tbins)
+    modfs = get_voltage_function(mhz, voltage, size,'square', n_tbins)
     #plt.plot(modfs)
     #plt.title('Hamiltonian Modulation Function')
     #plt.show()
@@ -134,16 +134,18 @@ def split_into_indices(square_array):
     return indices
 
 
-def get_voltage_function(mhz, voltage, illum_type, n_tbins=None):
-    #function = np.genfromtxt(f'/home/ubilaptop8/2025-Q2-David-P-captures/gated_project_code/voltage_functions/{illum_type}_{mhz}mhz_{voltage}v.csv',delimiter=',')[:, 1]
-    function = np.genfromtxt(f'/Users/davidparra/PycharmProjects/py-gated-camera/voltage_functions/{illum_type}_{mhz}mhz_{voltage}v.csv',delimiter=',')[:, 1]
+def get_voltage_function(mhz, voltage, size, illum_type, n_tbins=None):
+    function = np.genfromtxt(f'/home/ubi-user/David_P_folder/py-gated-camera/voltage_functions/{illum_type}_{mhz}mhz_{voltage}v_{size}w.csv',delimiter=',')[:, 1]
+    #function = np.genfromtxt(f'/Users/davidparra/PycharmProjects/py-gated-camera/voltage_functions/{illum_type}_{mhz}mhz_{voltage}v.csv',delimiter=',')[:, 1]
 
     modfs = function[2:]
     if illum_type == 'pulse': 
-        modfs[150:600] = 0
+        pass
+        #modfs[150:600] = 0
         #modfs = np.roll(modfs, -np.argmax(modfs), axis=0)
     elif illum_type == 'square':
-        modfs[180:600] = 0
+        #modfs[180:600] = 0
+        pass
 
     if n_tbins is not None:
         f = interp1d(np.linspace(0, 1, len(modfs)), modfs, kind='cubic')

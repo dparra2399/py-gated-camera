@@ -505,8 +505,8 @@ class SPAD512S:
                     np_data = np.asarray(data[img_index_old:img_index])
                     array_262144_even = np_data[::2].astype(np.uint8)
                     array_262144_odd = np_data[1::2].astype(np.uint8)
-                    # new_array = (array_262144_odd.astype(np.uint32) * (2 ** (bitDepth - 8))) + (array_262144_even.astype(np.uint32) >> (16 - bitDepth))
-                    new_array = (array_262144_odd * (2**8)) + (array_262144_even)
+                    new_array = (array_262144_odd.astype(np.uint32) * (2 ** (bitDepth - 8))) + (array_262144_even.astype(np.uint32) >> (16 - bitDepth))
+                    #new_array = (array_262144_odd * (2**8)) + (array_262144_even)
                     img[:,:,i] = new_array.reshape((512, 512))                    
                 
         else :
@@ -534,8 +534,8 @@ class SPAD512S:
                         np_data = np.asarray(data[img_index_old:img_index])
                         array_262144_even = np_data[::2].astype(np.uint8)
                         array_262144_odd = np_data[1::2].astype(np.uint8)
-                        # new_array = (array_262144_odd.astype(np.uint32) * (2 ** (bitDepth - 8))) + (array_262144_even.astype(np.uint32) >> (16 - bitDepth))
-                        new_array = (array_262144_odd * (2**8)) + (array_262144_even)
+                        new_array = (array_262144_odd.astype(np.uint32) * (2 ** (bitDepth - 8))) + (array_262144_even.astype(np.uint32) >> (16 - bitDepth))
+                        #new_array = (array_262144_odd * (2**8)) + (array_262144_even)
                         img[:,:,i] = new_array.reshape((512, 512))
         return img
     

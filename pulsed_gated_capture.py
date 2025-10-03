@@ -9,7 +9,7 @@ import matplotlib.pyplot  as plt
 from scipy.stats import linregress
 from scipy.ndimage import gaussian_filter, median_filter
 import math
-
+from PIL import Image
 
 port = 9999 # Check the command Server in the setting tab of the software and change it if necessary
 SPAD1 = SPAD512S(port)
@@ -31,7 +31,7 @@ SPAD1.set_Vex(Vex)
 
 
 # Editable parameters
-intTime = 50 #integration time
+intTime = 1000000000 #integration time
 num_gates = 8 #number of time bins
 im_width = 512 #image width
 bitDepth = 12
@@ -40,19 +40,18 @@ voltage= 10
 correct_master = False
 decode_depths = True
 save_into_file = True
-save_path = '/mnt/researchdrive/research_users/David/gated_project_data'
-save_path = '/home/ubilaptop8/2025-Q2-David-P-captures'
-save_name = 'coarse_gt_exp4'
-
+#save_path = '/mnt/researchdrive/research_users/David/gated_project_data'
+save_path = '/home/ubi-user/David_P_folder'
+save_name = 'coarse_gt_exp2'
 
 #Don't edit
 iterations = 1
 overlap = 0
 timeout = 0
-pileup = 0
+pileup = 1
 gate_steps =  num_gates
 gate_step_arbitrary = 0
-gate_width = math.ceil((((1/float(freq[0]))*1e12) // num_gates) * 1e-3 )
+gate_width = math.ceil((((1/float(freq[-2]))*1e12) // num_gates) * 1e-3 )
 gate_step_size = gate_width * 1e3
 gate_offset = 0
 gate_direction = 1
@@ -77,12 +76,19 @@ if correct_master:
 if decode_depths:
 
 
-    (rep_tau, rep_freq, tbin_res, t_domain, max_depth, tbin_depth_res) = calculate_tof_domain_params(n_tbins, 1./ float(freq[0]))
+    (rep_tau, rep_freq, tbin_res, t_domain, max_depth, tbin_depth_res) = calculate_tof_domain_params(n_tbins, 1./ float(freq[-2]))
     # print(rep_freq, rep_tau, tbin_res)
     # print(rep_tau * 1e12)
     #print(gate_step_size,gate_steps, gate_offset, gate_width)
-    mhz = int(freq[0][:2])
-    irf = get_voltage_function(mhz, voltage, 'pulse', n_tbins)
+    mhz = int(freq[-2][:2])
+    if num_gates == 3:
+        size = 34
+    elif num_gates== 4:
+        size = 25
+    else:
+        size = 12
+
+    irf = get_voltage_function(mhz, voltage, size,'pulse', n_tbins)
     #irf=None
     #plt.plot(irf)
     #plt.show()
@@ -154,7 +160,7 @@ if save_into_file:
          gate_direction=gate_direction,
          gate_trig=gate_trig,
          gate_width=gate_width,
-         freq=float(freq[0]),
+         freq=float(freq[-2]),
          voltage=voltage,
          coded_vals=coded_vals,
          irf=irf)

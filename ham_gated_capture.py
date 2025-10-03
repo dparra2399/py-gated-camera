@@ -33,7 +33,7 @@ SPAD1.set_Vex(Vex)
 
 
 # Editable parameters
-total_time = 100 #integration time
+total_time = 1000 #integration time
 num_gates = 1 #number of time bins
 im_width = 512 #image width
 bitDepth = 12
@@ -43,8 +43,9 @@ correct_master = False
 decode_depths = True
 save_into_file = True
 voltage = 10
-save_path = '/mnt/researchdrive/research_users/David/gated_project_data'
-save_name = f'hamK{K}_exp7'
+save_path = '/home/ubi-user/David_P_folder'
+#save_path = '/mnt/researchdrive/research_users/David/gated_project_data'
+save_name = f'hamK{K}_exp2'
 
 
 #Get demodulation functions and split for use with Gated SPAD
@@ -60,7 +61,7 @@ for i, item in enumerate(gated_demodfs_arr):
         gate = item[:, j]
         #plt.plot(gate)
         #plt.show()
-        gate_width, gate_offset = get_offset_width_spad512(gate, float(freq[0]))
+        gate_width, gate_offset = get_offset_width_spad512(gate, float(freq[-2]))
         print(f'gate width = {gate_width}, gate offset = {gate_offset}')
                 
         #Don't edit
@@ -92,14 +93,14 @@ factor_unit = 1e-3
 
 
 if decode_depths:
-    (rep_tau, rep_freq, tbin_res, t_domain, max_depth, tbin_depth_res) = calculate_tof_domain_params(n_tbins, 1./ float(freq[0]))
+    (rep_tau, rep_freq, tbin_res, t_domain, max_depth, tbin_depth_res) = calculate_tof_domain_params(n_tbins, 1./ float(freq[-2]))
     # print(rep_freq, rep_tau, tbin_res)
     # print(rep_tau * 1e12)
     #print(gate_step_size,gate_steps, gate_offset, gate_width)
 
-    mhz = int(freq[0][:2])
+    mhz = int(freq[-2][:2])
     #print(mhz)
-    correlations = get_hamiltonain_correlations(K, mhz, voltage, n_tbins)
+    correlations = get_hamiltonain_correlations(K, mhz, voltage, 20, n_tbins)
 
     # fig, axs = plt.subplots(1, 3)
     # axs[0].plot(demodfs)
@@ -169,9 +170,9 @@ if save_into_file:
          gate_offset=gate_offset,
          gate_direction=gate_direction,
          gate_trig=gate_trig,
-         freq=float(freq[0]),
+         freq=float(freq[-2]),
          voltage=voltage,
          coded_vals=coded_vals,
-         irf=get_voltage_function(mhz, voltage, 'square'))
+         irf=get_voltage_function(mhz, voltage, 20,'square'))
 
     

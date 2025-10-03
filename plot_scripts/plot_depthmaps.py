@@ -1,5 +1,9 @@
 import os
 import glob
+import sys
+
+parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, parent_dir)
 
 from spad_lib.SPAD512S import SPAD512S
 from spad_lib.spad512utils import *
@@ -14,13 +18,27 @@ import matplotlib.patches as patches
 from glob import glob
 import math
 from felipe_utils.research_utils.signalproc_ops import gaussian_pulse
+from PIL import Image
 
-exp_num = 6
+
+exp_num = 1
 n_tbins = 1024
 correct_master = False
-folder = f"/Volumes/velten/Research_Users/David/gated_project_data/exp{exp_num}"
+#folder = f"/Volumes/velten/Research_Users/David/gated_project_data/exp{exp_num}"
+folder = f"/mnt/researchdrive/Research_Users/David/gated_project_data/exp{exp_num}"
+
+hot_mask_filename = '/home/ubi-user/David_P_folder/py-gated-camera/masks/hot_pixels.PNG'
+
+
+#hot_mask = np.load(hot_mask_filename)
+hot_mask = np.array(Image.open(hot_mask_filename))
+hot_mask[hot_mask < 5000] = 0
+hot_mask[hot_mask > 0] = 1
+
 
 npz_files = glob(os.path.join(folder, "*.npz"))
+
+#print(npz_files)
 
 depths_maps_dict = {}
 #depths_maps_normalized = []
@@ -52,14 +70,15 @@ for path in npz_files:
     if 'coarse' in path:
         gate_width = file["gate_width"]
 
-        irf = get_voltage_function(mhz, voltage, 'pulse', n_tbins=n_tbins)
-        #irf = np.roll(irf, -np.argmax(irf))
-        #irf2 = gaussian_pulse(np.arange(n_tbins), 0, 50, circ_shifted=True)
-        #irf = np.roll(irf, np.argmax(irf2))
-        #plt.plot(irf)
-        #plt.plot(irf2)
-        #plt.title('Irf Function')
-        #plt.show()
+        K = coded_vals.shape[-1]
+        if K == 3:
+            size = 34
+        elif K == 4:
+            size = 25
+        else:
+            size = 12
+
+        irf = get_voltage_function(mhz, voltage, size,'pulse', n_tbins=n_tbins)
         coding_matrix = get_coarse_coding_matrix(gate_width * 1e3, num_gates, 0,
                                                  gate_width * 1e3, rep_tau * 1e12,
                                                  n_tbins=n_tbins, irf=irf)
@@ -70,7 +89,8 @@ for path in npz_files:
             name = 'Coarse'
     elif 'ham' in path:
         K = coded_vals.shape[-1]
-        coding_matrix = get_hamiltonain_correlations(K, mhz, voltage, n_tbins=n_tbins)
+        size = 20
+        coding_matrix = get_hamiltonain_correlations(K, mhz, voltage, size, n_tbins=n_tbins)
         name = 'HamiltonianK{}'.format(K)
     else:
         assert False, 'Path needs to be "hamiltonian" or "coarse".'
@@ -90,6 +110,10 @@ for path in npz_files:
     depths = np.argmax(zncc, axis=-1)
 
     depth_map = np.reshape(depths, (512, 512)) * tbin_depth_res
+
+    filtered = median_filter(depth_map, size=3, mode='nearest')
+    depth_map[hot_mask == 1] = filtered[hot_mask==1]
+
     depths_maps_dict[name] = depth_map
     #depth_map_normalized = (depth_map - np.nanmean(depth_map)) / np.nanstd(depth_map)
 
