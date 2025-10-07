@@ -13,13 +13,13 @@ import matplotlib.patches as patches
 import math
 
 correct_master = False
-exp = 2
+exp = 4
 n_tbins = 1_024
 
 
-#filename = f'/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/exp{exp}/coarsek3_exp{exp}.npz'
-#filename = f'/Volumes/velten/Research_Users/David/gated_project_data/exp{exp}/hamK3_exp{exp}.npz'
-filename = f'/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/exp{exp}/coarse_gt_exp{exp}.npz'
+filename = f'/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/exp{exp}/coarsek3_exp{exp}.npz'
+#filename = f'/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/exp{exp}/hamK3_exp{exp}.npz'
+#filename = f'/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/exp{exp}/coarse_gt_exp{exp}.npz'
 
 
 file = np.load(filename)
@@ -59,6 +59,7 @@ if 'coarse' in filename:
     # plt.imshow(coding_matrix.transpose(), aspect='auto')
     # plt.show()
 elif 'ham' in filename:
+    print(f'voltage: {voltage}')
     K = coded_vals.shape[-1]
     coding_matrix = get_hamiltonain_correlations(K, mhz, voltage, 20, n_tbins)
     #plt.plot(coding_matrix)
@@ -83,11 +84,7 @@ depths = np.argmax(zncc, axis=-1)
 
 depth_map = np.reshape(depths, (512, 512)) * tbin_depth_res
 
-tmp = depth_map[:, :im_width//2]
-mask = cluster_kmeans(tmp, n_clusters=2)
 
-plt.imshow(mask)
-plt.show()
 
 x1, y1 = (70, 70)
 x2, y2 = (220, 330)
@@ -97,10 +94,10 @@ gs = gridspec.GridSpec(2, 2, height_ratios=[1, 2])  # 2 rows, 2 cols
 
 ax0 = fig.add_subplot(gs[0, 0])
 ax0.bar(np.arange(0, coded_vals.shape[-1]), coded_vals[y1, x1, :], color='red')
-ax0.set_title('Sample Intensity Values (Red Dot)')
+ax0.set_title(f'Sample Intensity Values (Red Dot), Count = {np.sum(coded_vals[y1, x1, :])}')
 ax1 = fig.add_subplot(gs[0, 1])
 ax1.bar(np.arange(0, coded_vals.shape[-1]), coded_vals[y2, x2, :], color='blue')
-ax1.set_title('Sample Intensity Values (Blue Dot)')
+ax1.set_title(f'Sample Intensity Values (Blue Dot),  Count = {np.sum(coded_vals[y2, x2, :])}')
 
 #Here are parameters to show a box close up of the depth map for better visualization
 #Need to tune yourself
@@ -112,12 +109,13 @@ patch = depth_map[y:y+height, x:x+width]
 
 ax2 = fig.add_subplot(gs[1, 0])
 if correct_master:
-    ax2.imshow(depth_map, vmin=6, vmax=7.5)
+    ax2.imshow(depth_map, vmin=6, vmax=6.5)
 else:
     #ax2.imshow(gaussian_filter(median_filter(depth_map[:, :im_width // 2], size=7), sigma=10))
-    ax2.imshow(depth_map[:,:im_width//2])
+    ax2.imshow(depth_map[:,:im_width//2], vmin=6, vmax=6.5)
 ax2.plot(x1, y1, 'ro')
 ax2.plot(x2, y2, 'bo')
+
 rect = patches.Rectangle((x, y), width, height,
                          linewidth=2, edgecolor='lime', facecolor='none')
 ax2.add_patch(rect)
@@ -125,7 +123,7 @@ ax2.set_title('Full Depth Map')
 
 
 ax3 = fig.add_subplot(gs[1, 1])
-ax3.imshow(patch)
+ax3.imshow(patch, vmin=6, vmax=6.5)
 error = np.mean(np.abs(patch - np.mean(patch)))
 ax3.set_xlabel(f'MAE: {error*1000: .3f} mm')
 ax3.set_title('Depth Map Closeup')

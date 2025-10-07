@@ -41,7 +41,8 @@ def get_coarse_coding_matrix(gate_step_size, gate_steps, gate_offset, gate_width
 
 def get_hamiltonain_correlations(K, mhz, voltage, size, n_tbins=2000):
     func = getattr(CodingFunctionsFelipe, f"GetHamK{K}")
-    (modfs, demodfs) = func(N=n_tbins)
+    (modfs, demodfs) = func(N=n_tbins, modDuty=1/5)
+    #modfs = gaussian_filter(modfs, sigma=20)
     modfs = get_voltage_function(mhz, voltage, size,'square', n_tbins)
     #plt.plot(modfs)
     #plt.title('Hamiltonian Modulation Function')
@@ -147,13 +148,15 @@ def get_voltage_function(mhz, voltage, size, illum_type, n_tbins=None):
             modfs[150:600] = 0
         else:
             modfs[modfs < 0] = 0
-            modfs = np.roll(modfs, 20, axis=0)
+            #modfs = np.roll(modfs, 40, axis=0)
+            modfs = np.roll(modfs, 35, axis=0)
             modfs = gaussian_filter(modfs, sigma=10)
     elif illum_type == 'square':
         if size == 20:
             modfs[180:600] = 0
         else:
             modfs[modfs < 0] = 0
+        modfs = np.roll(modfs, 5, axis=0)
         modfs = gaussian_filter(modfs, sigma=10)
 
     if n_tbins is not None:
