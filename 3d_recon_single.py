@@ -16,13 +16,14 @@ import open3d as o3d
 
 
 correct_master = False
-exp = 4
+exp = 8
 n_tbins = 1_024
 
 #filename = f'/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/exp{exp}/coarsek3_exp{exp}.npz'
 #filename = f'/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/exp{exp}/hamK3_exp{exp}.npz'
-#filename = f'/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/exp{exp}/coarse_gt_exp{exp}.npz'
-filename = f"/mnt/researchdrive/research_users/David/Gated_Camera_Project/gated_project_data/exp{exp}/coarse_gt_exp{exp}.npz"
+
+filename = f'/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/exp{exp}/coarse_gt_exp{exp}.npz'
+#filename = f"/mnt/researchdrive/research_users/David/Gated_Camera_Project/gated_project_data/exp{exp}/coarse_gt_exp{exp}.npz"
 
 
 
@@ -87,7 +88,7 @@ depths = np.argmax(zncc, axis=-1)
 
 depth_map = np.reshape(depths, (512, 512)) * tbin_depth_res
 
-depth_map = median_filter(depth_map, size=1)
+depth_map = median_filter(depth_map, size=3)
 
 depth_map = depth_map[:, :im_width // 2]
 depth_map[depth_map < 6] = 6

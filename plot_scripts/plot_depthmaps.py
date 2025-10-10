@@ -18,18 +18,18 @@ import math
 from felipe_utils.research_utils.signalproc_ops import gaussian_pulse
 
 
-exp_num = 3
+exp_num = 9
+k = 3
 n_tbins = 640
-vmin = 6
-vmax = 7.5
+vmin = 21
+vmax = 22
+median_filter_size = 1
 correct_master = False
-#folder = f"/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/exp{exp_num}"
-folder = f"/mnt/researchdrive/research_users/David/Gated_Camera_Project/gated_project_data/exp{exp_num}"
+folder = f"/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/exp{exp_num}"
+#folder = f"/mnt/researchdrive/research_users/David/Gated_Camera_Project/gated_project_data/exp{exp_num}"
 
-hot_mask_filename = '/home/ubi-user/David_P_folder/py-gated-camera/masks/hot_pixels.PNG'
-#hot_mask_filename = '/Users/davidparra/PycharmProjects/py-gated-camera/masks/hot_pixels.PNG'
-
-
+#hot_mask_filename = '/home/ubi-user/David_P_folder/py-gated-camera/masks/hot_pixels.PNG'
+hot_mask_filename = '/Users/davidparra/PycharmProjects/py-gated-camera/masks/hot_pixels.PNG'
 
 #hot_mask = np.load(hot_mask_filename)
 hot_mask = np.array(Image.open(hot_mask_filename))
@@ -38,7 +38,7 @@ hot_mask[hot_mask > 0] = 1
 
 npz_files = glob(os.path.join(folder, "*.npz"))
 
-npz_files = [f for f in npz_files if "3" in os.path.basename(f) or "_gt_" in os.path.basename(f)]
+npz_files = [f for f in npz_files if str(k) in os.path.basename(f) or "_gt_" in os.path.basename(f)]
 
 depths_maps_dict = {}
 #depths_maps_normalized = []
@@ -70,13 +70,24 @@ for path in npz_files:
     print(f'voltage {voltage}')
     if 'coarse' in path:
         gate_width = file["gate_width"]
-        if num_gates == 3:
-            size = 34
-        elif num_gates == 4:
-            size = 25
-        else:
-            size = 12
-
+        try:
+            size = file["size"]
+        except:
+            if num_gates == 3 and mhz == 10:
+                voltage = 7
+                size = 34
+            elif num_gates == 3 and mhz == 5:
+                voltage = 5.7
+                size = 67
+            elif num_gates == 4 and mhz == 10:
+                voltage = 7.6
+                size = 25
+            elif num_gates == 4 and mhz == 5:
+                voltage = 6
+                size = 50
+            else:
+                voltage = 10
+                size = 12
 
         irf = get_voltage_function(mhz, voltage, size, 'pulse', n_tbins)
         #if num_gates == 3:
@@ -148,11 +159,13 @@ gs = gridspec.GridSpec(2, len(depths_maps_dict)+1, height_ratios=[1, 2])  # 2 ro
 
 for i in range(len(depths_maps_dict)+1):
 
-    if i == len(depths_maps_dict):
+    if i == len(depths_maps_dict) and gt_depth_map is not None:
         name = 'GroundTruth'
         depth_map = gt_depth_map
-    else:
+    elif gt_depth_map is not None:
         name, depth_map = list(depths_maps_dict.items())[i]
+    else:
+        break
 
     #depth_map_normalized = depths_maps_normalized[:, :, i]
 
@@ -160,16 +173,16 @@ for i in range(len(depths_maps_dict)+1):
     patch = depth_map[y:y+height, x:x+width]
     ax = fig.add_subplot(gs[0, i])
     if correct_master:
-        ax.imshow(median_filter(depth_map, size=1), vmin=vmin, vmax=vmax)
+        ax.imshow(median_filter(depth_map, size=median_filter_size), vmin=vmin, vmax=vmax)
     else:
         #ax.imshow(gaussian_filter(median_filter(depth_map[:, :im_width // 2], size=5), sigma=0.0),
         #          vmin=np.nanmin(depth_maps), vmax=np.nanmax(depth_maps))
         #ax.imshow(depth_map[:, :im_width//2], vmin=np.nanmin(depth_maps), vmax=np.nanmax(depth_maps))
         if gt_depth_map is not None:
             #ax.imshow(depth_map[:, :im_width//2], vmin=np.nanmin(gt_depth_map), vmax=np.nanmax(gt_depth_map))
-            ax.imshow(gaussian_filter(median_filter(depth_map[:, :im_width // 2], size=1), sigma=0.0),  vmin=vmin, vmax=vmax)
+            ax.imshow(gaussian_filter(median_filter(depth_map[:, :im_width // 2], size=median_filter_size), sigma=0.0),  vmin=vmin, vmax=vmax)
         else:
-            ax.imshow(median_filter(depth_map[:, :im_width // 2], size=1),  vmin=vmin, vmax=vmax)
+            ax.imshow(median_filter(depth_map[:, :im_width // 2], size=median_filter_size),  vmin=vmin, vmax=vmax)
 
     ax.set_title(name)
     rect = patches.Rectangle((x, y), width, height,
@@ -178,14 +191,15 @@ for i in range(len(depths_maps_dict)+1):
 
     ax2 = fig.add_subplot(gs[1, i])
     if gt_depth_map is not None:
-        ax2.imshow(median_filter(patch[:, :im_width // 2], size=1), vmin=vmin, vmax=vmax)
+        ax2.imshow(median_filter(patch[:, :im_width // 2], size=median_filter_size), vmin=vmin, vmax=vmax)
     else:
-        ax2.imshow(median_filter(patch[:, :im_width // 2], size=1),  vmin=vmin, vmax=vmax)
+        ax2.imshow(median_filter(patch[:, :im_width // 2], size=median_filter_size),  vmin=vmin, vmax=vmax)
 
-    error = np.mean(np.abs(patch - gt_depth_map[y:y+height, x:x+width]))
-    rmse = np.sqrt(np.mean((patch - gt_depth_map[y:y+height, x:x+width])**2))
-    if i != len(depths_maps_dict):
-        ax2.set_xlabel(f'MAE: {error*1000: .3f} mm\n RMSE: {rmse*1000: .3f} mm')
+    if gt_depth_map is not None:
+        error = np.mean(np.abs(depth_map[:, :im_width // 2] - gt_depth_map[:, :im_width // 2]))
+        rmse = np.sqrt(np.mean((depth_map[:, :im_width // 2]  - gt_depth_map[:, :im_width // 2])**2))
+        if i != len(depths_maps_dict):
+            ax2.set_xlabel(f'MAE: {error*1000: .3f} mm\n RMSE: {rmse*1000: .3f} mm')
 
 plt.tight_layout()
 plt.show()

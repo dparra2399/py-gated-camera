@@ -139,24 +139,37 @@ def split_into_indices(square_array):
 
 
 def get_voltage_function(mhz, voltage, size, illum_type, n_tbins=None):
-    function = np.genfromtxt(f'/home/ubi-user/David_P_folder/py-gated-camera/voltage_functions/{illum_type}_{mhz}mhz_{voltage}v_{size}w.csv',delimiter=',')[:, 1]
-    #function = np.genfromtxt(f'/Users/davidparra/PycharmProjects/py-gated-camera/voltage_functions/{illum_type}_{mhz}mhz_{voltage}v_{size}w.csv',delimiter=',')[:, 1]
+    #function = np.genfromtxt(f'/home/ubi-user/David_P_folder/py-gated-camera/voltage_functions/{illum_type}_{mhz}mhz_{voltage}v_{size}w.csv',delimiter=',')[:, 1]
+    function = np.genfromtxt(f'/Users/davidparra/PycharmProjects/py-gated-camera/voltage_functions/{illum_type}_{mhz}mhz_{voltage}v_{size}w.csv',delimiter=',')[:, 1]
 
     modfs = function[2:]
     if illum_type == 'pulse': 
         if size == 12:
             modfs[150:600] = 0
-        else:
+        elif size == 34 and mhz == 10:
             modfs[modfs < 0] = 0
-            #modfs = np.roll(modfs, 40, axis=0)
-            modfs = np.roll(modfs, 35, axis=0)
+            modfs = np.roll(modfs, 38, axis=0)
+            modfs = gaussian_filter(modfs, sigma=10)
+        elif size == 25 and mhz == 10:
+            modfs = np.roll(modfs, 18, axis=0)
+            modfs = gaussian_filter(modfs, sigma=10)
+        elif size == 67 and mhz == 5:
+            modfs[modfs < 0] = 0
+            modfs = np.roll(modfs, -30, axis=0)
+            modfs = gaussian_filter(modfs, sigma=10)
+        elif size == 50 and mhz == 5:
+            modfs = np.roll(modfs, 18, axis=0)
             modfs = gaussian_filter(modfs, sigma=10)
     elif illum_type == 'square':
         if size == 20:
             modfs[180:600] = 0
         else:
             modfs[modfs < 0] = 0
-        modfs = np.roll(modfs, -5, axis=0)
+        if mhz == 10:
+            modfs = np.roll(modfs, 9, axis=0)
+            modfs = np.roll(modfs, 13, axis=0)
+        elif mhz == 5:
+            modfs = np.roll(modfs, -35, axis=0)
         modfs = gaussian_filter(modfs, sigma=10)
 
     if n_tbins is not None:
@@ -165,9 +178,7 @@ def get_voltage_function(mhz, voltage, size, illum_type, n_tbins=None):
         #print(modfs)
 
     modfs /= np.sum(modfs, keepdims=True)
-    #plt.plot(modfs)
-    #plt.show()
-    #modfs = np.roll(modfs, 100, axis=0)
+
     return modfs
 
 def cluster_kmeans(decoded, n_clusters=2):
