@@ -31,12 +31,12 @@ SPAD1.set_Vex(Vex)
 
 
 # Editable parameters
-total_time = 3000 #integration time
-split_measurements = True
+total_time = 10000 #integration time
+split_measurements = False
 num_gates = 1 #number of time bins
 im_width = 512 #image width0
 bitDepth = 12
-K = 3
+K = 4
 n_tbins = 640
 correct_master = False
 decode_depths = True
@@ -44,10 +44,10 @@ save_into_file = True
 
 duty=20
 
-exp_num = 8
+exp_num = 11
 save_path = '/home/ubi-user/David_P_folder'
 #save_path = '/mnt/researchdrive/research_users/David/gated_project_data'
-save_name = f'hamK{K}_exp{exp_num}'
+save_name = f'hamK{K}_exp{exp_num}_pulse'
 
 
 #Get demodulation functions and split for use with Gated SPAD
@@ -123,7 +123,7 @@ if decode_depths:
 
     # fig, axs = plt.subplots(1, 3)
     # axs[0].plot(demodfs)
-    # axs[1].plot(get_voltage_function(mhz, 10))
+    # axs[1].plot(get_voltage_function(mhz, voltage, duty,'square', n_tbins))
     # axs[2].plot(correlations)
     # plt.show()
     # exit()
@@ -155,7 +155,7 @@ if decode_depths:
     #axs[0].set_xticks(np.arange(0, metadata['Gate steps'])[::3])
     #axs[0].set_xticklabels(np.round(gate_starts, 1)[::3])
 
-    axs[2].imshow(median_filter(depth_map, size=1), vmin=6, vmax=7)
+    axs[2].imshow(median_filter(depth_map, size=1), vmin=21, vmax=23)
     #axs[2].imshow(depth_map[:, :im_width//2])
     axs[2].plot(x1, y1, 'ro')
     axs[2].plot(x2, y2, 'bo')

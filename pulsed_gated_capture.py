@@ -39,9 +39,9 @@ n_tbins = 640
 voltage= 10
 correct_master = False
 decode_depths = True
-save_into_file = True
+save_into_file = False
 
-exp_num = 9
+exp_num = 11
 #save_path = '/mnt/researchdrive/research_users/David/gated_project_data'
 save_path = '/home/ubi-user/David_P_folder'
 save_name = f'coarse_gt_exp{exp_num}'
@@ -135,7 +135,7 @@ if decode_depths:
     #axs[0].set_xticks(np.arange(0, metadata['Gate steps'])[::3])
     #axs[0].set_xticklabels(np.round(gate_starts, 1)[::3])
 
-    axs[2].imshow(median_filter(depth_map, size=1), vmin=21, vmax=22)
+    axs[2].imshow(median_filter(depth_map, size=1), vmin=20, vmax=25)
     axs[2].plot(x1, y1, 'ro')
     axs[2].plot(x2, y2, 'bo')
 

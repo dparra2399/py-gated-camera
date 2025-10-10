@@ -31,9 +31,9 @@ SPAD1.set_Vex(Vex)
 
 
 # Editable parameters
-total_time = 3000 #integration time
-split_measurements = True
-num_gates = 3 #number of time bins
+total_time = 10000 #integration time
+split_measurements = False
+num_gates = 4 #number of time bins
 im_width = 512 #image width
 bitDepth = 12
 n_tbins = 640
@@ -41,7 +41,7 @@ correct_master = False
 decode_depths = True
 save_into_file = True
 
-exp_num = 9
+exp_num = 11
 #save_path = '/mnt/researchdrive/research_users/David/gated_project_data'
 save_path = '/home/ubi-user/David_P_folder'
 
@@ -166,7 +166,7 @@ if decode_depths:
     #axs[0].set_xticks(np.arange(0, metadata['Gate steps'])[::3])
     #axs[0].set_xticklabels(np.round(gate_starts, 1)[::3])
 
-    axs[2].imshow(median_filter(depth_map, size=1), vmin=6, vmax=7)
+    axs[2].imshow(median_filter(depth_map, size=1))
     axs[2].plot(x1, y1, 'ro')
     axs[2].plot(x2, y2, 'bo')
 
