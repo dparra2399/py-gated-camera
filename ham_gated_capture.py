@@ -11,8 +11,6 @@ from scipy.ndimage import gaussian_filter, median_filter
 from felipe_utils import CodingFunctionsFelipe
 import math
 
-from splitpulsed_gated_capture import split_measurements
-
 port = 9999 # Check the command Server in the setting tab of the software and change it if necessary
 SPAD1 = SPAD512S(port)
 
@@ -36,21 +34,17 @@ SPAD1.set_Vex(Vex)
 total_time = 3000 #integration time
 split_measurements = True
 num_gates = 1 #number of time bins
-im_width = 512 #image width
+im_width = 512 #image width0
 bitDepth = 12
-K = 4
+K = 3
 n_tbins = 640
 correct_master = False
 decode_depths = True
 save_into_file = True
 
 duty=20
-if duty == 20:
-    voltage = 8.5
-else:
-    voltage = 10
 
-exp_num = 4
+exp_num = 8
 save_path = '/home/ubi-user/David_P_folder'
 #save_path = '/mnt/researchdrive/research_users/David/gated_project_data'
 save_name = f'hamK{K}_exp{exp_num}'
@@ -76,7 +70,7 @@ for i, item in enumerate(gated_demodfs_arr):
         iterations = 1
         overlap = 0
         timeout = 0
-        pileup = 0
+        pileup = 1
         gate_steps =  1
         gate_step_arbitrary = 0
         gate_step_size = 0
@@ -88,18 +82,20 @@ for i, item in enumerate(gated_demodfs_arr):
         else:
             intTime = total_time
 
+        print(f'Integration time for hamiltonian row #{i+1}.{j+1}: {intTime}')
+
         current_intTime = intTime
         counts = np.zeros((im_width, im_width))
         while current_intTime > 4800:
             print(f'starting current time {current_intTime}')
             counts += SPAD1.get_gated_intensity(bitDepth, 4800, iterations, gate_steps, gate_step_size,
                                                 gate_step_arbitrary, gate_width,
-                                                gate_offset, gate_direction, gate_trig, overlap, 1, pileup, im_width)[0]
+                                                gate_offset, gate_direction, gate_trig, overlap, 1, pileup, im_width)[:, :, 0]
             current_intTime -= 4800
 
         counts += SPAD1.get_gated_intensity(bitDepth, current_intTime, iterations, gate_steps, gate_step_size,
                                             gate_step_arbitrary, gate_width,
-                                            gate_offset, gate_direction, gate_trig, overlap, 1, pileup, im_width)[0]
+                                            gate_offset, gate_direction, gate_trig, overlap, 1, pileup, im_width)[:, :, 0]
 
         coded_vals[:, :, i] += counts
 
@@ -115,7 +111,13 @@ if decode_depths:
     # print(rep_tau * 1e12)
     #print(gate_step_size,gate_steps, gate_offset, gate_width)
 
-    mhz = int(freq[-2][:2])
+    mhz = int(float(freq[-2]) * 1e-6)
+    if duty == 20 and mhz == 10:
+        voltage = 8.5
+    elif duty == 20 and mhz == 5:
+        voltage = 6.5
+    else:
+        voltage = 10
     #print(mhz)
     correlations = get_hamiltonain_correlations(K, mhz, voltage, duty, n_tbins)
 
@@ -153,7 +155,7 @@ if decode_depths:
     #axs[0].set_xticks(np.arange(0, metadata['Gate steps'])[::3])
     #axs[0].set_xticklabels(np.round(gate_starts, 1)[::3])
 
-    axs[2].imshow(median_filter(depth_map, size=1), vmin=6, vmax=8)
+    axs[2].imshow(median_filter(depth_map, size=1), vmin=6, vmax=7)
     #axs[2].imshow(depth_map[:, :im_width//2])
     axs[2].plot(x1, y1, 'ro')
     axs[2].plot(x2, y2, 'bo')

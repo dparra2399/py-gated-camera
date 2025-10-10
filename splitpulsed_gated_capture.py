@@ -33,24 +33,15 @@ SPAD1.set_Vex(Vex)
 # Editable parameters
 total_time = 3000 #integration time
 split_measurements = True
-num_gates = 4 #number of time bins
+num_gates = 3 #number of time bins
 im_width = 512 #image width
 bitDepth = 12
 n_tbins = 640
 correct_master = False
 decode_depths = True
 save_into_file = True
-if num_gates == 3:
-    voltage = 7
-    size = 34
-elif num_gates == 4:
-    voltage = 7.6
-    size = 25
-else:
-    voltage = 10
-    size = 12
 
-exp_num = 4
+exp_num = 9
 #save_path = '/mnt/researchdrive/research_users/David/gated_project_data'
 save_path = '/home/ubi-user/David_P_folder'
 
@@ -73,7 +64,7 @@ for i in range(num_gates):
     iterations = 1
     overlap = 0
     timeout = 0
-    pileup = 0
+    pileup = 1
     gate_steps =  1
     gate_step_arbitrary = 0
     gate_step_size = 0
@@ -85,18 +76,20 @@ for i in range(num_gates):
     else:
         intTime = total_time
 
+    print(f'Integration time for gate #{i+1}: {intTime}')
+
     current_intTime = intTime
     counts = np.zeros((im_width, im_width))
     while current_intTime > 4800:
         print(f'starting current time {current_intTime}')
         counts += SPAD1.get_gated_intensity(bitDepth, 4800, iterations, gate_steps, gate_step_size,
                                                 gate_step_arbitrary, gate_width,
-                                                gate_offset, gate_direction, gate_trig, overlap, 1, pileup, im_width)[0]
+                                                gate_offset, gate_direction, gate_trig, overlap, 1, pileup, im_width)[:, :, 0]
         current_intTime -= 4800
 
     counts += SPAD1.get_gated_intensity(bitDepth, current_intTime, iterations, gate_steps, gate_step_size,
                                             gate_step_arbitrary, gate_width,
-                                            gate_offset, gate_direction, gate_trig, overlap, 1, pileup, im_width)[0]
+                                            gate_offset, gate_direction, gate_trig, overlap, 1, pileup, im_width)[:, :, 0]
 
 
     coded_vals[:, :, i] = counts
@@ -119,13 +112,23 @@ if decode_depths:
     # print(rep_freq, rep_tau, tbin_res)
     # print(rep_tau * 1e12)
     #print(gate_step_size,gate_steps, gate_offset, gate_width)
-    mhz = int(freq[-2][:2])
-    if num_gates == 3:
+    mhz = int(float(freq[-2]) * 1e-6)
+    if num_gates == 3 and mhz == 10:
+        voltage = 7
         size = 34
-    elif num_gates== 4:
+    elif num_gates == 3 and mhz == 5:
+        voltage = 5.7
+        size = 67
+    elif num_gates == 4 and mhz == 10:
+        voltage = 7.6
         size = 25
+    elif num_gates == 4 and mhz == 5:
+        voltage = 6
+        size = 50
     else:
+        voltage = 10
         size = 12
+
 
     irf = get_voltage_function(mhz, voltage, size,'pulse', n_tbins)
     #irf=None
@@ -163,7 +166,7 @@ if decode_depths:
     #axs[0].set_xticks(np.arange(0, metadata['Gate steps'])[::3])
     #axs[0].set_xticklabels(np.round(gate_starts, 1)[::3])
 
-    axs[2].imshow(median_filter(depth_map, size=1), vmin=6, vmax=6.5)
+    axs[2].imshow(median_filter(depth_map, size=1), vmin=6, vmax=7)
     axs[2].plot(x1, y1, 'ro')
     axs[2].plot(x2, y2, 'bo')
 
