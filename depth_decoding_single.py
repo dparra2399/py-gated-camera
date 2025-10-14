@@ -13,12 +13,14 @@ import matplotlib.patches as patches
 import math
 
 correct_master = False
-exp = 4
+exp = 12
+k = 4
 n_tbins = 1_024
+vmin = 21
+vmax = 27
 
-
-filename = f'/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/exp{exp}/coarsek3_exp{exp}.npz'
-#filename = f'/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/exp{exp}/hamK3_exp{exp}.npz'
+#filename = f'/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/exp{exp}/coarsek{k}_exp{exp}.npz'
+filename = f'/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/exp{exp}/hamK{k}_exp{exp}.npz'
 #filename = f'/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/exp{exp}/coarse_gt_exp{exp}.npz'
 
 
@@ -59,11 +61,17 @@ if 'coarse' in filename:
     # plt.imshow(coding_matrix.transpose(), aspect='auto')
     # plt.show()
 elif 'ham' in filename:
-    print(f'voltage: {voltage}')
     K = coded_vals.shape[-1]
-    coding_matrix = get_hamiltonain_correlations(K, mhz, voltage, 20, n_tbins)
-    #plt.plot(coding_matrix)
-    #plt.show()
+    if 'pulse' in filename:
+        illum_type = 'pulse'
+        size = 12
+        voltage = 10
+
+    else:
+        illum_type = 'square'
+        size = 20
+
+    coding_matrix = get_hamiltonain_correlations(K, mhz, voltage, size, illum_type, n_tbins=n_tbins)
 else:
     exit(0)
 
@@ -112,7 +120,7 @@ if correct_master:
     ax2.imshow(depth_map, vmin=6, vmax=6.5)
 else:
     #ax2.imshow(gaussian_filter(median_filter(depth_map[:, :im_width // 2], size=7), sigma=10))
-    ax2.imshow(depth_map[:,:im_width//2], vmin=6, vmax=6.5)
+    ax2.imshow(depth_map[:,:im_width//2], vmin=vmin, vmax=vmax)
 ax2.plot(x1, y1, 'ro')
 ax2.plot(x2, y2, 'bo')
 
@@ -123,9 +131,9 @@ ax2.set_title('Full Depth Map')
 
 
 ax3 = fig.add_subplot(gs[1, 1])
-ax3.imshow(patch, vmin=6, vmax=6.5)
-error = np.mean(np.abs(patch - np.mean(patch)))
-ax3.set_xlabel(f'MAE: {error*1000: .3f} mm')
+ax3.imshow(patch, vmin=vmin, vmax=vmax)
+#error = np.mean(np.abs(patch - np.mean(patch)))
+#ax3.set_xlabel(f'MAE: {error*1000: .3f} mm')
 ax3.set_title('Depth Map Closeup')
 
 plt.tight_layout()

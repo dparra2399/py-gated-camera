@@ -40,6 +40,8 @@ voltage= 10
 correct_master = False
 decode_depths = True
 save_into_file = True
+vmin = 21
+vmax = 27
 
 exp_num = 9
 #save_path = '/mnt/researchdrive/research_users/David/gated_project_data'
@@ -135,7 +137,7 @@ if decode_depths:
     #axs[0].set_xticks(np.arange(0, metadata['Gate steps'])[::3])
     #axs[0].set_xticklabels(np.round(gate_starts, 1)[::3])
 
-    axs[2].imshow(median_filter(depth_map, size=1), vmin=21, vmax=22)
+    axs[2].imshow(median_filter(depth_map, size=1), vmin=vmin, vmax=vmax)
     axs[2].plot(x1, y1, 'ro')
     axs[2].plot(x2, y2, 'bo')
 

@@ -17,14 +17,14 @@ from PIL import Image
 import math
 from felipe_utils.research_utils.signalproc_ops import gaussian_pulse
 
-
-exp_num = 9
-k = 3
+exp_num = 12
+k = ""
 n_tbins = 640
 vmin = 21
-vmax = 22
+vmax = 27
 median_filter_size = 1
 correct_master = False
+mask_background_pixels = True
 folder = f"/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/exp{exp_num}"
 #folder = f"/mnt/researchdrive/research_users/David/Gated_Camera_Project/gated_project_data/exp{exp_num}"
 
@@ -63,11 +63,17 @@ for path in npz_files:
     gate_trig = file["gate_trig"]
     voltage = file["voltage"]
     freq = file["freq"]
+    try:
+        split_measurements = file["split_measurements"]
+    except:
+        split_measurements = False
 
     (rep_tau, rep_freq, tbin_res, t_domain, max_depth, tbin_depth_res) = calculate_tof_domain_params(n_tbins, 1 / freq)
     mhz = int(freq * 1e-6)
+    if path == npz_files[0]:
+        print(f'MHZ: {mhz} \n Max Depth: {max_depth}')
+        print()
 
-    print(f'voltage {voltage}')
     if 'coarse' in path:
         gate_width = file["gate_width"]
         try:
@@ -110,13 +116,28 @@ for path in npz_files:
             name = 'GroundTruth'
         else:
             name = 'CoarseK{}'.format(num_gates)
+            #plt.plot(coding_matrix)
+            #plt.show()
     elif 'ham' in path:
         K = coded_vals.shape[-1]
-        coding_matrix = get_hamiltonain_correlations(K, mhz, voltage, 20, n_tbins=n_tbins)
-        name = 'HamiltonianK{}'.format(K)
+        if 'pulse' in path:
+            illum_type = 'pulse'
+            size = 12
+            voltage = 10
+            name = 'HamiltonianK{} (Pulsed)'.format(K)
+
+        else:
+            illum_type = 'square'
+            size = 20
+            name = 'HamiltonianK{}'.format(K)
+
+        coding_matrix = get_hamiltonain_correlations(K, mhz, voltage, size, illum_type, n_tbins=n_tbins)
     else:
         assert False, 'Path needs to be "hamiltonian" or "coarse".'
 
+    print(f'{name} \n\t Voltage: {voltage} \n\t' +
+          f' Size: {size} \n\t Total Time: {total_time} \n\t Split Measurements: {split_measurements}')
+    print()
     #plt.plot(coding_matrix)
     #plt.show()
     norm_coding_matrix = zero_norm_t(coding_matrix)
@@ -136,9 +157,20 @@ for path in npz_files:
     filtered = median_filter(depth_map, size=3, mode='nearest')
     depth_map[hot_mask == 1] = filtered[hot_mask == 1]
 
-    # if name == 'GroundTruth':
-    #     tmp = depth_map[:, :im_width // 2]
-    #     depth_map = cluster_kmeans(tmp, n_clusters=2)
+    if name == 'GroundTruth' and mask_background_pixels:
+        tmp = cluster_kmeans(np.copy(depth_map), n_clusters=2)
+        tmp[tmp == np.nanmax(tmp)] = np.nan
+        tmp[tmp == np.nanmin(tmp)] = 1
+        depth_map *= tmp
+        # plt.imshow(depth_map, cmap='gray')
+        # plt.show()
+        coded_vals_tmp = np.sum(coded_vals, axis=-1)
+        #depth_map[coded_vals_tmp < 2500] = np.nan
+
+        vmin = max(np.nanmin(depth_map), vmin)
+        #vmin = 21
+        vmax = np.nanmax(depth_map) + 0.5
+        #vmin = 22
 
 
     depths_maps_dict[name] = depth_map
@@ -150,7 +182,8 @@ for path in npz_files:
 #depth_maps = np.stack(depths_maps, axis=-1)
 #depths_maps_normalized = np.stack(depths_maps_normalized, axis=-1)
 gt_depth_map = depths_maps_dict.pop('GroundTruth', None)
-print(f'Min depth: {np.min(gt_depth_map)}, Max depth: {np.max(gt_depth_map)}')
+
+print(f'Min depth: {np.nanmin(gt_depth_map)}, Max depth: {np.nanmax(gt_depth_map)}')
 
 x, y = 20, 170
 width, height = 220, 320
@@ -162,6 +195,12 @@ for i in range(len(depths_maps_dict)+1):
     if i == len(depths_maps_dict) and gt_depth_map is not None:
         name = 'GroundTruth'
         depth_map = gt_depth_map
+    elif gt_depth_map is not None and mask_background_pixels:
+        name, depth_map = list(depths_maps_dict.items())[i]
+        mask = np.copy(gt_depth_map)
+        mask[~np.isnan(mask)] = 1
+        #mask[np.isnan(gt_depth_map)] = 0
+        depth_map = depth_map * mask
     elif gt_depth_map is not None:
         name, depth_map = list(depths_maps_dict.items())[i]
     else:
@@ -173,17 +212,17 @@ for i in range(len(depths_maps_dict)+1):
     patch = depth_map[y:y+height, x:x+width]
     ax = fig.add_subplot(gs[0, i])
     if correct_master:
-        ax.imshow(median_filter(depth_map, size=median_filter_size), vmin=vmin, vmax=vmax)
+        im = ax.imshow(median_filter(depth_map, size=median_filter_size), vmin=vmin, vmax=vmax)
     else:
         #ax.imshow(gaussian_filter(median_filter(depth_map[:, :im_width // 2], size=5), sigma=0.0),
         #          vmin=np.nanmin(depth_maps), vmax=np.nanmax(depth_maps))
         #ax.imshow(depth_map[:, :im_width//2], vmin=np.nanmin(depth_maps), vmax=np.nanmax(depth_maps))
         if gt_depth_map is not None:
             #ax.imshow(depth_map[:, :im_width//2], vmin=np.nanmin(gt_depth_map), vmax=np.nanmax(gt_depth_map))
-            ax.imshow(gaussian_filter(median_filter(depth_map[:, :im_width // 2], size=median_filter_size), sigma=0.0),  vmin=vmin, vmax=vmax)
+            im = ax.imshow(gaussian_filter(median_filter(depth_map[:, :im_width // 2], size=median_filter_size), sigma=0.0),  vmin=vmin, vmax=vmax)
         else:
-            ax.imshow(median_filter(depth_map[:, :im_width // 2], size=median_filter_size),  vmin=vmin, vmax=vmax)
-
+            im = ax.imshow(median_filter(depth_map[:, :im_width // 2], size=median_filter_size),  vmin=vmin, vmax=vmax)
+    fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)  # Add colorbar for ax
     ax.set_title(name)
     rect = patches.Rectangle((x, y), width, height,
                              linewidth=2, edgecolor='lime', facecolor='none')
@@ -191,13 +230,15 @@ for i in range(len(depths_maps_dict)+1):
 
     ax2 = fig.add_subplot(gs[1, i])
     if gt_depth_map is not None:
-        ax2.imshow(median_filter(patch[:, :im_width // 2], size=median_filter_size), vmin=vmin, vmax=vmax)
+        im2 = ax2.imshow(median_filter(patch[:, :im_width // 2], size=median_filter_size), vmin=vmin, vmax=vmax)
     else:
-        ax2.imshow(median_filter(patch[:, :im_width // 2], size=median_filter_size),  vmin=vmin, vmax=vmax)
+        im2 = ax2.imshow(median_filter(patch[:, :im_width // 2], size=median_filter_size),  vmin=vmin, vmax=vmax)
+
+    fig.colorbar(im2, ax=ax2, fraction=0.046, pad=0.04)  # Add colorbar for ax2
 
     if gt_depth_map is not None:
-        error = np.mean(np.abs(depth_map[:, :im_width // 2] - gt_depth_map[:, :im_width // 2]))
-        rmse = np.sqrt(np.mean((depth_map[:, :im_width // 2]  - gt_depth_map[:, :im_width // 2])**2))
+        error = np.nanmean(np.abs(depth_map[:, :im_width // 2] - gt_depth_map[:, :im_width // 2]))
+        rmse = np.sqrt(np.nanmean((depth_map[:, :im_width // 2]  - gt_depth_map[:, :im_width // 2])**2))
         if i != len(depths_maps_dict):
             ax2.set_xlabel(f'MAE: {error*1000: .3f} mm\n RMSE: {rmse*1000: .3f} mm')
 

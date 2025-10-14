@@ -43,6 +43,8 @@ decode_depths = True
 save_into_file = True
 
 duty=20
+vmin = 21
+vmax = 27
 
 exp_num = 8
 save_path = '/home/ubi-user/David_P_folder'
@@ -119,7 +121,17 @@ if decode_depths:
     else:
         voltage = 10
     #print(mhz)
-    correlations = get_hamiltonain_correlations(K, mhz, voltage, duty, n_tbins)
+
+    if 'pulse' in save_name:
+        illum_type = 'pulse'
+        duty = 12
+        voltage = 10
+
+    else:
+        illum_type = 'square'
+        duty = 20
+
+    correlations = get_hamiltonain_correlations(K, mhz, voltage, duty, illum_type, n_tbins=n_tbins)
 
     # fig, axs = plt.subplots(1, 3)
     # axs[0].plot(demodfs)
@@ -155,7 +167,7 @@ if decode_depths:
     #axs[0].set_xticks(np.arange(0, metadata['Gate steps'])[::3])
     #axs[0].set_xticklabels(np.round(gate_starts, 1)[::3])
 
-    axs[2].imshow(median_filter(depth_map, size=1), vmin=6, vmax=7)
+    axs[2].imshow(median_filter(depth_map, size=1), vmin=vmin, vmax=vmax)
     #axs[2].imshow(depth_map[:, :im_width//2])
     axs[2].plot(x1, y1, 'ro')
     axs[2].plot(x2, y2, 'bo')

@@ -16,13 +16,15 @@ import open3d as o3d
 
 
 correct_master = False
-exp = 8
+exp = 11
+k = 4
 n_tbins = 1_024
+vmin = 22
+vmax = 27
+filename = f'/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/exp{exp}/coarsek{k}_exp{exp}.npz'
+#filename = f'/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/exp{exp}/hamK{k}_exp{exp}.npz'
 
-#filename = f'/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/exp{exp}/coarsek3_exp{exp}.npz'
-#filename = f'/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/exp{exp}/hamK3_exp{exp}.npz'
-
-filename = f'/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/exp{exp}/coarse_gt_exp{exp}.npz'
+#filename = f'/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/exp{exp}/coarse_gt_exp{exp}.npz'
 #filename = f"/mnt/researchdrive/research_users/David/Gated_Camera_Project/gated_project_data/exp{exp}/coarse_gt_exp{exp}.npz"
 
 
@@ -53,12 +55,24 @@ mhz = int(freq * 1e-6)
 
 if 'coarse' in filename:
     gate_width = file["gate_width"]
-    if num_gates == 3:
-        size = 34
-    elif num_gates == 4:
-        size = 25
-    else:
-        size = 12
+    try:
+        size = file["size"]
+    except:
+        if num_gates == 3 and mhz == 10:
+            voltage = 7
+            size = 34
+        elif num_gates == 3 and mhz == 5:
+            voltage = 5.7
+            size = 67
+        elif num_gates == 4 and mhz == 10:
+            voltage = 7.6
+            size = 25
+        elif num_gates == 4 and mhz == 5:
+            voltage = 6
+            size = 50
+        else:
+            voltage = 10
+            size = 12
     irf = get_voltage_function(mhz, voltage, size, 'pulse', n_tbins)
     coding_matrix = get_coarse_coding_matrix(gate_width * 1e3, num_gates, 0, gate_width * 1e3, rep_tau * 1e12, n_tbins, irf)
     # plt.imshow(coding_matrix.transpose(), aspect='auto')
@@ -91,8 +105,8 @@ depth_map = np.reshape(depths, (512, 512)) * tbin_depth_res
 depth_map = median_filter(depth_map, size=3)
 
 depth_map = depth_map[:, :im_width // 2]
-depth_map[depth_map < 6] = 6
-depth_map[depth_map > 6.5] = 6.5
+depth_map[depth_map < vmin] = vmin
+depth_map[depth_map > vmax] = vmax
 
 (nr, nc) = depth_map.shape[0:2]
 # FOV along the major axis (in degrees)
