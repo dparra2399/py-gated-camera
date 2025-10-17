@@ -43,7 +43,7 @@ save_into_file = True
 vmin = 21
 vmax = 27
 
-exp_num = 9
+exp_num = 12
 #save_path = '/mnt/researchdrive/research_users/David/gated_project_data'
 save_path = '/home/ubi-user/David_P_folder'
 
@@ -66,7 +66,7 @@ for i in range(num_gates):
     iterations = 1
     overlap = 0
     timeout = 0
-    pileup = 1
+    pileup = 0
     gate_steps =  1
     gate_step_arbitrary = 0
     gate_step_size = 0

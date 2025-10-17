@@ -31,12 +31,12 @@ SPAD1.set_Vex(Vex)
 
 
 # Editable parameters
-total_time = 3000 #integration time
-split_measurements = True
+total_time = 500 #integration time
+split_measurements = False
 num_gates = 1 #number of time bins
 im_width = 512 #image width0
 bitDepth = 12
-K = 3
+K = 4
 n_tbins = 640
 correct_master = False
 decode_depths = True
@@ -46,11 +46,10 @@ duty=20
 vmin = 21
 vmax = 27
 
-exp_num = 8
+exp_num = 12
 save_path = '/home/ubi-user/David_P_folder'
 #save_path = '/mnt/researchdrive/research_users/David/gated_project_data'
 save_name = f'hamK{K}_exp{exp_num}'
-
 
 #Get demodulation functions and split for use with Gated SPAD
 func = getattr(CodingFunctionsFelipe, f"GetHamK{K}")
@@ -72,7 +71,7 @@ for i, item in enumerate(gated_demodfs_arr):
         iterations = 1
         overlap = 0
         timeout = 0
-        pileup = 1
+        pileup = 0
         gate_steps =  1
         gate_step_arbitrary = 0
         gate_step_size = 0
@@ -126,7 +125,6 @@ if decode_depths:
         illum_type = 'pulse'
         duty = 12
         voltage = 10
-
     else:
         illum_type = 'square'
         duty = 20
@@ -206,6 +204,6 @@ if save_into_file:
          coded_vals=coded_vals,
          split_measurements=split_measurements,
          duty=duty,
-         irf=get_voltage_function(mhz, voltage, duty,'square'))
+         irf=get_voltage_function(mhz, voltage, duty,illum_type))
 
     
