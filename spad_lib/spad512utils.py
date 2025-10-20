@@ -180,6 +180,9 @@ def get_voltage_function(mhz, voltage, size, illum_type, n_tbins=None ,K=3, hami
                 modfs = np.roll(modfs, -33, axis=0)
             elif K == 4:
                 modfs = np.roll(modfs, -29, axis=0)
+                pass
+            elif K == 5:
+                modfs = np.roll(modfs, -55, axis=0)
 
         modfs = gaussian_filter(modfs, sigma=10)
 

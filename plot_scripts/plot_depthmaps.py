@@ -17,10 +17,10 @@ from PIL import Image
 import math
 from felipe_utils.research_utils.signalproc_ops import gaussian_pulse
 
-exp_num = 12
-k = ""
+exp_num = 9
+k = 3
 n_tbins = 640
-vmin = 21
+vmin = 21.09
 vmax = 27
 median_filter_size = 1
 correct_master = False
@@ -38,7 +38,8 @@ hot_mask[hot_mask > 0] = 1
 
 npz_files = glob(os.path.join(folder, "*.npz"))
 
-npz_files = [f for f in npz_files if str(k) in os.path.basename(f) or "_gt_" in os.path.basename(f)]
+npz_files = [f for f in npz_files if (str(k) in os.path.basename(f) or "_gt_" in os.path.basename(f))
+             and 'pulse' not in os.path.basename(f)]
 
 depths_maps_dict = {}
 #depths_maps_normalized = []
@@ -111,7 +112,6 @@ for path in npz_files:
         coding_matrix = get_coarse_coding_matrix(gate_width * 1e3, num_gates, 0,
                                                  gate_width * 1e3, rep_tau * 1e12,
                                                  n_tbins=n_tbins, irf=irf)
-
         if 'gt' in path:
             name = 'GroundTruth'
         else:
@@ -120,6 +120,8 @@ for path in npz_files:
             #plt.show()
     elif 'ham' in path:
         K = coded_vals.shape[-1]
+
+
         if 'pulse' in path:
             illum_type = 'pulse'
             size = 12
@@ -132,6 +134,8 @@ for path in npz_files:
             name = 'HamiltonianK{}'.format(K)
 
         coding_matrix = get_hamiltonain_correlations(K, mhz, voltage, size, illum_type, n_tbins=n_tbins)
+        plt.plot(coding_matrix)
+        plt.show()
     else:
         assert False, 'Path needs to be "hamiltonian" or "coarse".'
 
@@ -167,10 +171,10 @@ for path in npz_files:
         coded_vals_tmp = np.sum(coded_vals, axis=-1)
         #depth_map[coded_vals_tmp < 2500] = np.nan
 
-        vmin = max(np.nanmin(depth_map), vmin)
-        #vmin = 21
-        vmax = np.nanmax(depth_map) + 0.5
-        #vmin = 22
+        #vmin = max(np.nanmin(depth_map), vmin)
+        vmin = 21.1
+        #vmax = np.nanmax(depth_map) + 0.5
+        vmax = 21.15
 
 
     depths_maps_dict[name] = depth_map
@@ -222,7 +226,7 @@ for i in range(len(depths_maps_dict)+1):
             im = ax.imshow(gaussian_filter(median_filter(depth_map[:, :im_width // 2], size=median_filter_size), sigma=0.0),  vmin=vmin, vmax=vmax)
         else:
             im = ax.imshow(median_filter(depth_map[:, :im_width // 2], size=median_filter_size),  vmin=vmin, vmax=vmax)
-    fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)  # Add colorbar for ax
+    fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04, label='Depth (meters)')  # Add colorbar for ax
     ax.set_title(name)
     rect = patches.Rectangle((x, y), width, height,
                              linewidth=2, edgecolor='lime', facecolor='none')
@@ -234,7 +238,7 @@ for i in range(len(depths_maps_dict)+1):
     else:
         im2 = ax2.imshow(median_filter(patch[:, :im_width // 2], size=median_filter_size),  vmin=vmin, vmax=vmax)
 
-    fig.colorbar(im2, ax=ax2, fraction=0.046, pad=0.04)  # Add colorbar for ax2
+    fig.colorbar(im2, ax=ax2, fraction=0.046, pad=0.04, label='Depth (meters)')  # Add colorbar for ax2
 
     if gt_depth_map is not None:
         error = np.nanmean(np.abs(depth_map[:, :im_width // 2] - gt_depth_map[:, :im_width // 2]))
