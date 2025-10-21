@@ -19,11 +19,15 @@ n_tbins = 1_024
 vmin = 19
 vmax = 21
 mask_background_pixels = True
-#filename = f'/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/exp{exp}/coarsek{k}_exp{exp}.npz'
-test_file = f'/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/exp{exp}/hamK{k}_exp{exp}.npz'
-#filename = f'/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/exp{exp}/coarse_gt_exp{exp}.npz'
+try:
+    #filename = f'/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/exp{exp}/coarsek{k}_exp{exp}.npz'
+    test_file = f'/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/exp{exp}/hamK{k}_exp{exp}.npz'
+    #filename = f'/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/exp{exp}/coarse_gt_exp{exp}.npz'
 
-gt_file = f'/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/exp{exp}/coarse_gt_exp{exp}.npz'
+    gt_file = f'/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/exp{exp}/coarse_gt_exp{exp}.npz'
+except FileNotFoundError:
+    assert False, 'file not found'
+
 
 filenames = [test_file, gt_file]
 

@@ -25,11 +25,13 @@ vmax = 27
 median_filter_size = 1
 correct_master = False
 mask_background_pixels = True
-folder = f"/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/exp{exp_num}"
-#folder = f"/mnt/researchdrive/research_users/David/Gated_Camera_Project/gated_project_data/exp{exp_num}"
+try:
+    folder = f"/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/exp{exp_num}"
+    hot_mask_filename = '/Users/davidparra/PycharmProjects/py-gated-camera/masks/hot_pixels.PNG'
+except FileNotFoundError:
+    folder = f"/mnt/researchdrive/research_users/David/Gated_Camera_Project/gated_project_data/exp{exp_num}"
+    hot_mask_filename = '/home/ubi-user/David_P_folder/py-gated-camera/masks/hot_pixels.PNG'
 
-#hot_mask_filename = '/home/ubi-user/David_P_folder/py-gated-camera/masks/hot_pixels.PNG'
-hot_mask_filename = '/Users/davidparra/PycharmProjects/py-gated-camera/masks/hot_pixels.PNG'
 
 #hot_mask = np.load(hot_mask_filename)
 hot_mask = np.array(Image.open(hot_mask_filename))
@@ -116,8 +118,8 @@ for path in npz_files:
             name = 'GroundTruth'
         else:
             name = 'CoarseK{}'.format(num_gates)
-            #plt.plot(coding_matrix)
-            #plt.show()
+            # plt.plot(coding_matrix)
+            # plt.show()
     elif 'ham' in path:
         K = coded_vals.shape[-1]
 
