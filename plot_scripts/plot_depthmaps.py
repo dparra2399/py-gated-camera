@@ -17,12 +17,13 @@ from PIL import Image
 import math
 from felipe_utils.research_utils.signalproc_ops import gaussian_pulse
 
-exp_num = 9
+exp_num = 0
 k = 3
 n_tbins = 640
-vmin = 21.09
-vmax = 27
+vmin = 0.2
+vmax = 0.3
 median_filter_size = 1
+use_correlations = True
 correct_master = False
 mask_background_pixels = True
 try:
@@ -79,41 +80,33 @@ for path in npz_files:
 
     if 'coarse' in path:
         gate_width = file["gate_width"]
-        try:
-            size = file["size"]
-        except:
-            if num_gates == 3 and mhz == 10:
-                voltage = 7
-                size = 34
-            elif num_gates == 3 and mhz == 5:
-                voltage = 5.7
-                size = 67
-            elif num_gates == 4 and mhz == 10:
-                voltage = 7.6
-                size = 25
-            elif num_gates == 4 and mhz == 5:
-                voltage = 6
-                size = 50
-            else:
-                voltage = 10
-                size = 12
+        if num_gates == 3:
+            size = 34
+            voltage = 7
+        elif num_gates == 4:
+            size = 25
+            voltage = 7.6
+        else:
+            size = 12
+            voltage = 10
 
-        irf = get_voltage_function(mhz, voltage, size, 'pulse', n_tbins)
-        #if num_gates == 3:
-        #    irf = gaussian_pulse(np.arange(n_tbins), 0, 180, circ_shifted=True)
-        #    irf = np.roll(irf, shift=100)
-        #plt.plot(irf)
-        #plt.show()
-        # irf = np.roll(irf, -np.argmax(irf))
-        # irf2 = gaussian_pulse(np.arange(n_tbins), 0, 100, circ_shifted=True)
-        # irf2 = np.roll(irf2, np.argmax(irf2))
-        #plt.plot(irf)
-        # plt.plot(irf2)
-        # plt.title('Irf Function')
-        #plt.show()
-        coding_matrix = get_coarse_coding_matrix(gate_width * 1e3, num_gates, 0,
-                                                 gate_width * 1e3, rep_tau * 1e12,
-                                                 n_tbins=n_tbins, irf=irf)
+        if use_correlations:
+            try:
+                correlaions_filepath = f'/Users/davidparra/PycharmProjects/py-gated-camera/correlation_functions/coarsek{k}_{mhz}mhz_{voltage}v_{size}w_correlations.npz'
+            except FileNotFoundError:
+                raise 'What? Your file was not found. Sorry ;/'
+
+            file = np.load(correlaions_filepath)
+            correlations_total = file['correlations']
+            coding_matrix = np.transpose(np.sum(np.sum(correlations_total, axis=0), axis=0))
+            n_tbins = file['n_tbins']
+            (rep_tau, rep_freq, tbin_res, t_domain, max_depth, tbin_depth_res) = calculate_tof_domain_params(
+                n_tbins, 1. / float(freq))
+        else:
+            irf = get_voltage_function(mhz, voltage, size, 'pulse', n_tbins)
+            coding_matrix = get_coarse_coding_matrix(gate_width * 1e3, num_gates, 0, gate_width * 1e3, rep_tau * 1e12,
+                                                     n_tbins, irf)
+        # plt.imshow(coding_matrix.transpose(), aspect='auto')
         if 'gt' in path:
             name = 'GroundTruth'
         else:
@@ -164,20 +157,16 @@ for path in npz_files:
     depth_map[hot_mask == 1] = filtered[hot_mask == 1]
 
     if name == 'GroundTruth' and mask_background_pixels:
-        tmp = cluster_kmeans(np.copy(depth_map), n_clusters=2)
+        if correct_master:
+            tmp = cluster_kmeans(np.copy(depth_map), n_clusters=2)
+        else:
+            tmp = cluster_kmeans(np.copy(depth_map[:, :im_width//2]), n_clusters=2)
         tmp[tmp == np.nanmax(tmp)] = np.nan
         tmp[tmp == np.nanmin(tmp)] = 1
-        depth_map *= tmp
-        # plt.imshow(depth_map, cmap='gray')
-        # plt.show()
-        coded_vals_tmp = np.sum(coded_vals, axis=-1)
-        #depth_map[coded_vals_tmp < 2500] = np.nan
-
-        #vmin = max(np.nanmin(depth_map), vmin)
-        vmin = 21.1
-        #vmax = np.nanmax(depth_map) + 0.5
-        vmax = 21.15
-
+        if correct_master:
+            depth_map *= tmp
+        else:
+            depth_map[:, :im_width//2] = depth_map[:, :im_width//2] * tmp
 
     depths_maps_dict[name] = depth_map
     #depth_map_normalized = (depth_map - np.nanmean(depth_map)) / np.nanstd(depth_map)

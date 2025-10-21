@@ -13,17 +13,18 @@ import matplotlib.patches as patches
 import math
 
 correct_master = False
-exp = 12
-k = 4
+exp = 0
+k = 3
 n_tbins = 1_024
-vmin = 19
-vmax = 21
+vmin = None
+vmax = None
 mask_background_pixels = True
-try:
-    #filename = f'/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/exp{exp}/coarsek{k}_exp{exp}.npz'
-    test_file = f'/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/exp{exp}/hamK{k}_exp{exp}.npz'
-    #filename = f'/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/exp{exp}/coarse_gt_exp{exp}.npz'
+use_correlations = True
 
+try:
+    test_file = f'/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/exp{exp}/coarsek{k}_exp{exp}.npz'
+    #test_file = f'/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/exp{exp}/hamK{k}_exp{exp}.npz'
+    #filename = f'/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/exp{exp}/coarse_gt_exp{exp}.npz'
     gt_file = f'/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/exp{exp}/coarse_gt_exp{exp}.npz'
 except FileNotFoundError:
     assert False, 'file not found'
@@ -63,12 +64,29 @@ for filename in filenames:
         gate_width = file["gate_width"]
         if num_gates == 3:
             size = 34
+            voltage = 7
         elif num_gates == 4:
             size = 25
+            voltage = 7.6
         else:
             size = 12
-        irf = get_voltage_function(mhz, voltage, size, 'pulse', n_tbins)
-        coding_matrix = get_coarse_coding_matrix(gate_width * 1e3, num_gates, 0, gate_width * 1e3, rep_tau * 1e12, n_tbins, irf)
+            voltage = 10
+
+        if use_correlations:
+            try:
+                correlaions_filepath = f'/Users/davidparra/PycharmProjects/py-gated-camera/correlation_functions/coarsek{k}_{mhz}mhz_{voltage}v_{size}w_correlations.npz'
+            except FileNotFoundError:
+                raise 'What? Your file was not found. Sorry ;/'
+
+            file = np.load(correlaions_filepath)
+            correlations_total = file['correlations']
+            coding_matrix = np.transpose(np.sum(np.sum(correlations_total, axis=0), axis=0))
+            n_tbins = file['n_tbins']
+            (rep_tau, rep_freq, tbin_res, t_domain, max_depth, tbin_depth_res) = calculate_tof_domain_params(
+                n_tbins, 1. / float(freq))
+        else:
+            irf = get_voltage_function(mhz, voltage, size, 'pulse', n_tbins)
+            coding_matrix = get_coarse_coding_matrix(gate_width * 1e3, num_gates, 0, gate_width * 1e3, rep_tau * 1e12, n_tbins, irf)
         # plt.imshow(coding_matrix.transpose(), aspect='auto')
         # plt.show()
     elif 'ham' in filename:
@@ -108,12 +126,17 @@ for filename in filenames:
 
 
     if 'gt' in filename and mask_background_pixels:
-        tmp = cluster_kmeans(np.copy(gt_depth_map), n_clusters=2)
+        if not correct_master:
+            tmp = cluster_kmeans(np.copy(gt_depth_map[:, :im_width // 2]), n_clusters=2)
+        else:
+            tmp = cluster_kmeans(np.copy(gt_depth_map), n_clusters=2)
         tmp[tmp == np.nanmax(tmp)] = np.nan
         tmp[tmp == np.nanmin(tmp)] = 1
 
-if mask_background_pixels:
+if mask_background_pixels and correct_master:
     depth_map *= tmp
+elif mask_background_pixels:
+    depth_map[:,:im_width//2] = depth_map[:,:im_width//2] * tmp
 
 x1, y1 = (70, 70)
 x2, y2 = (220, 330)

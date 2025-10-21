@@ -41,7 +41,6 @@ correct_master = False
 decode_depths = True
 save_into_file = True
 use_correlations = False
-correlaions_filepath = '/home/ubi-user/David_P_folder/py-gated-camera/correlation_functions/coarsek3_10mhz_10v_correlations.npz'
 vmin = None
 vmax = None
 
@@ -110,9 +109,28 @@ if correct_master:
 
 
 if decode_depths:
+    mhz = int(float(freq[-2]) * 1e-6)
+    if num_gates == 3 and mhz == 10:
+        voltage = 7
+        size = 34
+    elif num_gates == 3 and mhz == 5:
+        voltage = 5.7
+        size = 67
+    elif num_gates == 4 and mhz == 10:
+        voltage = 7.6
+        size = 25
+    elif num_gates == 4 and mhz == 5:
+        voltage = 6
+        size = 50
+    else:
+        voltage = 10
+        size = 12
 
-    
     if use_correlations:
+        try:
+            correlaions_filepath = f'/home/ubi-user/David_P_folder/py-gated-camera/correlation_functions/coarsek{num_gates}_{mhz}mhz_{voltage}v_correlations.npz'
+        except FileNotFoundError:
+            raise ';('
         file = np.load(correlaions_filepath)
         correlations_total = file['correlations']
         coding_matrix = np.transpose(np.sum(np.sum(correlations_total, axis=0), axis=0))
@@ -120,23 +138,6 @@ if decode_depths:
         (rep_tau, rep_freq, tbin_res, t_domain, max_depth, tbin_depth_res) = calculate_tof_domain_params(n_tbins, 1./ float(freq[-2]))
     else:
         (rep_tau, rep_freq, tbin_res, t_domain, max_depth, tbin_depth_res) = calculate_tof_domain_params(n_tbins, 1./ float(freq[-2]))
-        mhz = int(float(freq[-2]) * 1e-6)
-        if num_gates == 3 and mhz == 10:
-            voltage = 7
-            size = 34
-        elif num_gates == 3 and mhz == 5:
-            voltage = 5.7
-            size = 67
-        elif num_gates == 4 and mhz == 10:
-            voltage = 7.6
-            size = 25
-        elif num_gates == 4 and mhz == 5:
-            voltage = 6
-            size = 50
-        else:
-            voltage = 10
-            size = 12
-
         irf = get_voltage_function(mhz, voltage, size,'pulse', n_tbins)
         #irf=None
         #plt.plot(irf)
