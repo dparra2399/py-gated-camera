@@ -32,18 +32,20 @@ SPAD1.set_Vex(Vex)
 
 # Editable parameters
 intTime = 50000 #integration time
-num_gates = 16 #number of time bins
+num_gates = 3 #number of time bins
 im_width = 512 #image width
 bitDepth = 12
 n_tbins = 640
 voltage= 10
 correct_master = False
 decode_depths = True
+use_correlations = False
+correlaions_filepath = '/home/ubi-user/David_P_folder/py-gated-camera/correlation_functions/coarsek3_10mhz_10v_correlations.npz'
 save_into_file = True
-vmin = 21
-vmax = 27
+vmin = 6
+vmax = 6.5
 
-exp_num = 9
+exp_num = 0
 #save_path = '/mnt/researchdrive/research_users/David/gated_project_data'
 save_path = '/home/ubi-user/David_P_folder'
 save_name = f'coarse_gt_exp{exp_num}'
@@ -87,25 +89,31 @@ if correct_master:
 
 
 if decode_depths:
-
-
-    (rep_tau, rep_freq, tbin_res, t_domain, max_depth, tbin_depth_res) = calculate_tof_domain_params(n_tbins, 1./ float(freq[-2]))
     # print(rep_freq, rep_tau, tbin_res)
     # print(rep_tau * 1e12)
     #print(gate_step_size,gate_steps, gate_offset, gate_width)
-    mhz = int(float(freq[-2]) * 1e-6)
-    if num_gates == 3:
-        size = 34
-    elif num_gates== 4:
-        size = 25
-    else:
-        size = 12
 
-    irf = get_voltage_function(mhz, voltage, size,'pulse', n_tbins)
-    #irf=None
-    #plt.plot(irf)
-    #plt.show()
-    coding_matrix = get_coarse_coding_matrix(gate_width * 1e3, num_gates, 0, gate_width * 1e3, rep_tau * 1e12, n_tbins, irf)
+    if use_correlations:
+        file = np.load(correlaions_filepath)
+        correlations_total = file['correlations']
+        coding_matrix = np.transpose(np.sum(np.sum(correlations_total, axis=0), axis=0))
+        n_tbins = file['n_tbins']
+        (rep_tau, rep_freq, tbin_res, t_domain, max_depth, tbin_depth_res) = calculate_tof_domain_params(n_tbins, 1./ float(freq[-2]))
+    else:
+        (rep_tau, rep_freq, tbin_res, t_domain, max_depth, tbin_depth_res) = calculate_tof_domain_params(n_tbins, 1./ float(freq[-2]))
+        mhz = int(float(freq[-2]) * 1e-6)
+        if num_gates == 3:
+            size = 34
+        elif num_gates== 4:
+            size = 25
+        else:
+            size = 12
+
+        irf = get_voltage_function(mhz, voltage, size,'pulse', n_tbins)
+        #irf=None
+        #plt.plot(irf)
+        #plt.show()
+        coding_matrix = get_coarse_coding_matrix(gate_width * 1e3, num_gates, 0, gate_width * 1e3, rep_tau * 1e12, n_tbins, irf)
 
     #plt.imshow(coding_matrix.transpose(), aspect='auto')
     #print(coding_matrix)
@@ -136,6 +144,10 @@ if decode_depths:
     axs[1].bar(np.arange(0, num_gates), coded_vals[y2, x2, :], color='blue')
     #axs[0].set_xticks(np.arange(0, metadata['Gate steps'])[::3])
     #axs[0].set_xticklabels(np.round(gate_starts, 1)[::3])
+    if vmin == None:
+        vmin = np.min(depth_map)
+    if vmax == None:
+        vmax = np.max(depth_map)
 
     axs[2].imshow(median_filter(depth_map, size=1), vmin=vmin, vmax=vmax)
     axs[2].plot(x1, y1, 'ro')
