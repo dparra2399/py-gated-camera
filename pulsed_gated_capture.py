@@ -31,24 +31,22 @@ SPAD1.set_Vex(Vex)
 
 
 # Editable parameters
-intTime = 50000 #integration time
-num_gates = 3 #number of time bins
+intTime = 8000 #integration time
+num_gates = 4 #number of time bins
 im_width = 512 #image width
 bitDepth = 12
 n_tbins = 640
-voltage= 10
 correct_master = False
 decode_depths = True
-use_correlations = False
-correlaions_filepath = '/home/ubi-user/David_P_folder/py-gated-camera/correlation_functions/coarsek3_10mhz_10v_correlations.npz'
+use_correlations = True
 save_into_file = True
-vmin = 6
-vmax = 6.5
+vmin = 0
+vmax = 1
 
-exp_num = 0
+exp_num = 1
 #save_path = '/mnt/researchdrive/research_users/David/gated_project_data'
 save_path = '/home/ubi-user/David_P_folder'
-save_name = f'coarse_gt_exp{exp_num}'
+save_name = f'coarsek{num_gates}_gt_exp{exp_num}'
 
 #Don't edit
 iterations = 1
@@ -88,29 +86,34 @@ if correct_master:
     coded_vals[:, im_width//2:, :] = np.roll(coded_vals[:, im_width//2:, :], shift=1)
 
 
+mhz = int(float(freq[-2]) * 1e-6)
+if num_gates == 3 and mhz == 10:
+    voltage = 7
+    size = 34
+elif num_gates == 3 and mhz == 5:
+    voltage = 5.7
+    size = 67
+elif num_gates == 4 and mhz == 10:
+    voltage = 7.6
+    size = 25
+elif num_gates == 4 and mhz == 5:
+    voltage = 6
+    size = 50
+else:
+    voltage = 10
+    size = 12
+
 if decode_depths:
-    mhz = int(float(freq[-2]) * 1e-6)
-    if num_gates == 3 and mhz == 10:
-        voltage = 7
-        size = 34
-    elif num_gates == 3 and mhz == 5:
-        voltage = 5.7
-        size = 67
-    elif num_gates == 4 and mhz == 10:
-        voltage = 7.6
-        size = 25
-    elif num_gates == 4 and mhz == 5:
-        voltage = 6
-        size = 50
-    else:
-        voltage = 10
-        size = 12
+    # print(rep_freq, rep_tau, tbin_res)
+    # print(rep_tau * 1e12)
+    #print(gate_step_size,gate_steps, gate_offset, gate_width)
 
     if use_correlations:
         try:
-            correlaions_filepath = f'/home/ubi-user/David_P_folder/py-gated-camera/correlation_functions/coarsek{num_gates}_{mhz}mhz_{voltage}v_correlations.npz'
+            correlaions_filepath = f'/home/ubi-user/David_P_folder/py-gated-camera/correlation_functions/coarsek{num_gates}_{mhz}mhz_{voltage}v_{size}w_correlations.npz'
         except FileNotFoundError:
-            raise ';('
+            raise 'What? Your file was not found. Sorry ;/'
+        
         file = np.load(correlaions_filepath)
         correlations_total = file['correlations']
         coding_matrix = np.transpose(np.sum(np.sum(correlations_total, axis=0), axis=0))
@@ -118,6 +121,14 @@ if decode_depths:
         (rep_tau, rep_freq, tbin_res, t_domain, max_depth, tbin_depth_res) = calculate_tof_domain_params(n_tbins, 1./ float(freq[-2]))
     else:
         (rep_tau, rep_freq, tbin_res, t_domain, max_depth, tbin_depth_res) = calculate_tof_domain_params(n_tbins, 1./ float(freq[-2]))
+        mhz = int(float(freq[-2]) * 1e-6)
+        if num_gates == 3:
+            size = 34
+        elif num_gates== 4:
+            size = 25
+        else:
+            size = 12
+
         irf = get_voltage_function(mhz, voltage, size,'pulse', n_tbins)
         #irf=None
         #plt.plot(irf)
@@ -196,7 +207,6 @@ if save_into_file:
          gate_width=gate_width,
          freq=float(freq[-2]),
          voltage=voltage,
-         coded_vals=coded_vals,
-         irf=irf)
+         coded_vals=coded_vals)
 
     

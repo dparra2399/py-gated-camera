@@ -31,8 +31,8 @@ SPAD1.set_Vex(Vex)
 
 
 # Editable parameters
-total_time = 1000 #integration time
-split_measurements = False
+total_time = 4800 #integration time
+split_measurements = True
 num_gates = 3 #number of time bins
 im_width = 512 #image width
 bitDepth = 12
@@ -40,11 +40,11 @@ n_tbins = 640
 correct_master = False
 decode_depths = True
 save_into_file = True
-use_correlations = False
-vmin = None
-vmax = None
+use_correlations = True
+vmin = 0
+vmax = 1
 
-exp_num = 0
+exp_num = 1
 #save_path = '/mnt/researchdrive/research_users/David/gated_project_data'
 save_path = '/home/ubi-user/David_P_folder'
 
@@ -108,27 +108,27 @@ if correct_master:
     coded_vals[:, im_width//2:, :] = np.roll(coded_vals[:, im_width//2:, :], shift=1)
 
 
-if decode_depths:
-    mhz = int(float(freq[-2]) * 1e-6)
-    if num_gates == 3 and mhz == 10:
-        voltage = 7
-        size = 34
-    elif num_gates == 3 and mhz == 5:
-        voltage = 5.7
-        size = 67
-    elif num_gates == 4 and mhz == 10:
-        voltage = 7.6
-        size = 25
-    elif num_gates == 4 and mhz == 5:
-        voltage = 6
-        size = 50
-    else:
-        voltage = 10
-        size = 12
+mhz = int(float(freq[-2]) * 1e-6)
+if num_gates == 3 and mhz == 10:
+    voltage = 7
+    size = 34
+elif num_gates == 3 and mhz == 5:
+    voltage = 5.7
+    size = 67
+elif num_gates == 4 and mhz == 10:
+    voltage = 7.6
+    size = 25
+elif num_gates == 4 and mhz == 5:
+    voltage = 6
+    size = 50
+else:
+    voltage = 10
+    size = 12
 
+if decode_depths:
     if use_correlations:
         try:
-            correlaions_filepath = f'/home/ubi-user/David_P_folder/py-gated-camera/correlation_functions/coarsek{num_gates}_{mhz}mhz_{voltage}v_correlations.npz'
+            correlaions_filepath = f'/home/ubi-user/David_P_folder/py-gated-camera/correlation_functions/coarsek{num_gates}_{mhz}mhz_{voltage}v_{size}w_correlations.npz'
         except FileNotFoundError:
             raise ';('
         file = np.load(correlaions_filepath)
@@ -219,7 +219,6 @@ if save_into_file:
          voltage=voltage,
          coded_vals=coded_vals,
          split_measurements=split_measurements,
-         size=size,
-         irf=irf)
+         size=size)
 
     

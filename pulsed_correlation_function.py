@@ -32,12 +32,12 @@ SPAD1.set_Vex(Vex)
 
 # Editable parameters
 intTime = 4000  # integration time
-num_gates = 3  # number of time bins
+num_gates = 4 # number of time bins
 im_width = 512  # image width
 bitDepth = 12
 #n_tbins = 640
 shift = 300 # shift in picoseconds...
-voltage = 10
+voltage = 7.6
 
 save_into_file = True
 plot_correlations = True
