@@ -31,22 +31,22 @@ SPAD1.set_Vex(Vex)
 
 
 # Editable parameters
-total_time = 500 #integration time
+total_time = 4000 #integration time
 split_measurements = False
-num_gates = 1 #number of time bins
 im_width = 512 #image width0
 bitDepth = 12
-K = 4
+K = 3
 n_tbins = 640
-correct_master = False
+correct_master = True
 decode_depths = True
 save_into_file = True
+use_correlations = True
 
 duty=20
-vmin = 21
-vmax = 27
+vmin = None
+vmax = None
 
-exp_num = 12
+exp_num = 2
 save_path = '/home/ubi-user/David_P_folder'
 #save_path = '/mnt/researchdrive/research_users/David/gated_project_data'
 save_name = f'hamK{K}_exp{exp_num}'
@@ -87,12 +87,12 @@ for i, item in enumerate(gated_demodfs_arr):
 
         current_intTime = intTime
         counts = np.zeros((im_width, im_width))
-        while current_intTime > 4800:
+        while current_intTime > 480:
             print(f'starting current time {current_intTime}')
-            counts += SPAD1.get_gated_intensity(bitDepth, 4800, iterations, gate_steps, gate_step_size,
+            counts += SPAD1.get_gated_intensity(bitDepth, 480, iterations, gate_steps, gate_step_size,
                                                 gate_step_arbitrary, gate_width,
                                                 gate_offset, gate_direction, gate_trig, overlap, 1, pileup, im_width)[:, :, 0]
-            current_intTime -= 4800
+            current_intTime -= 480
 
         counts += SPAD1.get_gated_intensity(bitDepth, current_intTime, iterations, gate_steps, gate_step_size,
                                             gate_step_arbitrary, gate_width,
@@ -111,7 +111,6 @@ if decode_depths:
     # print(rep_freq, rep_tau, tbin_res)
     # print(rep_tau * 1e12)
     #print(gate_step_size,gate_steps, gate_offset, gate_width)
-
     mhz = int(float(freq[-2]) * 1e-6)
     if duty == 20 and mhz == 10:
         voltage = 8.5
@@ -129,14 +128,27 @@ if decode_depths:
         illum_type = 'square'
         duty = 20
 
-    correlations = get_hamiltonain_correlations(K, mhz, voltage, duty, illum_type, n_tbins=n_tbins)
+    if use_correlations:
+        try:
+            correlaions_filepath = f'/home/ubi-user/David_P_folder/py-gated-camera/correlation_functions/hamk{K}_{mhz}mhz_{voltage}v_{duty}w_correlations.npz'
+        except FileNotFoundError:
+            raise ';('
+        file = np.load(correlaions_filepath)
+        correlations_total = file['correlations']
+        correlations = np.transpose(np.sum(np.sum(correlations_total, axis=0), axis=0))
+        n_tbins = file['n_tbins']
+        (rep_tau, rep_freq, tbin_res, t_domain, max_depth, tbin_depth_res) = calculate_tof_domain_params(n_tbins, 1./ float(freq[-2]))
+    else:
+        correlations = get_hamiltonain_correlations(K, mhz, voltage, duty, illum_type, n_tbins=n_tbins)
+        (rep_tau, rep_freq, tbin_res, t_domain, max_depth, tbin_depth_res) = calculate_tof_domain_params(n_tbins, 1./ float(freq[-2]))
 
-    # fig, axs = plt.subplots(1, 3)
-    # axs[0].plot(demodfs)
-    # axs[1].plot(get_voltage_function(mhz, 10))
-    # axs[2].plot(correlations)
-    # plt.show()
-    # exit()
+
+    fig, axs = plt.subplots(1, 3)
+    axs[0].plot(demodfs)
+    axs[1].plot()
+    axs[2].plot(correlations)
+    plt.show()
+    #exit()
 
     norm_coding_matrix = zero_norm_t(correlations)
 
@@ -147,13 +159,15 @@ if decode_depths:
 
     zncc = np.matmul(norm_coding_matrix, norm_coded_vals[..., np.newaxis]).squeeze(-1)
     
-    if correct_master:
-        zncc[:, im_width//2:, :] = np.roll(zncc[:, im_width//2:, :], shift=-5)
 
 
     depths = np.argmax(zncc, axis=-1)
 
     depth_map = np.reshape(depths, (512, 512)) * tbin_depth_res
+
+    if correct_master is False:
+        depth_map= depth_map[:, :im_width//2] 
+
 
     fig, axs = plt.subplots(3, figsize=(10, 10))
 
@@ -164,6 +178,10 @@ if decode_depths:
     axs[1].bar(np.arange(0, K), coded_vals[y2, x2, :], color='blue')
     #axs[0].set_xticks(np.arange(0, metadata['Gate steps'])[::3])
     #axs[0].set_xticklabels(np.round(gate_starts, 1)[::3])
+    if vmin == None:
+        vmin = np.min(depth_map)
+    if vmax == None:
+        vmax = np.max(depth_map)
 
     axs[2].imshow(median_filter(depth_map, size=1), vmin=vmin, vmax=vmax)
     #axs[2].imshow(depth_map[:, :im_width//2])
@@ -185,7 +203,6 @@ if save_into_file:
     import os
     np.savez(os.path.join(save_path, save_name),
          total_time=total_time,
-         num_gates=num_gates,
          im_width=im_width,
          bitDepth=bitDepth,
          n_tbins=n_tbins,
@@ -203,7 +220,6 @@ if save_into_file:
          voltage=voltage,
          coded_vals=coded_vals,
          split_measurements=split_measurements,
-         duty=duty,
-         irf=get_voltage_function(mhz, voltage, duty,illum_type))
+         duty=duty)
 
     

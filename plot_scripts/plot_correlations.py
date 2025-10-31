@@ -21,7 +21,8 @@ import math
 from felipe_utils.research_utils.signalproc_ops import gaussian_pulse
 
 
-path = '/home/ubi-user/David_P_folder/py-gated-camera/correlation_functions/coarsek3_10mhz_10v_correlations.npz'
+#path = '/home/ubi-user/David_P_folder/py-gated-camera/correlation_functions/coarsek3_10mhz_10v_correlations.npz'
+path = '/home/ubi-user/David_P_folder/py-gated-camera/correlation_functions/hamk3_10mhz_8.5v_20w_correlations.npz'
 
 file = np.load(path)
 

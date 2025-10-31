@@ -31,20 +31,20 @@ SPAD1.set_Vex(Vex)
 
 
 # Editable parameters
-total_time = 4800 #integration time
-split_measurements = True
+total_time = 4000 #integration time
+split_measurements = False
 num_gates = 3 #number of time bins
 im_width = 512 #image width
 bitDepth = 12
 n_tbins = 640
-correct_master = False
+correct_master = True
 decode_depths = True
 save_into_file = True
 use_correlations = True
 vmin = 0
 vmax = 1
 
-exp_num = 1
+exp_num = 2
 #save_path = '/mnt/researchdrive/research_users/David/gated_project_data'
 save_path = '/home/ubi-user/David_P_folder'
 
@@ -67,7 +67,7 @@ for i in range(num_gates):
     iterations = 1
     overlap = 0
     timeout = 0
-    pileup = 1
+    pileup = 0
     gate_steps =  1
     gate_step_arbitrary = 0
     gate_step_size = 0
@@ -83,12 +83,12 @@ for i in range(num_gates):
 
     current_intTime = intTime
     counts = np.zeros((im_width, im_width))
-    while current_intTime > 4800:
+    while current_intTime > 480:
         print(f'starting current time {current_intTime}')
-        counts += SPAD1.get_gated_intensity(bitDepth, 4800, iterations, gate_steps, gate_step_size,
+        counts += SPAD1.get_gated_intensity(bitDepth, 480, iterations, gate_steps, gate_step_size,
                                                 gate_step_arbitrary, gate_width,
                                                 gate_offset, gate_direction, gate_trig, overlap, 1, pileup, im_width)[:, :, 0]
-        current_intTime -= 4800
+        current_intTime -= 480
 
     counts += SPAD1.get_gated_intensity(bitDepth, current_intTime, iterations, gate_steps, gate_step_size,
                                             gate_step_arbitrary, gate_width,
