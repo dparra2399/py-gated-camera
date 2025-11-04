@@ -1,241 +1,268 @@
 import os
-import sys
 import glob
+import math
 
-from spad_lib.SPAD512S import SPAD512S
-from spad_lib.spad512utils import *
 import numpy as np
-import time
-import matplotlib.pyplot  as plt
-from scipy.stats import linregress
-from scipy.ndimage import gaussian_filter, median_filter
-from felipe_utils import CodingFunctionsFelipe
+import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import matplotlib.patches as patches
-from glob import glob
 from PIL import Image
-import math
-from felipe_utils.research_utils.signalproc_ops import gaussian_pulse
+from scipy.ndimage import gaussian_filter, median_filter, gaussian_filter1d
 
-exp_num = 0
-k = 3
-n_tbins = 640
-vmin = 0.2
-vmax = 0.3
-median_filter_size = 1
-use_correlations = True
-correct_master = False
-mask_background_pixels = True
-try:
-    folder = f"/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/exp{exp_num}"
-    hot_mask_filename = '/Users/davidparra/PycharmProjects/py-gated-camera/masks/hot_pixels.PNG'
-except FileNotFoundError:
-    folder = f"/mnt/researchdrive/research_users/David/Gated_Camera_Project/gated_project_data/exp{exp_num}"
-    hot_mask_filename = '/home/ubi-user/David_P_folder/py-gated-camera/masks/hot_pixels.PNG'
+# project / SPAD utils
+from spad_lib.spad512utils import (
+    calculate_tof_domain_params,
+    get_voltage_function,
+    get_coarse_coding_matrix,
+    get_hamiltonain_correlations,
+    cluster_kmeans,
+    build_coding_matrix_from_correlations,
+    decode_depth_map,
+    intrinsics_from_pixel_pitch,
+    range_to_z
+)
+
+from spad_lib.file_utils import (
+    get_data_folder,
+    filter_npz_files,
+    load_hot_mask,
+    load_correlations_file,
+    get_scheme_name
+)
+
+# -----------------------------------------------------------------------------
+# CONFIG
+# -----------------------------------------------------------------------------
+PIXEL_PITCH = 16.38 #in uM
+FOCAL_LENGTH = 25 #in mm
+EXP_NUM = 3
+K_FILTER = [4]
+N_TBINS_DEFAULT = 333
+VMIN = -0.2
+VMAX = 0.3
+MEDIAN_FILTER_SIZE = 3
+SIGMA_SIZE = 30 #How much to smooth correlations functions
+SHIFT_SIZE = 100 #How much to shift correlations functions
+USE_CORRELATIONS = True
+USE_FULL_CORRELATIONS = False
+CORRECT_MASTER = False
+MASK_BACKGROUND_PIXELS = True
+INCLUDE_SPLIT_MEASUREMENTS = True
+CORRECT_DEPTH_DISTORTION = True
+
+HOT_MASK_PATH_MAC = "/Users/davidparra/PycharmProjects/py-gated-camera/masks/hot_pixels.PNG"
+DATA_FOLDER_MAC = f"/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/exp{EXP_NUM}"
+DATA_FOLDER_LINUX = f"/mnt/researchdrive/research_users/David/Gated_Camera_Project/gated_project_data/exp{EXP_NUM}"
+
+EPSILON = 1e-12
 
 
-#hot_mask = np.load(hot_mask_filename)
-hot_mask = np.array(Image.open(hot_mask_filename))
-hot_mask[hot_mask < 5000] = 0
-hot_mask[hot_mask > 0] = 1
+def main():
+    folder = get_data_folder(DATA_FOLDER_MAC, DATA_FOLDER_LINUX)
+    hot_mask = load_hot_mask(HOT_MASK_PATH_MAC)
 
-npz_files = glob(os.path.join(folder, "*.npz"))
+    npz_files = glob.glob(os.path.join(folder, "*.npz"))
+    npz_files = filter_npz_files(npz_files, K_FILTER)
 
-npz_files = [f for f in npz_files if (str(k) in os.path.basename(f) or "_gt_" in os.path.basename(f))
-             and 'pulse' not in os.path.basename(f)]
+    depths_maps_dict = {}
+    gt_depth_maps_dict = {}
 
-depths_maps_dict = {}
-#depths_maps_normalized = []
-for path in npz_files:
-    file = np.load(path)
+    for path in npz_files:
+        f = np.load(path)
 
-    coded_vals = file['coded_vals']
-    irf = file['irf']
-    total_time = file["total_time"]
-    num_gates = file["num_gates"]
-    im_width = file["im_width"]
-    bitDepth = file["bitDepth"]
-    iterations = file["iterations"]
-    overlap = file["overlap"]
-    timeout = file["timeout"]
-    pileup = file["pileup"]
-    gate_steps = file["gate_steps"]
-    gate_step_arbitrary = file["gate_step_arbitrary"]
-    gate_step_size = file["gate_step_size"]
-    gate_offset = file["gate_offset"]
-    gate_direction = file["gate_direction"]
-    gate_trig = file["gate_trig"]
-    voltage = file["voltage"]
-    freq = file["freq"]
-    try:
-        split_measurements = file["split_measurements"]
-    except:
-        split_measurements = False
+        coded_vals = f["coded_vals"]
+        total_time = f["total_time"]
+        im_width = f["im_width"]
+        freq = float(f["freq"])
+        voltage = f["voltage"]
+        try:
+            size = f["size"]
+        except KeyError:
+            size = f['duty']
+        n_tbins = int(f["n_tbins"])
 
-    (rep_tau, rep_freq, tbin_res, t_domain, max_depth, tbin_depth_res) = calculate_tof_domain_params(n_tbins, 1 / freq)
-    mhz = int(freq * 1e-6)
-    if path == npz_files[0]:
-        print(f'MHZ: {mhz} \n Max Depth: {max_depth}')
-        print()
+        split_measurements = bool(f["split_measurements"])
+        if split_measurements != INCLUDE_SPLIT_MEASUREMENTS and 'gt' not in os.path.basename(path):
+            continue
 
-    if 'coarse' in path:
-        gate_width = file["gate_width"]
-        if num_gates == 3:
-            size = 34
-            voltage = 7
-        elif num_gates == 4:
-            size = 25
-            voltage = 7.6
+        # TOF params -------------------------------------------------------
+        (rep_tau,
+            rep_freq,
+            tbin_res,
+            t_domain,
+            max_depth,
+            tbin_depth_res,
+        ) = calculate_tof_domain_params(n_tbins, 1.0 / freq)
+        mhz = int(freq * 1e-6)
+
+        # -----------------------------------------------------------------
+        # choose coding matrix depending on file type
+        # -----------------------------------------------------------------
+        if USE_CORRELATIONS:
+            if 'coarse' in path:
+                name_tmp = 'coarse'
+            elif 'ham' in path:
+                name_tmp = 'ham'
+            else:
+                assert False
+            corr_path = (
+                f"/Users/davidparra/PycharmProjects/py-gated-camera/correlation_functions/"
+                f"{name_tmp}k{coded_vals.shape[-1]}_{mhz}mhz_{voltage}v_{size}w_correlations.npz"
+            )
+            correlations_total, n_tbins_corr = load_correlations_file(corr_path)
+            (
+                rep_tau,
+                rep_freq,
+                tbin_res,
+                t_domain,
+                max_depth,
+                tbin_depth_res,
+            ) = calculate_tof_domain_params(n_tbins_corr, 1.0 / freq)
+            coding_matrix = build_coding_matrix_from_correlations(correlations_total, im_width, n_tbins_corr, freq,
+                                                                  USE_FULL_CORRELATIONS, SIGMA_SIZE, SHIFT_SIZE)
+            n_tbins = n_tbins_corr
+        elif "coarse" in path:
+            gate_width = f["gate_width"]
+
+            irf = get_voltage_function(mhz, voltage, size, "pulse", n_tbins)
+            coding_matrix = get_coarse_coding_matrix(
+                gate_width * 1e3,
+                coded_vals.shape[-1],
+                0,
+                gate_width * 1e3,
+                rep_tau * 1e12,
+                n_tbins,
+                irf,
+            )
+
+        elif "ham" in path:
+            if "pulse" in path:
+                illum_type = "pulse"
+            else:
+                illum_type = "square"
+
+            coding_matrix = get_hamiltonain_correlations(
+                coded_vals.shape[-1], mhz, voltage, size, illum_type, n_tbins=n_tbins
+                )
         else:
-            size = 12
-            voltage = 10
+            assert False, 'Path needs to be "hamiltonian" or "coarse"'
 
-        if use_correlations:
-            try:
-                correlaions_filepath = f'/Users/davidparra/PycharmProjects/py-gated-camera/correlation_functions/coarsek{k}_{mhz}mhz_{voltage}v_{size}w_correlations.npz'
-            except FileNotFoundError:
-                raise 'What? Your file was not found. Sorry ;/'
+        name = get_scheme_name(path, coded_vals.shape[-1])
+        print(
+            f"{name}\n\tVoltage: {voltage}\n\tSize: {size}\n\tTotal Time: {total_time}\n\tSplit Measurements: {split_measurements}"
+        )
 
-            file = np.load(correlaions_filepath)
-            correlations_total = file['correlations']
-            coding_matrix = np.transpose(np.sum(np.sum(correlations_total, axis=0), axis=0))
-            n_tbins = file['n_tbins']
-            (rep_tau, rep_freq, tbin_res, t_domain, max_depth, tbin_depth_res) = calculate_tof_domain_params(
-                n_tbins, 1. / float(freq))
+        # -----------------------------------------------------------------
+        # decode to depth map
+        # -----------------------------------------------------------------
+        depth_map, zncc = decode_depth_map(
+            coded_vals,
+            coding_matrix,
+            im_width,
+            n_tbins,
+            tbin_depth_res,
+            USE_CORRELATIONS,
+            USE_FULL_CORRELATIONS,
+        )
+
+        if CORRECT_DEPTH_DISTORTION:
+            fx, fy, cx, cy = intrinsics_from_pixel_pitch(im_width, im_width, FOCAL_LENGTH, PIXEL_PITCH)
+            depth_map = range_to_z(depth_map, fx, fy, cx, cy)
+        # hot pixel fix
+        filtered = median_filter(depth_map, size=3, mode="nearest")
+        depth_map[hot_mask == 1] = filtered[hot_mask == 1]
+
+        # optional crop for master
+        if CORRECT_MASTER is False:
+            depth_map = depth_map[:, : im_width // 2]
+
+        # masking / GT handling
+        if "GroundTruth" in name and MASK_BACKGROUND_PIXELS:
+            # mask = cluster_kmeans(np.copy(depth_map), n_clusters=2)
+            # mask[mask == np.nanmax(mask)] = np.nan
+            # mask[mask == np.nanmin(mask)] = 1
+            depth_map = depth_map[20:450, :]
+            mask = None
+        elif MASK_BACKGROUND_PIXELS:
+            depth_map = depth_map[20:450, :]
+            mask = None
         else:
-            irf = get_voltage_function(mhz, voltage, size, 'pulse', n_tbins)
-            coding_matrix = get_coarse_coding_matrix(gate_width * 1e3, num_gates, 0, gate_width * 1e3, rep_tau * 1e12,
-                                                     n_tbins, irf)
-        # plt.imshow(coding_matrix.transpose(), aspect='auto')
-        if 'gt' in path:
-            name = 'GroundTruth'
+            mask = None
+
+        if "GroundTruth" in name:
+            gt_depth_maps_dict[name] = [np.copy(depth_map), mask]
         else:
-            name = 'CoarseK{}'.format(num_gates)
-            # plt.plot(coding_matrix)
-            # plt.show()
-    elif 'ham' in path:
-        K = coded_vals.shape[-1]
+            depths_maps_dict[name] = np.copy(depth_map)
 
+    # ---------------------------------------------------------------------
+    # plotting
+    # ---------------------------------------------------------------------
+    depth_maps_normalized = np.stack(
+        [dm - np.mean(dm) for dm in depths_maps_dict.values()],
+        axis=-1,
+    )
+    vmin = VMIN if VMIN is not None else np.nanmin(depth_maps_normalized)
+    vmax = VMAX if VMAX is not None else np.nanmax(depth_maps_normalized)
 
-        if 'pulse' in path:
-            illum_type = 'pulse'
-            size = 12
-            voltage = 10
-            name = 'HamiltonianK{} (Pulsed)'.format(K)
+    x, y = 20, 170
+    width, height = 220, 320
 
+    fig = plt.figure(figsize=(6, 4))
+    gs = gridspec.GridSpec(len(depths_maps_dict), 3, height_ratios=[1] * len(depths_maps_dict))
+
+    for i, (name, depth_map) in enumerate(depths_maps_dict.items()):
+        gt_info = gt_depth_maps_dict.get(name.split("_")[0] + "_GroundTruth", None)
+
+        if gt_info is not None:
+            gt_depth_map, mask = gt_info
         else:
-            illum_type = 'square'
-            size = 20
-            name = 'HamiltonianK{}'.format(K)
+            gt_depth_map, mask = None, None
 
-        coding_matrix = get_hamiltonain_correlations(K, mhz, voltage, size, illum_type, n_tbins=n_tbins)
-        plt.plot(coding_matrix)
-        plt.show()
-    else:
-        assert False, 'Path needs to be "hamiltonian" or "coarse".'
+        if gt_depth_map is not None and mask is not None:
+            mask[~np.isnan(mask)] = 1
+            depth_map = depth_map * mask
+            gt_depth_map = gt_depth_map * mask
 
-    print(f'{name} \n\t Voltage: {voltage} \n\t' +
-          f' Size: {size} \n\t Total Time: {total_time} \n\t Split Measurements: {split_measurements}')
-    print()
-    #plt.plot(coding_matrix)
-    #plt.show()
-    norm_coding_matrix = zero_norm_t(coding_matrix)
+        depth_map_plot = depth_map - np.mean(depth_map)
+        patch = depth_map_plot[y : y + height, x : x + width]
 
-    norm_coded_vals = zero_norm_t(coded_vals)
+        # full map ---------------------------------------------------------
+        ax = fig.add_subplot(gs[i, 0])
+        im = ax.imshow(
+            median_filter(depth_map_plot, size=MEDIAN_FILTER_SIZE), vmin=vmin, vmax=vmax
+        )
+        fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04, label="Depth (meters)")
+        ax.set_title(name)
+        rect = patches.Rectangle((x, y), width, height, linewidth=2, edgecolor="lime", facecolor="none")
+        ax.add_patch(rect)
 
-    zncc = np.matmul(norm_coding_matrix, norm_coded_vals[..., np.newaxis]).squeeze(-1)
+        # close-up ---------------------------------------------------------
+        ax2 = fig.add_subplot(gs[i, 1])
+        im2 = ax2.imshow(
+            median_filter(patch, size=MEDIAN_FILTER_SIZE), vmin=vmin, vmax=vmax
+        )
+        fig.colorbar(im2, ax=ax2, fraction=0.046, pad=0.04, label="Depth (meters)")
+        ax2.set_title("Close-Up")
 
-    if correct_master:
-        zncc[:, im_width // 2:, :] = np.roll(zncc[:, im_width // 2:, :], shift=175)
-
-    #zncc = np.roll(zncc, shift=5)
-    depths = np.argmax(zncc, axis=-1)
-
-    depth_map = np.reshape(depths, (512, 512)) * tbin_depth_res
-
-    filtered = median_filter(depth_map, size=3, mode='nearest')
-    depth_map[hot_mask == 1] = filtered[hot_mask == 1]
-
-    if name == 'GroundTruth' and mask_background_pixels:
-        if correct_master:
-            tmp = cluster_kmeans(np.copy(depth_map), n_clusters=2)
-        else:
-            tmp = cluster_kmeans(np.copy(depth_map[:, :im_width//2]), n_clusters=2)
-        tmp[tmp == np.nanmax(tmp)] = np.nan
-        tmp[tmp == np.nanmin(tmp)] = 1
-        if correct_master:
-            depth_map *= tmp
-        else:
-            depth_map[:, :im_width//2] = depth_map[:, :im_width//2] * tmp
-
-    depths_maps_dict[name] = depth_map
-    #depth_map_normalized = (depth_map - np.nanmean(depth_map)) / np.nanstd(depth_map)
-
-    #depths_maps.append(depth_map)
-    #depths_maps_normalized.append(depth_map_normalized)
-
-#depth_maps = np.stack(depths_maps, axis=-1)
-#depths_maps_normalized = np.stack(depths_maps_normalized, axis=-1)
-gt_depth_map = depths_maps_dict.pop('GroundTruth', None)
-
-print(f'Min depth: {np.nanmin(gt_depth_map)}, Max depth: {np.nanmax(gt_depth_map)}')
-
-x, y = 20, 170
-width, height = 220, 320
-fig = plt.figure(figsize=(12, 8))
-gs = gridspec.GridSpec(2, len(depths_maps_dict)+1, height_ratios=[1, 2])  # 2 rows, 2 cols
-
-for i in range(len(depths_maps_dict)+1):
-
-    if i == len(depths_maps_dict) and gt_depth_map is not None:
-        name = 'GroundTruth'
-        depth_map = gt_depth_map
-    elif gt_depth_map is not None and mask_background_pixels:
-        name, depth_map = list(depths_maps_dict.items())[i]
-        mask = np.copy(gt_depth_map)
-        mask[~np.isnan(mask)] = 1
-        #mask[np.isnan(gt_depth_map)] = 0
-        depth_map = depth_map * mask
-    elif gt_depth_map is not None:
-        name, depth_map = list(depths_maps_dict.items())[i]
-    else:
-        break
-
-    #depth_map_normalized = depths_maps_normalized[:, :, i]
-
-    #patch_normalized = depth_map_normalized[y:y+height, x:x+width]
-    patch = depth_map[y:y+height, x:x+width]
-    ax = fig.add_subplot(gs[0, i])
-    if correct_master:
-        im = ax.imshow(median_filter(depth_map, size=median_filter_size), vmin=vmin, vmax=vmax)
-    else:
-        #ax.imshow(gaussian_filter(median_filter(depth_map[:, :im_width // 2], size=5), sigma=0.0),
-        #          vmin=np.nanmin(depth_maps), vmax=np.nanmax(depth_maps))
-        #ax.imshow(depth_map[:, :im_width//2], vmin=np.nanmin(depth_maps), vmax=np.nanmax(depth_maps))
+        # GT / error -------------------------------------------------------
+        ax3 = fig.add_subplot(gs[i, 2])
         if gt_depth_map is not None:
-            #ax.imshow(depth_map[:, :im_width//2], vmin=np.nanmin(gt_depth_map), vmax=np.nanmax(gt_depth_map))
-            im = ax.imshow(gaussian_filter(median_filter(depth_map[:, :im_width // 2], size=median_filter_size), sigma=0.0),  vmin=vmin, vmax=vmax)
+            gt_depth_map_plot = gt_depth_map - np.mean(gt_depth_map)
+            error = np.nanmean(np.abs(depth_map - gt_depth_map))
+            rmse = np.sqrt(np.nanmean((depth_map - gt_depth_map) ** 2))
+            im3 = ax3.imshow(
+                median_filter(gt_depth_map_plot, size=MEDIAN_FILTER_SIZE), vmin=vmin, vmax=vmax
+            )
+            fig.colorbar(im3, ax=ax3, fraction=0.046, pad=0.04, label="Depth (meters)")
+            ax3.set_xlabel(f"MAE: {error * 1000: .3f} mm\nRMSE: {rmse * 1000: .3f} mm")
+            ax3.set_title("Ground Truth")
         else:
-            im = ax.imshow(median_filter(depth_map[:, :im_width // 2], size=median_filter_size),  vmin=vmin, vmax=vmax)
-    fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04, label='Depth (meters)')  # Add colorbar for ax
-    ax.set_title(name)
-    rect = patches.Rectangle((x, y), width, height,
-                             linewidth=2, edgecolor='lime', facecolor='none')
-    ax.add_patch(rect)
+            ax3.set_axis_off()
 
-    ax2 = fig.add_subplot(gs[1, i])
-    if gt_depth_map is not None:
-        im2 = ax2.imshow(median_filter(patch[:, :im_width // 2], size=median_filter_size), vmin=vmin, vmax=vmax)
-    else:
-        im2 = ax2.imshow(median_filter(patch[:, :im_width // 2], size=median_filter_size),  vmin=vmin, vmax=vmax)
+    fig.subplots_adjust(left=0.05, right=0.98, top=0.97, bottom=0.05, wspace=0.05, hspace=0.05)
+    plt.tight_layout(pad=0.2, w_pad=0.2, h_pad=0.2)
+    plt.show()
 
-    fig.colorbar(im2, ax=ax2, fraction=0.046, pad=0.04, label='Depth (meters)')  # Add colorbar for ax2
 
-    if gt_depth_map is not None:
-        error = np.nanmean(np.abs(depth_map[:, :im_width // 2] - gt_depth_map[:, :im_width // 2]))
-        rmse = np.sqrt(np.nanmean((depth_map[:, :im_width // 2]  - gt_depth_map[:, :im_width // 2])**2))
-        if i != len(depths_maps_dict):
-            ax2.set_xlabel(f'MAE: {error*1000: .3f} mm\n RMSE: {rmse*1000: .3f} mm')
-
-plt.tight_layout()
-plt.show()
+if __name__ == "__main__":
+    main()

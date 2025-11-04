@@ -44,73 +44,73 @@ import math
 from PIL import Image
 from matplotlib.animation import FuncAnimation, PillowWriter
 
-
-# Editable parameters
-intTime = 100  # integration time
-num_gates = 3  # number of time bins
-im_width = 512  # image width
-bitDepth = 12
-#n_tbins = 640
-shift = 100 # shift in picoseconds...
-voltage = 10
-
-freq = 5*1e6
-tau = ((1/float(freq)) * 1e12) #Tau in picoseconds
-n_tbins = int(tau // shift)
-
-print(f'Number of effective bins: {n_tbins}')
-print(f'Shift: {shift}')
-
-save_into_file = True
-
-save_path = '/home/ubi-user/David_P_folder'
-save_name = f'coarsek{num_gates}_{freq*1e6}mhz_{voltage}v_correlations'
-
-gate_width = math.ceil((((1/float(freq))*1e12) // num_gates) * 1e-3 )
-gate_starts = np.array([(gate_width * (gate_step)) for gate_step in range(num_gates)]) * 1e3
-
-(rep_tau, rep_freq, tbin_res, t_domain, max_depth, tbin_depth_res) = calculate_tof_domain_params(n_tbins, 1. / float(freq))
-
-print(f'Time bin depth resolution {tbin_depth_res * 1000:.3f} mm')
-
-
-
-plot_gates_animation = True
-
-gates = {i: [] for i in range(num_gates)}
-for i in range(num_gates):
-    gate_start = gate_starts[i]
-
-    for j in range(n_tbins):
-        gate_start_tmp = gate_start + j * shift
-        gate_start_tmp = gate_start_tmp % tau
-        if (gate_start_tmp + (gate_width * 1e3)) > tau:
-            gate_start_one = gate_start_tmp
-            gate_start_two = 0
-            gate_one_width = tau - gate_start_tmp
-            gate_two_width = (gate_width * (1e3)) - gate_one_width
-
-            gate_start_one_bin = int((gate_start_one * 1e-12) / tbin_res)
-            gate_end_one_bin = int(((gate_start_one + (gate_one_width)) * 1e-12) / tbin_res)
-
-            gate_start_two_bin = int((gate_start_two * 1e-12) / tbin_res)
-            gate_end_two_bin = int(((gate_start_two + (gate_two_width)) * 1e-12) / tbin_res)
-
-            gate_one = np.zeros((n_tbins))
-            gate_two = np.zeros((n_tbins))
-
-            gate_one[gate_start_one_bin:gate_end_one_bin] = 1
-            gate_two[gate_start_two_bin:gate_end_two_bin] = 1
-
-            gates[i].append([gate_one, gate_two])
-            print('split gate in half')
-        else:
-            gate = np.zeros((n_tbins))
-            gate_start_bin = int((gate_start_tmp * 1e-12) / tbin_res)
-            gate_end_bin = int(((gate_start_tmp + (gate_width *(1e3))) * 1e-12) / tbin_res)
-            gate[gate_start_bin:gate_end_bin] = 1
-            gates[i].append(gate)
-
+#
+# # Editable parameters
+# intTime = 100  # integration time
+# num_gates = 3  # number of time bins
+# im_width = 512  # image width
+# bitDepth = 12
+# #n_tbins = 640
+# shift = 100 # shift in picoseconds...
+# voltage = 10
+#
+# freq = 5*1e6
+# tau = ((1/float(freq)) * 1e12) #Tau in picoseconds
+# n_tbins = int(tau // shift)
+#
+# print(f'Number of effective bins: {n_tbins}')
+# print(f'Shift: {shift}')
+#
+# save_into_file = True
+#
+# save_path = '/home/ubi-user/David_P_folder'
+# save_name = f'coarsek{num_gates}_{freq*1e6}mhz_{voltage}v_correlations'
+#
+# gate_width = math.ceil((((1/float(freq))*1e12) // num_gates) * 1e-3 )
+# gate_starts = np.array([(gate_width * (gate_step)) for gate_step in range(num_gates)]) * 1e3
+#
+# (rep_tau, rep_freq, tbin_res, t_domain, max_depth, tbin_depth_res) = calculate_tof_domain_params(n_tbins, 1. / float(freq))
+#
+# print(f'Time bin depth resolution {tbin_depth_res * 1000:.3f} mm')
+#
+#
+#
+# plot_gates_animation = True
+#
+# gates = {i: [] for i in range(num_gates)}
+# for i in range(num_gates):
+#     gate_start = gate_starts[i]
+#
+#     for j in range(n_tbins):
+#         gate_start_tmp = gate_start + j * shift
+#         gate_start_tmp = gate_start_tmp % tau
+#         if (gate_start_tmp + (gate_width * 1e3)) > tau:
+#             gate_start_one = gate_start_tmp
+#             gate_start_two = 0
+#             gate_one_width = tau - gate_start_tmp
+#             gate_two_width = (gate_width * (1e3)) - gate_one_width
+#
+#             gate_start_one_bin = int((gate_start_one * 1e-12) / tbin_res)
+#             gate_end_one_bin = int(((gate_start_one + (gate_one_width)) * 1e-12) / tbin_res)
+#
+#             gate_start_two_bin = int((gate_start_two * 1e-12) / tbin_res)
+#             gate_end_two_bin = int(((gate_start_two + (gate_two_width)) * 1e-12) / tbin_res)
+#
+#             gate_one = np.zeros((n_tbins))
+#             gate_two = np.zeros((n_tbins))
+#
+#             gate_one[gate_start_one_bin:gate_end_one_bin] = 1
+#             gate_two[gate_start_two_bin:gate_end_two_bin] = 1
+#
+#             gates[i].append([gate_one, gate_two])
+#             print('split gate in half')
+#         else:
+#             gate = np.zeros((n_tbins))
+#             gate_start_bin = int((gate_start_tmp * 1e-12) / tbin_res)
+#             gate_end_bin = int(((gate_start_tmp + (gate_width *(1e3))) * 1e-12) / tbin_res)
+#             gate[gate_start_bin:gate_end_bin] = 1
+#             gates[i].append(gate)
+#
 
 #gates = np.stack(gates, axis=-1)
 
@@ -145,3 +145,29 @@ for i in range(num_gates):
 #
 # ani = FuncAnimation(fig, update, frames=len(seqs[0]), interval=5, blit=True)
 # plt.show()
+
+# List your files
+files = [
+    "/Users/davidparra/PycharmProjects/py-gated-camera/correlation_functions/hamk3_10mhz_8.5v_20w_correlations.npz",
+    "/Users/davidparra/PycharmProjects/py-gated-camera/correlation_functions/hamk4_10mhz_8.5v_20w_correlations.npz",
+]
+
+for path in files:
+    # Load everything
+    data = np.load(path, allow_pickle=True)
+
+    # Extract all items into a dictionary
+    data_dict = {k: data[k] for k in data.files}
+
+    # Flip the 'correlations' array on axis 0
+    if 'correlations' in data_dict:
+        #data_dict['correlations'] = np.flip(data_dict['correlations'], axis=0)
+        data_dict['correlations'] = np.flip(data_dict['correlations'], axis=-1)
+        print(f"Flipped 'correlations' for {path}")
+    else:
+        print(f"Warning: 'correlations' not found in {path}")
+
+    # Save back to the same file, overwriting it
+    np.savez(path, **data_dict)
+
+print("All files processed successfully.")

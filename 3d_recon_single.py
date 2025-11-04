@@ -6,35 +6,40 @@ import numpy as np
 import time
 import matplotlib.pyplot  as plt
 from scipy.stats import linregress
-from scipy.ndimage import gaussian_filter, median_filter
+from scipy.ndimage import gaussian_filter, median_filter, gaussian_filter1d
 from felipe_utils import CodingFunctionsFelipe
 import matplotlib.gridspec as gridspec
 import matplotlib.patches as patches
 import math
 import open3d as o3d
+from PIL import Image
 
 
-
+exp = 3
+k = 3
+type = 'coarse'
+n_tbins = 640
+vmin = None
+vmax = None
+median_filter_size = 3
 correct_master = False
-exp = 11
-k = 4
-n_tbins = 1_024
-vmin = 22
-vmax = 27
-filename = f'/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/exp{exp}/coarsek{k}_exp{exp}.npz'
-#filename = f'/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/exp{exp}/hamK{k}_exp{exp}.npz'
-
-#filename = f'/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/exp{exp}/coarse_gt_exp{exp}.npz'
-#filename = f"/mnt/researchdrive/research_users/David/Gated_Camera_Project/gated_project_data/exp{exp}/coarse_gt_exp{exp}.npz"
+mask_background_pixels = True
+use_correlations = True
+fov_major_axis_deg = 5
 
 
 
-file = np.load(filename)
+test_file = f'/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/exp{exp}/{type}k{k}_exp{exp}.npz'
+
+hot_mask_filename = '/Users/davidparra/PycharmProjects/py-gated-camera/masks/hot_pixels.PNG'
+hot_mask = np.array(Image.open(hot_mask_filename))
+hot_mask[hot_mask < 5000] = 0
+hot_mask[hot_mask > 0] = 1
+
+file = np.load(test_file)
 
 coded_vals = file['coded_vals']
-irf = file['irf']
 total_time = file["total_time"]
-num_gates = file["num_gates"]
 im_width = file["im_width"]
 bitDepth = file["bitDepth"]
 iterations = file["iterations"]
@@ -53,35 +58,65 @@ freq = file["freq"]
 (rep_tau, rep_freq, tbin_res, t_domain, max_depth, tbin_depth_res) = calculate_tof_domain_params(n_tbins, 1 / freq)
 mhz = int(freq * 1e-6)
 
-if 'coarse' in filename:
+if 'coarse' in test_file:
     gate_width = file["gate_width"]
-    try:
-        size = file["size"]
-    except:
-        if num_gates == 3 and mhz == 10:
-            voltage = 7
-            size = 34
-        elif num_gates == 3 and mhz == 5:
-            voltage = 5.7
-            size = 67
-        elif num_gates == 4 and mhz == 10:
-            voltage = 7.6
-            size = 25
-        elif num_gates == 4 and mhz == 5:
-            voltage = 6
-            size = 50
-        else:
-            voltage = 10
-            size = 12
-    irf = get_voltage_function(mhz, voltage, size, 'pulse', n_tbins)
-    coding_matrix = get_coarse_coding_matrix(gate_width * 1e3, num_gates, 0, gate_width * 1e3, rep_tau * 1e12, n_tbins, irf)
+    num_gates = file["num_gates"]
+    if num_gates == 3:
+        size = 34
+        voltage = 7
+    elif num_gates == 4:
+        size = 25
+        voltage = 7.6
+    else:
+        size = 12
+        voltage = 10
+
+    if use_correlations:
+        try:
+            correlaions_filepath = f'/Users/davidparra/PycharmProjects/py-gated-camera/correlation_functions/coarsek{k}_{mhz}mhz_{voltage}v_{size}w_correlations.npz'
+            file = np.load(correlaions_filepath)
+        except FileNotFoundError:
+            raise 'What? Your file was not found. Sorry ;/'
+
+        correlations_total = file['correlations']
+        coding_matrix = np.transpose(np.mean(np.mean(correlations_total[200:400, 100:256], axis=0), axis=0))
+        n_tbins = file['n_tbins']
+        (rep_tau, rep_freq, tbin_res, t_domain, max_depth, tbin_depth_res) = calculate_tof_domain_params(
+            n_tbins, 1. / float(freq))
+        coding_matrix = np.roll(coding_matrix, shift=150, axis=0)
+        coding_matrix = gaussian_filter1d(coding_matrix, sigma=20, axis=0)
+    else:
+        irf = get_voltage_function(mhz, voltage, size, 'pulse', n_tbins)
+        coding_matrix = get_coarse_coding_matrix(gate_width * 1e3, num_gates, 0, gate_width * 1e3, rep_tau * 1e12,
+                                                 n_tbins, irf)
     # plt.imshow(coding_matrix.transpose(), aspect='auto')
     # plt.show()
-elif 'ham' in filename:
+elif 'ham' in test_file:
     K = coded_vals.shape[-1]
-    coding_matrix = get_hamiltonain_correlations(K, mhz, voltage, 20, n_tbins)
-    #plt.plot(coding_matrix)
-    #plt.show()
+    if 'pulse' in test_file:
+        illum_type = 'pulse'
+        size = 12
+        voltage = 10
+
+    else:
+        illum_type = 'square'
+        size = 20
+
+    if use_correlations:
+        try:
+            correlaions_filepath = f'/Users/davidparra/PycharmProjects/py-gated-camera/correlation_functions/hamk{k}_{mhz}mhz_{voltage}v_{size}w_correlations.npz'
+            file = np.load(correlaions_filepath)
+        except FileNotFoundError:
+            raise 'What? Your file was not found. Sorry ;/'
+        correlations_total = file['correlations']
+        coding_matrix = np.transpose(np.mean(np.mean(correlations_total[200:400, 100:256], axis=0), axis=0))
+        n_tbins = file['n_tbins']
+        (rep_tau, rep_freq, tbin_res, t_domain, max_depth, tbin_depth_res) = calculate_tof_domain_params(
+            n_tbins, 1. / float(freq))
+        coding_matrix = np.roll(coding_matrix, shift=150, axis=0)
+        coding_matrix = gaussian_filter1d(coding_matrix, sigma=20, axis=0)
+    else:
+        coding_matrix = get_hamiltonain_correlations(K, mhz, voltage, size, illum_type, n_tbins=n_tbins)
 else:
     exit(0)
 
@@ -94,46 +129,56 @@ print(norm_coding_matrix.shape)
 
 zncc = np.matmul(norm_coding_matrix, norm_coded_vals[..., np.newaxis]).squeeze(-1)
 
-if correct_master:
-    zncc[:, im_width // 2:, :] = np.roll(zncc[:, im_width //2:, :], shift=870)
-
 
 depths = np.argmax(zncc, axis=-1)
-
 depth_map = np.reshape(depths, (512, 512)) * tbin_depth_res
 
-depth_map = median_filter(depth_map, size=3)
+if correct_master == False:
+    depth_map = depth_map[: ,: im_width // 2]
 
-depth_map = depth_map[:, :im_width // 2]
+if mask_background_pixels == True:
+    depth_map = depth_map[30:400, :]
+
+depth_map = median_filter(depth_map, size=median_filter_size)
+
+if vmin == None:
+    vmin = np.min(depth_map)
+if vmax == None:
+    vmax = np.max(depth_map)
+
 depth_map[depth_map < vmin] = vmin
 depth_map[depth_map > vmax] = vmax
 
+plt.imshow(depth_map, cmap='hot')
+plt.show()
+
 (nr, nc) = depth_map.shape[0:2]
 # FOV along the major axis (in degrees)
-fov_major_axis_deg = 5
-fov_major_axis_rad = np.radians(fov_major_axis_deg)  # Convert to radians
+# FOV along the major axis (in degrees)
+fov_major_axis_rad = np.radians(fov_major_axis_deg)
 
-# Calculate focal length
-fx = nc / (2 * np.tan(fov_major_axis_rad / 2))
-fy = fx  # Assume square pixels if no other info is provided
+height, width = depth_map.shape[:2]
 
-# Principal point (image center)
-cx, cy = nr / 2, nc / 2
+# intrinsics (assume FOV is horizontal / major axis = width)
+fx = width / (2 * np.tan(fov_major_axis_rad / 2))
+fy = fx  # square pixels
+
+# correct principal point!
+cx = width / 2.0
+cy = height / 2.0
 
 print(f"Estimated Intrinsics:\nfx = {fx:.2f}, fy = {fy:.2f}, cx = {cx:.2f}, cy = {cy:.2f}")
 
-
-height, width = depth_map.shape[0:2]
-
-# Generate mesh grid
+# grid
 x, y = np.meshgrid(np.arange(width), np.arange(height))
 
-# Convert depth to meters if necessary (e.g., divide by 1000 if in mm)
+# your depth scale
 z = depth_map.astype(np.float32) / 20.0
 
-# Reproject to 3D using intrinsics
+# backproject
 x3d = (x - cx) * z / fx
 y3d = (y - cy) * z / fy
+
 points = np.stack((x3d, y3d, z), axis=-1).reshape(-1, 3)
 
 valid_points = ~np.isnan(points).any(axis=1) & (points[:, 2] > 0)
@@ -145,7 +190,7 @@ pcd.points = o3d.utility.Vector3dVector(points)
 cl, ind = pcd.remove_statistical_outlier(nb_neighbors=50, std_ratio=1.0)
 pcd = pcd.select_by_index(ind)
 
-pcd = pcd.voxel_down_sample(voxel_size=0.0005)
+#pcd = pcd.voxel_down_sample(voxel_size=0.0005)
 pcd.remove_duplicated_points()
 pcd.remove_non_finite_points()
 pcd, ind = pcd.remove_radius_outlier(nb_points=16, radius=0.02)
@@ -154,7 +199,7 @@ pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.
 
 o3d.visualization.draw_geometries([pcd], window_name="Mesh ")
 
-exit(0)
+#exit(0)
 pcd.orient_normals_consistent_tangent_plane(k=30)
 
 o3d.visualization.draw_geometries([pcd], window_name="Mesh ")
@@ -197,12 +242,25 @@ intensity = np.linalg.norm(normals_normalized, axis=1)  # This gives a scalar in
 intensity = np.clip(intensity * 0.8, 0, 1)
 
 # Set grey shading: Apply intensity to all RGB channels for each vertex
-grey_shading = np.stack([intensity, intensity, intensity], axis=1)  # Apply the same intensity to R, G, B
+# grey_shading = np.stack([intensity, intensity, intensity], axis=1)  # Apply the same intensity to R, G, B
+#
+# # Set the colors to the mesh vertices
+# mesh.vertex_colors = o3d.utility.Vector3dVector(grey_shading)
 
-# Set the colors to the mesh vertices
-mesh.vertex_colors = o3d.utility.Vector3dVector(grey_shading)
+verts = np.asarray(mesh.vertices)
+z = verts[:, 2]
 
-o3d.visualization.draw_geometries([mesh], mesh_show_back_face=True, window_name="Mesh ")
+# Normalize z for colormap
+z_min, z_max = z.min(), z.max()
+z_norm = (z - z_min) / (z_max - z_min + 1e-8)
+
+# Apply a colormap (choose 'turbo', 'viridis', 'plasma', etc.)
+cmap = plt.get_cmap("turbo")
+colors = cmap(z_norm)[:, :3]
+
+mesh.vertex_colors = o3d.utility.Vector3dVector(colors)
+o3d.visualization.draw_geometries([mesh], mesh_show_back_face=True, window_name="Mesh")
+
 
 # theta = np.radians(25)
 #

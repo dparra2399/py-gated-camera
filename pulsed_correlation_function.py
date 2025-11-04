@@ -103,12 +103,12 @@ for i in range(num_gates):
         for p, gate_start_input in enumerate(gate_starts_helper):
             gate_width_help = gate_widths_helper[p]
             current_intTime = intTime
-            while current_intTime > 4800:
+            while current_intTime > 480:
                 print(f'starting current time {current_intTime}')
-                counts += SPAD1.get_gated_intensity(bitDepth, 4800, iterations, gate_steps, gate_step_size,
+                counts += SPAD1.get_gated_intensity(bitDepth, 480, iterations, gate_steps, gate_step_size,
                                                     gate_step_arbitrary, gate_width_help,
                                                     gate_start_input, gate_direction, gate_trig, overlap, 1, pileup, im_width)[:, :, 0]
-                current_intTime -= 4800
+                current_intTime -= 480
 
             counts += SPAD1.get_gated_intensity(bitDepth, current_intTime, iterations, gate_steps, gate_step_size,
                                                 gate_step_arbitrary, gate_width_help,

@@ -135,6 +135,8 @@ for i, item in enumerate(gated_demodfs_arr):
         print(f'Finished to measure correlations for demodulation function number {i+1}')
         print('-------------------------------------------------------')
 
+correlations = np.flip(correlations, axis=-1)
+
 unit = "ms"
 factor_unit = 1e-3
 
