@@ -1,224 +1,242 @@
 # Libraries
 import os
-import glob
 from spad_lib.SPAD512S import SPAD512S
 from spad_lib.spad512utils import *
+from spad_lib.file_utils import *
+from plot_scripts.plot_utils import *
 import numpy as np
-import time
-import matplotlib.pyplot  as plt
-from scipy.stats import linregress
-from scipy.ndimage import gaussian_filter, median_filter
 import math
+import argparse
 
+PORT = 9999  # Check the command Server in the setting tab of the software and change it if necessary
+VEX = 7
 
-port = 9999 # Check the command Server in the setting tab of the software and change it if necessary
-SPAD1 = SPAD512S(port)
+# Editable parameters (defaults; can be overridden via CLI)
+TOTAL_TIME = 4000  # integration time
+SPLIT_MEASUREMENTS = False
+NUM_GATES = 3  # number of time bins
+IM_WIDTH = 512  # image width
+BIT_DEPTH = 12
+N_TBINS = 640
+CORRECT_MASTER = True
+DECODE_DEPTHS = True
+SAVE_INTO_FILE = True
+USE_CORRELATIONS = True
+USE_FULL_CORRELATIONS = False
+SIGMA_SIZE = 30
+SHIFT_SIZE = 150
+MEDIAN_FILTER_SIZE = 3
 
-# Get informations on the system used
-info = SPAD1.get_info()
-print("\nGeneral informations of the camera :")
-print(info)
-temp = SPAD1.get_temps() # Current temperatures of FPGAs, PCB and Chip
-print("\nCurrent temperatures of FPGAs, PCB and Chip :")
-print(temp)
-freq = SPAD1.get_freq() # Operating frequencies (Laser and frame)
-print("\nOperating frequencies (Laser and frame) :")
-print(freq)
+VMIN = None
+VMAX = None
 
-# # # Set the voltage to the maximum value
-Vex = 7
-SPAD1.set_Vex(Vex)
+#Non-Editable parameters
+ITERATIONS = 1
+OVERLAP = 0
+TIMEOUT = 0
+PILEUP = 0
+GATE_STEPS = 1
+GATE_STEP_ARBITRARY = 0
+GATE_STEP_SIZE = 0
+GATE_DIRECTION = 1
+GATE_TRIG = 0
 
+EXP_NUM = 2
+# SAVE_PATH = '/mnt/researchdrive/research_users/David/gated_project_data'
+SAVE_PATH = '/home/ubi-user/David_P_folder'
 
-# Editable parameters
-total_time = 4000 #integration time
-split_measurements = False
-num_gates = 3 #number of time bins
-im_width = 512 #image width
-bitDepth = 12
-n_tbins = 640
-correct_master = True
-decode_depths = True
-save_into_file = True
-use_correlations = True
-vmin = 0
-vmax = 1
+SAVE_NAME = f'coarsek{NUM_GATES}_exp{EXP_NUM}'
 
-exp_num = 2
-#save_path = '/mnt/researchdrive/research_users/David/gated_project_data'
-save_path = '/home/ubi-user/David_P_folder'
+if __name__ == '__main__':
+    # --- Hardware constants and initialization ---
+    SPAD1 = SPAD512S(PORT)
 
-save_name = f'coarsek{num_gates}_exp{exp_num}'
+    # Get informations on the system used
+    info = SPAD1.get_info()
+    print("\nGeneral informations of the camera :")
+    print(info)
+    temp = SPAD1.get_temps() # Current temperatures of FPGAs, PCB and Chip
+    print("\nCurrent temperatures of FPGAs, PCB and Chip :")
+    print(temp)
+    freq = SPAD1.get_freq() # Operating frequencies (Laser and frame)
+    print("\nOperating frequencies (Laser and frame) :")
+    print(freq)
 
+    # # # Set the voltage to the maximum value
+    SPAD1.set_Vex(VEX)
 
-#Make list of gate starts which will be the offet param in the SPAD512
-gate_width = math.ceil((((1/float(freq[-2]))*1e12) // num_gates) * 1e-3 )
-gate_starts = np.array([(gate_width * (gate_step)) for gate_step in range(num_gates)]) * 1e3
+    # --- CLI overrides (hybrid approach) ---
+    parser = argparse.ArgumentParser(description="Split-pulsed gated capture")
+    parser.add_argument("--total_time", type=int, default=TOTAL_TIME)
+    parser.add_argument("--split_measurements", action=argparse.BooleanOptionalAction, default=SPLIT_MEASUREMENTS)
+    parser.add_argument("--num_gates", type=int, default=NUM_GATES)
+    parser.add_argument("--im_width", type=int, default=IM_WIDTH)
+    parser.add_argument("--bit_depth", type=int, default=BIT_DEPTH)
+    parser.add_argument("--n_tbins", type=int, default=N_TBINS)
+    parser.add_argument("--correct_master", action=argparse.BooleanOptionalAction, default=CORRECT_MASTER)
+    parser.add_argument("--decode_depths", action=argparse.BooleanOptionalAction, default=DECODE_DEPTHS)
+    parser.add_argument("--save_into_file", action=argparse.BooleanOptionalAction, default=SAVE_INTO_FILE)
+    parser.add_argument("--use_correlations", action=argparse.BooleanOptionalAction, default=USE_CORRELATIONS)
+    parser.add_argument("--vmin", type=float, default=VMIN)
+    parser.add_argument("--vmax", type=float, default=VMAX)
+    parser.add_argument("--exp_num", type=int, default=EXP_NUM)
+    parser.add_argument("--save_path", type=str, default=SAVE_PATH)
+    parser.add_argument("--save_name", type=str, default=None)
 
-print("\nGate Starts (offsets):")
-print(gate_starts)
-print(f'\nnum gates: {num_gates}')
-print(f'\ngate width: {gate_width}')
+    args = parser.parse_args()
 
-#For each gate make a gated acq. using the offset provided above
-coded_vals = np.zeros((im_width, im_width, num_gates))
-for i in range(num_gates):
+    TOTAL_TIME = args.total_time
+    SPLIT_MEASUREMENTS = args.split_measurements
+    NUM_GATES = args.num_gates
+    IM_WIDTH = args.im_width
+    BIT_DEPTH = args.bit_depth
+    N_TBINS = args.n_tbins
+    CORRECT_MASTER = args.correct_master
+    DECODE_DEPTHS = args.decode_depths
+    SAVE_INTO_FILE = args.save_into_file
+    USE_CORRELATIONS = args.use_correlations
+    VMIN = args.vmin
+    VMAX = args.vmax
+    EXP_NUM = args.exp_num
+    SAVE_PATH = args.save_path
+    SAVE_NAME = args.save_name if args.save_name is not None else f"coarsek{NUM_GATES}_exp{EXP_NUM}"
 
-    iterations = 1
-    overlap = 0
-    timeout = 0
-    pileup = 0
-    gate_steps =  1
-    gate_step_arbitrary = 0
-    gate_step_size = 0
-    gate_offset = gate_starts[i]
-    gate_direction = 1
-    gate_trig = 0
-    if split_measurements:
-        intTime = int(total_time // num_gates)
+    #Make list of gate starts which will be the offet param in the SPAD512
+    gate_width = math.ceil((((1/float(freq[-2]))*1e12) // NUM_GATES) * 1e-3 )
+    gate_starts = np.array([(gate_width * (gate_step)) for gate_step in range(NUM_GATES)]) * 1e3
+
+    print("\nGate Starts (offsets):")
+    print(gate_starts)
+    print(f'\nnum gates: {NUM_GATES}')
+    print(f'\ngate width: {gate_width}')
+
+    #For each gate make a gated acq. using the offset provided above
+    coded_vals = np.zeros((IM_WIDTH, IM_WIDTH, NUM_GATES))
+    for i in range(NUM_GATES):
+        gate_offset = gate_starts[i]
+
+        if SPLIT_MEASUREMENTS:
+            intTime = int(TOTAL_TIME // NUM_GATES)
+        else:
+            intTime = TOTAL_TIME
+
+        print(f'Integration time for gate #{i+1}: {intTime}')
+
+        current_intTime = intTime
+        counts = np.zeros((IM_WIDTH, IM_WIDTH))
+        while current_intTime > 480:
+            print(f'starting current time {current_intTime}')
+            counts += SPAD1.get_gated_intensity(BIT_DEPTH, 480, ITERATIONS, GATE_STEPS, GATE_STEP_SIZE,
+                                                GATE_STEP_ARBITRARY, gate_width,
+                                                gate_offset, GATE_DIRECTION, GATE_TRIG, OVERLAP, 1, PILEUP, IM_WIDTH)[:, :, 0]
+            current_intTime -= 480
+
+        counts += SPAD1.get_gated_intensity(BIT_DEPTH, current_intTime, ITERATIONS, GATE_STEPS, GATE_STEP_SIZE,
+                                            GATE_STEP_ARBITRARY, gate_width,
+                                            gate_offset, GATE_DIRECTION, GATE_TRIG, OVERLAP, 1, PILEUP, IM_WIDTH)[:, :, 0]
+
+        coded_vals[:, :, i] = counts
+
+    print(coded_vals.shape)
+    unit = "ms"
+    factor_unit = 1e-3
+
+    mhz = int(float(freq[-2]) * 1e-6)
+    if NUM_GATES == 3 and mhz == 10:
+        VOLTAGE = 7
+        SIZE = 34
+    elif NUM_GATES == 3 and mhz == 5:
+        VOLTAGE = 5.7
+        SIZE = 67
+    elif NUM_GATES == 4 and mhz == 10:
+        VOLTAGE = 7.6
+        SIZE = 25
+    elif NUM_GATES == 4 and mhz == 5:
+        VOLTAGE = 6
+        SIZE = 50
     else:
-        intTime = total_time
+        VOLTAGE = 10
+        SIZE = 12
 
-    print(f'Integration time for gate #{i+1}: {intTime}')
+    if DECODE_DEPTHS:
+        (rep_tau, rep_freq, tbin_res, t_domain, max_depth, tbin_depth_res) = calculate_tof_domain_params(N_TBINS,
+                                                                                                         1. / float(
+                                                                                                             freq[-2]))
 
-    current_intTime = intTime
-    counts = np.zeros((im_width, im_width))
-    while current_intTime > 480:
-        print(f'starting current time {current_intTime}')
-        counts += SPAD1.get_gated_intensity(bitDepth, 480, iterations, gate_steps, gate_step_size,
-                                                gate_step_arbitrary, gate_width,
-                                                gate_offset, gate_direction, gate_trig, overlap, 1, pileup, im_width)[:, :, 0]
-        current_intTime -= 480
+        if USE_CORRELATIONS:
+            corr_path = (
+                f"/Users/davidparra/PycharmProjects/py-gated-camera/correlation_functions/"
+                f"coarsek{coded_vals.shape[-1]}_{mhz}mhz_{VOLTAGE}v_{SIZE}w_correlations.npz"
+            )
+            correlations_total, n_tbins_corr = load_correlations_file(corr_path)
+            (
+                rep_tau,
+                rep_freq,
+                tbin_res,
+                t_domain,
+                max_depth,
+                tbin_depth_res,
+            ) = calculate_tof_domain_params(n_tbins_corr, 1.0 / freq)
+            coding_matrix = build_coding_matrix_from_correlations(correlations_total, IM_WIDTH, n_tbins_corr, freq,
+                                                                  USE_FULL_CORRELATIONS, SIGMA_SIZE, SHIFT_SIZE)
+            N_TBINS = n_tbins_corr
 
-    counts += SPAD1.get_gated_intensity(bitDepth, current_intTime, iterations, gate_steps, gate_step_size,
-                                            gate_step_arbitrary, gate_width,
-                                            gate_offset, gate_direction, gate_trig, overlap, 1, pileup, im_width)[:, :, 0]
+        else:
+            irf = get_voltage_function(mhz, VOLTAGE, SIZE, "pulse", N_TBINS)
+            coding_matrix = get_coarse_coding_matrix(
+                gate_width * 1e3,
+                coded_vals.shape[-1],
+                0,
+                gate_width * 1e3,
+                rep_tau * 1e12,
+                N_TBINS,
+                irf,
+            )
 
+        depth_map, zncc = decode_depth_map(
+            coded_vals,
+            coding_matrix,
+            IM_WIDTH,
+            N_TBINS,
+            tbin_depth_res,
+            USE_CORRELATIONS,
+            USE_FULL_CORRELATIONS,
+        )
 
-    coded_vals[:, :, i] = counts
+        if CORRECT_MASTER is False:
+            depth_map_plot = depth_map[:, :IM_WIDTH // 2]
+        else:
+            depth_map_plot = np.copy(depth_map)
 
+        plot_gated_images(
+            coded_vals,
+            depth_map_plot,
+            None,
+            vmin=VMIN,
+            vmax=VMAX,
+            median_filter_size=MEDIAN_FILTER_SIZE,
+        )
 
-
-print(coded_vals.shape)
-unit = "ms"
-factor_unit = 1e-3
-
-
-if correct_master:
-    coded_vals[:, im_width//2:, :] = np.roll(coded_vals[:, im_width//2:, :], shift=1)
-
-
-mhz = int(float(freq[-2]) * 1e-6)
-if num_gates == 3 and mhz == 10:
-    voltage = 7
-    size = 34
-elif num_gates == 3 and mhz == 5:
-    voltage = 5.7
-    size = 67
-elif num_gates == 4 and mhz == 10:
-    voltage = 7.6
-    size = 25
-elif num_gates == 4 and mhz == 5:
-    voltage = 6
-    size = 50
-else:
-    voltage = 10
-    size = 12
-
-if decode_depths:
-    if use_correlations:
-        try:
-            correlaions_filepath = f'/home/ubi-user/David_P_folder/py-gated-camera/correlation_functions/coarsek{num_gates}_{mhz}mhz_{voltage}v_{size}w_correlations.npz'
-        except FileNotFoundError:
-            raise ';('
-        file = np.load(correlaions_filepath)
-        correlations_total = file['correlations']
-        coding_matrix = np.transpose(np.sum(np.sum(correlations_total, axis=0), axis=0))
-        n_tbins = file['n_tbins']
-        (rep_tau, rep_freq, tbin_res, t_domain, max_depth, tbin_depth_res) = calculate_tof_domain_params(n_tbins, 1./ float(freq[-2]))
-    else:
-        (rep_tau, rep_freq, tbin_res, t_domain, max_depth, tbin_depth_res) = calculate_tof_domain_params(n_tbins, 1./ float(freq[-2]))
-        irf = get_voltage_function(mhz, voltage, size,'pulse', n_tbins)
-        #irf=None
-        #plt.plot(irf)
-        #plt.show()
-        coding_matrix = get_coarse_coding_matrix(gate_width * 1e3, num_gates, 0, gate_width * 1e3, rep_tau * 1e12, n_tbins, irf)
-
-
-
-    #plt.imshow(coding_matrix.transpose(), aspect='auto')
-    #print(coding_matrix)
-    #plt.show()
-    #exit(0)
-
-    norm_coding_matrix = zero_norm_t(coding_matrix)
-
-
-    norm_coded_vals = zero_norm_t(coded_vals)
-
-    print(norm_coded_vals.shape)
-    print(norm_coding_matrix.shape)
-
-    zncc = np.matmul(norm_coding_matrix, norm_coded_vals[..., np.newaxis]).squeeze(-1)
-    
-    depths = np.argmax(zncc, axis=-1)
-
-    depth_map = np.reshape(depths, (512, 512)) * tbin_depth_res
-
-    fig, axs = plt.subplots(3, figsize=(10, 10))
-
-    x1, y1 = (70, 70)
-    x2, y2 = (220, 330)
-
-
-    axs[0].bar(np.arange(0, num_gates), coded_vals[y1, x1, :], color='red')
-    axs[1].bar(np.arange(0, num_gates), coded_vals[y2, x2, :], color='blue')
-    #axs[0].set_xticks(np.arange(0, metadata['Gate steps'])[::3])
-    #axs[0].set_xticklabels(np.round(gate_starts, 1)[::3])
-    if vmin == None:
-        vmin = np.min(depth_map)
-    if vmax == None:
-        vmax = np.max(depth_map)
-
-    axs[2].imshow(median_filter(depth_map, size=1), vmin=vmin, vmax=vmax)
-    axs[2].plot(x1, y1, 'ro')
-    axs[2].plot(x2, y2, 'bo')
-
-
-    x, y = 20, 170
-    width, height = 220, 320
-    box = depth_map[y:y+height, x:x+width]
-    wall = depth_map[:x, :y-20]
-
-    print(f'box mean depth: {np.mean(box):.3f} \nwall mean depth: {np.mean(wall):.3f} \
-          \nmean depth between wall and box: {np.mean(wall) - np.mean(box):.3f}')
-
-    plt.show()
-    print('done')
-
-if save_into_file:
-    import os
-    np.savez(os.path.join(save_path, save_name),
-         total_time=total_time,
-         num_gates=num_gates,
-         im_width=im_width,
-         bitDepth=bitDepth,
-         n_tbins=n_tbins,
-         iterations=iterations,
-         overlap=overlap,
-         timeout=timeout,
-         pileup=pileup,
-         gate_steps=gate_steps,
-         gate_step_arbitrary=gate_step_arbitrary,
-         gate_step_size=gate_step_size,
-         gate_offset=gate_offset,
-         gate_direction=gate_direction,
-         gate_trig=gate_trig,
-         gate_width=gate_width,
-         freq=float(freq[-2]),
-         voltage=voltage,
-         coded_vals=coded_vals,
-         split_measurements=split_measurements,
-         size=size)
-
-    
+    if SAVE_INTO_FILE:
+        save_capture_data(
+            save_path=SAVE_PATH,
+            save_name=SAVE_NAME,
+            total_time=TOTAL_TIME,
+            im_width=IM_WIDTH,
+            bit_depth=BIT_DEPTH,
+            n_tbins=N_TBINS,
+            iterations=ITERATIONS,
+            overlap=OVERLAP,
+            timeout=TIMEOUT,
+            pileup=PILEUP,
+            gate_steps=GATE_STEPS,
+            gate_step_arbitrary=GATE_STEP_ARBITRARY,
+            gate_step_size=GATE_STEP_SIZE,
+            gate_direction=GATE_DIRECTION,
+            gate_trig=GATE_TRIG,
+            freq=float(freq[-2]),
+            voltage=VOLTAGE,
+            coded_vals=coded_vals,
+            split_measurements=SPLIT_MEASUREMENTS,
+            size=SIZE,
+        )

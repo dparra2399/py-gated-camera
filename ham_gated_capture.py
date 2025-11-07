@@ -1,225 +1,238 @@
 # Libraries
 import os
-import glob
+
 from spad_lib.SPAD512S import SPAD512S
 from spad_lib.spad512utils import *
+from spad_lib.file_utils import *
 import numpy as np
-import time
-import matplotlib.pyplot  as plt
-from scipy.stats import linregress
-from scipy.ndimage import gaussian_filter, median_filter
 from felipe_utils import CodingFunctionsFelipe
-import math
+import argparse
+from plot_scripts.plot_utils import plot_gated_images
 
-port = 9999 # Check the command Server in the setting tab of the software and change it if necessary
-SPAD1 = SPAD512S(port)
+PORT = 9999  # Check the command Server in the setting tab of the software and change it if necessary
+VEX = 7
 
-# Get informations on the system used
-info = SPAD1.get_info()
-print("\nGeneral informations of the camera :")
-print(info)
-temp = SPAD1.get_temps() # Current temperatures of FPGAs, PCB and Chip
-print("\nCurrent temperatures of FPGAs, PCB and Chip :")
-print(temp)
-freq = SPAD1.get_freq() # Operating frequencies (Laser and frame)
-print("\nOperating frequencies (Laser and frame) :")
-print(freq)
+#Do not edit these parameter
+ITERATIONS = 1
+OVERLAP = 0
+TIMEOUT = 0
+PILEUP = 0
+GATE_STEPS = 1
+GATE_STEP_ARBITRARY = 0
+GATE_STEP_SIZE = 0
+GATE_DIRECTION = 1
+GATE_TRIG = 0
 
-# # # Set the voltage to the maximum value
-Vex = 7
-SPAD1.set_Vex(Vex)
-
-
-# Editable parameters
-total_time = 4000 #integration time
-split_measurements = False
-im_width = 512 #image width0
-bitDepth = 12
+# Editable parameters (defaults; can be overridden via CLI)
+TOTAL_TIME = 4000  # integration time
+SPLIT_MEASUREMENTS = False
+IM_WIDTH = 512  # image width
+BIT_DEPTH = 12
 K = 3
-n_tbins = 640
-correct_master = True
-decode_depths = True
-save_into_file = True
-use_correlations = True
+N_TBINS = 640
+CORRECT_MASTER = True
+DECODE_DEPTHS = True
+SAVE_INTO_FILE = True
+USE_CORRELATIONS = True
+USE_FULL_CORRELATIONS = False
+SIGMA_SIZE = 30
+SHIFT_SIZE = 150
+MEDIAN_FILTER_SIZE = 3
 
-duty=20
-vmin = None
-vmax = None
+DUTY = 20
+VMIN = None
+VMAX = None
 
-exp_num = 2
-save_path = '/home/ubi-user/David_P_folder'
-#save_path = '/mnt/researchdrive/research_users/David/gated_project_data'
-save_name = f'hamK{K}_exp{exp_num}'
-
-#Get demodulation functions and split for use with Gated SPAD
-func = getattr(CodingFunctionsFelipe, f"GetHamK{K}")
-(modfs, demodfs) = func(N=n_tbins)
-gated_demodfs_np, gated_demodfs_arr = decompose_ham_codes(demodfs)
-
-#For each demod function we make a gate sequence
-intTimes = [int(total_time // K)] * K
-coded_vals = np.zeros((im_width, im_width, K))
-for i, item in enumerate(gated_demodfs_arr):
-    for j in range(item.shape[-1]):
-        gate = item[:, j]
-        #plt.plot(gate)
-        #plt.show()
-        gate_width, gate_offset = get_offset_width_spad512(gate, float(freq[-2]))
-        print(f'gate width = {gate_width}, gate offset = {gate_offset}')
-                
-        #Don't edit
-        iterations = 1
-        overlap = 0
-        timeout = 0
-        pileup = 0
-        gate_steps =  1
-        gate_step_arbitrary = 0
-        gate_step_size = 0
-        gate_direction = 1
-        gate_trig = 0
-        #intTime = int(intTimes[i] // item.shape[-1])
-        if split_measurements:
-            intTime = int(total_time // gated_demodfs_np.shape[-1])
-        else:
-            intTime = total_time
-
-        print(f'Integration time for hamiltonian row #{i+1}.{j+1}: {intTime}')
-
-        current_intTime = intTime
-        counts = np.zeros((im_width, im_width))
-        while current_intTime > 480:
-            print(f'starting current time {current_intTime}')
-            counts += SPAD1.get_gated_intensity(bitDepth, 480, iterations, gate_steps, gate_step_size,
-                                                gate_step_arbitrary, gate_width,
-                                                gate_offset, gate_direction, gate_trig, overlap, 1, pileup, im_width)[:, :, 0]
-            current_intTime -= 480
-
-        counts += SPAD1.get_gated_intensity(bitDepth, current_intTime, iterations, gate_steps, gate_step_size,
-                                            gate_step_arbitrary, gate_width,
-                                            gate_offset, gate_direction, gate_trig, overlap, 1, pileup, im_width)[:, :, 0]
-
-        coded_vals[:, :, i] += counts
-
-print(coded_vals.shape)
-unit = "ms"
-factor_unit = 1e-3
-        
+EXP_NUM = 2
+SAVE_PATH = '/home/ubi-user/David_P_folder'
+# save_path = '/mnt/researchdrive/research_users/David/gated_project_data'
+SAVE_NAME = f'hamK{K}_exp{EXP_NUM}'
 
 
-if decode_depths:
-    (rep_tau, rep_freq, tbin_res, t_domain, max_depth, tbin_depth_res) = calculate_tof_domain_params(n_tbins, 1./ float(freq[-2]))
-    # print(rep_freq, rep_tau, tbin_res)
-    # print(rep_tau * 1e12)
-    #print(gate_step_size,gate_steps, gate_offset, gate_width)
+if __name__=='__main__':
+    # --- CLI overrides (hybrid approach): defaults above, CLI can override ---
+    parser = argparse.ArgumentParser(description="Gated SPAD capture with Hamiltonian codes")
+    parser.add_argument("--total_time", type=int, default=TOTAL_TIME)
+    parser.add_argument("--split_measurements", action=argparse.BooleanOptionalAction, default=SPLIT_MEASUREMENTS)
+    parser.add_argument("--im_width", type=int, default=IM_WIDTH)
+    parser.add_argument("--bit_depth", type=int, default=BIT_DEPTH)
+    parser.add_argument("--K", type=int, default=K)
+    parser.add_argument("--n_tbins", type=int, default=N_TBINS)
+    parser.add_argument("--correct_master", action=argparse.BooleanOptionalAction, default=CORRECT_MASTER)
+    parser.add_argument("--decode_depths", action=argparse.BooleanOptionalAction, default=DECODE_DEPTHS)
+    parser.add_argument("--save_into_file", action=argparse.BooleanOptionalAction, default=SAVE_INTO_FILE)
+    parser.add_argument("--use_correlations", action=argparse.BooleanOptionalAction, default=USE_CORRELATIONS)
+
+    parser.add_argument("--duty", type=int, default=DUTY)
+    parser.add_argument("--vmin", type=float, default=VMIN)
+    parser.add_argument("--vmax", type=float, default=VMAX)
+
+    parser.add_argument("--exp_num", type=int, default=EXP_NUM)
+    parser.add_argument("--save_path", type=str, default=SAVE_PATH)
+    parser.add_argument("--save_name", type=str, default=None, help="Optional explicit output name; defaults to hamK{K}_exp{EXP_NUM}")
+
+    args = parser.parse_args()
+
+    # Apply overrides back to the module-level names (session constants)
+    TOTAL_TIME = args.total_time
+    SPLIT_MEASUREMENTS = args.split_measurements
+    IM_WIDTH = args.im_width
+    BIT_DEPTH = args.bit_depth
+    K = args.K
+    N_TBINS = args.n_tbins
+    CORRECT_MASTER = args.correct_master
+    DECODE_DEPTHS = args.decode_depths
+    SAVE_INTO_FILE = args.save_into_file
+    USE_CORRELATIONS = args.use_correlations
+
+    DUTY = args.duty
+    VMIN = args.vmin
+    VMAX = args.vmax
+
+    EXP_NUM = args.exp_num
+    SAVE_PATH = args.save_path
+    SAVE_NAME = args.save_name if args.save_name is not None else f"hamK{K}_exp{EXP_NUM}"
+
+    SPAD1 = SPAD512S(PORT)
+    # Get informations on the system used
+    info = SPAD1.get_info()
+    print("\nGeneral informations of the camera :")
+    print(info)
+    temp = SPAD1.get_temps()  # Current temperatures of FPGAs, PCB and Chip
+    print("\nCurrent temperatures of FPGAs, PCB and Chip :")
+    print(temp)
+    freq = SPAD1.get_freq()  # Operating frequencies (Laser and frame)
+    print("\nOperating frequencies (Laser and frame) :")
+    print(freq)
+
+    # # # Set the voltage to the maximum value
+    SPAD1.set_Vex(VEX)
+
+    #Get demodulation functions and split for use with Gated SPAD
+    func = getattr(CodingFunctionsFelipe, f"GetHamK{K}")
+    (modfs, demodfs) = func(N=N_TBINS)
+    gated_demodfs_np, gated_demodfs_arr = decompose_ham_codes(demodfs)
+
+    #For each demod function we make a gate sequence
+    intTimes = [int(TOTAL_TIME // K)] * K
+    coded_vals = np.zeros((IM_WIDTH, IM_WIDTH, K))
+    for i, item in enumerate(gated_demodfs_arr):
+        for j in range(item.shape[-1]):
+            gate = item[:, j]
+            gate_width, gate_offset = get_offset_width_spad512(gate, float(freq[-2]))
+            print(f'gate width = {gate_width}, gate offset = {gate_offset}')
+
+            if SPLIT_MEASUREMENTS:
+                intTime = int(TOTAL_TIME // gated_demodfs_np.shape[-1])
+            else:
+                intTime = TOTAL_TIME
+
+            print(f'Integration time for hamiltonian row #{i+1}.{j+1}: {intTime}')
+
+            current_intTime = intTime
+            counts = np.zeros((IM_WIDTH, IM_WIDTH))
+            while current_intTime > 480:
+                print(f'starting current time {current_intTime}')
+                counts += SPAD1.get_gated_intensity(BIT_DEPTH, 480, ITERATIONS, GATE_STEPS, GATE_STEP_SIZE,
+                                                    GATE_STEP_ARBITRARY, gate_width,
+                                                    gate_offset, GATE_DIRECTION, GATE_TRIG, OVERLAP, 1, PILEUP, IM_WIDTH)[:, :, 0]
+                current_intTime -= 480
+
+            counts += SPAD1.get_gated_intensity(BIT_DEPTH, current_intTime, ITERATIONS, GATE_STEPS, GATE_STEP_SIZE,
+                                                GATE_STEP_ARBITRARY, gate_width,
+                                                gate_offset, GATE_DIRECTION, GATE_TRIG, OVERLAP, 1, PILEUP, IM_WIDTH)[:, :, 0]
+
+            coded_vals[:, :, i] += counts
+
+    print(coded_vals.shape)
+    unit = "ms"
+    factor_unit = 1e-3
+
     mhz = int(float(freq[-2]) * 1e-6)
-    if duty == 20 and mhz == 10:
-        voltage = 8.5
-    elif duty == 20 and mhz == 5:
-        voltage = 6.5
+    if DUTY == 20 and mhz == 10:
+        VOLTAGE = 8.5
+    elif DUTY == 20 and mhz == 5:
+        VOLTAGE = 6.5
     else:
-        voltage = 10
-    #print(mhz)
+        VOLTAGE = 10
 
-    if 'pulse' in save_name:
+    if 'pulse' in SAVE_NAME:
         illum_type = 'pulse'
-        duty = 12
-        voltage = 10
+        DUTY = 12
+        VOLTAGE = 10
     else:
         illum_type = 'square'
-        duty = 20
+        DUTY = 20
 
-    if use_correlations:
-        try:
-            correlaions_filepath = f'/home/ubi-user/David_P_folder/py-gated-camera/correlation_functions/hamk{K}_{mhz}mhz_{voltage}v_{duty}w_correlations.npz'
-        except FileNotFoundError:
-            raise ';('
-        file = np.load(correlaions_filepath)
-        correlations_total = file['correlations']
-        correlations = np.transpose(np.sum(np.sum(correlations_total, axis=0), axis=0))
-        n_tbins = file['n_tbins']
-        (rep_tau, rep_freq, tbin_res, t_domain, max_depth, tbin_depth_res) = calculate_tof_domain_params(n_tbins, 1./ float(freq[-2]))
-    else:
-        correlations = get_hamiltonain_correlations(K, mhz, voltage, duty, illum_type, n_tbins=n_tbins)
-        (rep_tau, rep_freq, tbin_res, t_domain, max_depth, tbin_depth_res) = calculate_tof_domain_params(n_tbins, 1./ float(freq[-2]))
+    if DECODE_DEPTHS:
+        (rep_tau, rep_freq, tbin_res, t_domain, max_depth, tbin_depth_res) = calculate_tof_domain_params(N_TBINS, 1./ float(freq[-2]))
 
+        if USE_CORRELATIONS:
+            corr_path = (
+                f"/Users/davidparra/PycharmProjects/py-gated-camera/correlation_functions/"
+                f"hamk{coded_vals.shape[-1]}_{mhz}mhz_{VOLTAGE}v_{DUTY}w_correlations.npz"
+            )
+            correlations_total, n_tbins_corr = load_correlations_file(corr_path)
+            (
+                rep_tau,
+                rep_freq,
+                tbin_res,
+                t_domain,
+                max_depth,
+                tbin_depth_res,
+            ) = calculate_tof_domain_params(n_tbins_corr, 1.0 / freq)
+            coding_matrix = build_coding_matrix_from_correlations(correlations_total, IM_WIDTH, n_tbins_corr, freq,
+                                                                  USE_FULL_CORRELATIONS, SIGMA_SIZE, SHIFT_SIZE)
+            N_TBINS = n_tbins_corr
 
-    fig, axs = plt.subplots(1, 3)
-    axs[0].plot(demodfs)
-    axs[1].plot()
-    axs[2].plot(correlations)
-    plt.show()
-    #exit()
+        else:
+            coding_matrix = get_hamiltonain_correlations(
+                coded_vals.shape[-1], mhz, VOLTAGE, DUTY, illum_type, n_tbins=N_TBINS
+            )
+        depth_map, zncc = decode_depth_map(
+            coded_vals,
+            coding_matrix,
+            IM_WIDTH,
+            N_TBINS,
+            tbin_depth_res,
+            USE_CORRELATIONS,
+            USE_FULL_CORRELATIONS,
+        )
 
-    norm_coding_matrix = zero_norm_t(correlations)
+        if CORRECT_MASTER is False:
+            depth_map_plot= depth_map[:, :IM_WIDTH//2]
+        else:
+            depth_map_plot = np.copy(depth_map)
 
-    norm_coded_vals = zero_norm_t(coded_vals)
+        plot_gated_images(
+            coded_vals,
+            depth_map_plot,
+            None,
+            vmin=VMIN,
+            vmax=VMAX,
+            median_filter_size=MEDIAN_FILTER_SIZE,
+        )
 
-    #print(norm_coded_vals.shape)
-    #print(norm_coding_matrix.shape)
-
-    zncc = np.matmul(norm_coding_matrix, norm_coded_vals[..., np.newaxis]).squeeze(-1)
-    
-
-
-    depths = np.argmax(zncc, axis=-1)
-
-    depth_map = np.reshape(depths, (512, 512)) * tbin_depth_res
-
-    if correct_master is False:
-        depth_map= depth_map[:, :im_width//2] 
-
-
-    fig, axs = plt.subplots(3, figsize=(10, 10))
-
-    x1, y1 = (70, 70)
-    x2, y2 = (220, 330)
-
-    axs[0].bar(np.arange(0, K), coded_vals[y1, x1, :], color='red')
-    axs[1].bar(np.arange(0, K), coded_vals[y2, x2, :], color='blue')
-    #axs[0].set_xticks(np.arange(0, metadata['Gate steps'])[::3])
-    #axs[0].set_xticklabels(np.round(gate_starts, 1)[::3])
-    if vmin == None:
-        vmin = np.min(depth_map)
-    if vmax == None:
-        vmax = np.max(depth_map)
-
-    axs[2].imshow(median_filter(depth_map, size=1), vmin=vmin, vmax=vmax)
-    #axs[2].imshow(depth_map[:, :im_width//2])
-    axs[2].plot(x1, y1, 'ro')
-    axs[2].plot(x2, y2, 'bo')
-
-    x, y = 20, 170
-    width, height = 220, 320
-    box = depth_map[y:y+height, x:x+width]
-    wall = depth_map[:x, :y-20]
-
-    print(f'box mean depth: {np.mean(box):.3f} \nwall mean depth: {np.mean(wall):.3f} \
-          \nmean depth between wall and box: {np.mean(wall) - np.mean(box):.3f}')
-
-    plt.show()
-
-
-if save_into_file:
-    import os
-    np.savez(os.path.join(save_path, save_name),
-         total_time=total_time,
-         im_width=im_width,
-         bitDepth=bitDepth,
-         n_tbins=n_tbins,
-         iterations=iterations,
-         overlap=overlap,
-         timeout=timeout,
-         pileup=pileup,
-         gate_steps=gate_steps,
-         gate_step_arbitrary=gate_step_arbitrary,
-         gate_step_size=gate_step_size,
-         gate_offset=gate_offset,
-         gate_direction=gate_direction,
-         gate_trig=gate_trig,
-         freq=float(freq[-2]),
-         voltage=voltage,
-         coded_vals=coded_vals,
-         split_measurements=split_measurements,
-         duty=duty)
-
-    
+    if SAVE_INTO_FILE:
+        save_capture_data(
+            save_path=SAVE_PATH,
+            save_name=SAVE_NAME,
+            total_time=TOTAL_TIME,
+            im_width=IM_WIDTH,
+            bit_depth=BIT_DEPTH,
+            n_tbins=N_TBINS,
+            iterations=ITERATIONS,
+            overlap=OVERLAP,
+            timeout=TIMEOUT,
+            pileup=PILEUP,
+            gate_steps=GATE_STEPS,
+            gate_step_arbitrary=GATE_STEP_ARBITRARY,
+            gate_step_size=GATE_STEP_SIZE,
+            gate_direction=GATE_DIRECTION,
+            gate_trig=GATE_TRIG,
+            freq=float(freq[-2]),
+            voltage=VOLTAGE,
+            coded_vals=coded_vals,
+            split_measurements=SPLIT_MEASUREMENTS,
+            size=DUTY,
+        )

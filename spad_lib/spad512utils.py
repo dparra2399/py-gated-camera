@@ -222,7 +222,7 @@ def build_coding_matrix_from_correlations(
         # correlations_total: (H, W, n_tbins, K)
         corr_tmp = gaussian_filter(
             correlations_total.swapaxes(-1, -2),  # -> (H,W,K,n_tbins)
-            sigma=(0.5, 0.5, 0.5, 0),
+            sigma=(1, 1, 1, 0),
         )
         # roll along time
         corr_tmp = np.roll(corr_tmp, shift=shift_size, axis=-2)
@@ -232,7 +232,7 @@ def build_coding_matrix_from_correlations(
 
     # legacy path: spatial-sum correlations
     coding_matrix = np.transpose(
-        np.sum(np.sum(correlations_total[: im_width // 2], axis=0), axis=0)
+        np.sum(np.sum(correlations_total[:], axis=0), axis=0)
     )  # (n_tbins,K)
     coding_matrix = np.roll(coding_matrix, shift=shift_size, axis=0)
     coding_matrix = gaussian_filter1d(coding_matrix, sigma=sigma_size, axis=0)
@@ -285,11 +285,43 @@ def intrinsics_from_pixel_pitch(W, H, f_mm, pitch_um):
     cx, cy = W/2, H/2
     return fx, fy, cx, cy
 
-def range_to_z(R, fx, fy, cx, cy):
-    H, W = R.shape
+def rays_from_intrinsics(H, W, fx, fy, cx, cy):
+    """Return unit rays u=(ux,uy,uz) for each pixel in camera coords."""
     u = np.arange(W)[None, :]
     v = np.arange(H)[:, None]
-    xu = (u - cx) / fx
-    yv = (v - cy) / fy
-    cos_theta = 1.0 / np.sqrt(1.0 + xu**2 + yv**2)
-    return R * cos_theta
+    x = (u - cx) / fx
+    y = (v - cy) / fy
+    # pinhole: direction ~ [x, y, 1], then normalize
+    denom = np.sqrt(x**2 + y**2 + 1.0)
+    ux = x / denom
+    uy = y / denom
+    uz = 1.0 / denom
+    return ux, uy, uz  # each (H,W)
+
+def ellipsoid_range_to_z(R, fx, fy, cx, cy, Sx, Sy, Sz):
+    """
+    Convert measured range R (meters) to camera-Z for a non-coaxial flash ToF.
+    Sx,Sy,Sz: projector center in camera frame (meters).
+    """
+    H, W = R.shape
+    ux, uy, uz = rays_from_intrinsics(H, W, fx, fy, cx, cy)
+    # total optical path length
+    L = 2.0 * R
+
+    # dot(u,S) and |S|^2
+    Sdotu = ux*Sx + uy*Sy + uz*Sz
+    S2 = Sx*Sx + Sy*Sy + Sz*Sz
+
+    # closed-form distance along the camera ray
+    denom = 2.0 * (L - Sdotu)
+    with np.errstate(divide='ignore', invalid='ignore'):
+        t = (L*L - S2) / denom
+
+    # invalid where L < |S| (physically impossible) or denom ~ 0
+    invalid = (L <= np.sqrt(S2)) | ~np.isfinite(t)
+    t[invalid] = np.nan
+
+    # camera-Z is uz * t
+    Z = uz * t
+    Z[invalid] = np.nan
+    return Z

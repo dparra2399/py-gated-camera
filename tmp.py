@@ -1,173 +1,94 @@
-# import numpy as np
-# import os
-# from glob import glob
-#
-# # Path to directory
-# folder = "/Volumes/velten/Research_Users/David/gated_project_data/exp5"
-#
-# # Get all .npz files in the directory
-# npz_files = glob(os.path.join(folder, "*.npz"))
-#
-# for path in npz_files:
-#     # if path.endswith("exp1.npz"):
-#     #     continue
-#     try:
-#         # Load the .npz file
-#         file = np.load(path)
-#
-#         # Convert to dict
-#         params = {k: v for k, v in file.items()}
-#
-#         # Add freq
-#         params["gate_width"] = 13 # 10 MHz
-#         #params.pop("rep_freq")
-#         #params["freq"] = 10_000_000
-#
-#         # Resave (overwrite original)
-#         np.savez(path, **params)
-#
-#         print(f"Updated: {os.path.basename(path)}")
-#     except Exception as e:
-#         print(f"Failed to update {path}: {e}")
-
-# Libraries
+import re
 import os
 import glob
-from spad_lib.SPAD512S import SPAD512S
-from spad_lib.spad512utils import *
+import shutil
 import numpy as np
-import time
-import matplotlib.pyplot as plt
-from scipy.stats import linregress
-from scipy.ndimage import gaussian_filter, median_filter
-import math
-from PIL import Image
-from matplotlib.animation import FuncAnimation, PillowWriter
+from pathlib import Path
 
-#
-# # Editable parameters
-# intTime = 100  # integration time
-# num_gates = 3  # number of time bins
-# im_width = 512  # image width
-# bitDepth = 12
-# #n_tbins = 640
-# shift = 100 # shift in picoseconds...
-# voltage = 10
-#
-# freq = 5*1e6
-# tau = ((1/float(freq)) * 1e12) #Tau in picoseconds
-# n_tbins = int(tau // shift)
-#
-# print(f'Number of effective bins: {n_tbins}')
-# print(f'Shift: {shift}')
-#
-# save_into_file = True
-#
-# save_path = '/home/ubi-user/David_P_folder'
-# save_name = f'coarsek{num_gates}_{freq*1e6}mhz_{voltage}v_correlations'
-#
-# gate_width = math.ceil((((1/float(freq))*1e12) // num_gates) * 1e-3 )
-# gate_starts = np.array([(gate_width * (gate_step)) for gate_step in range(num_gates)]) * 1e3
-#
-# (rep_tau, rep_freq, tbin_res, t_domain, max_depth, tbin_depth_res) = calculate_tof_domain_params(n_tbins, 1. / float(freq))
-#
-# print(f'Time bin depth resolution {tbin_depth_res * 1000:.3f} mm')
-#
-#
-#
-# plot_gates_animation = True
-#
-# gates = {i: [] for i in range(num_gates)}
-# for i in range(num_gates):
-#     gate_start = gate_starts[i]
-#
-#     for j in range(n_tbins):
-#         gate_start_tmp = gate_start + j * shift
-#         gate_start_tmp = gate_start_tmp % tau
-#         if (gate_start_tmp + (gate_width * 1e3)) > tau:
-#             gate_start_one = gate_start_tmp
-#             gate_start_two = 0
-#             gate_one_width = tau - gate_start_tmp
-#             gate_two_width = (gate_width * (1e3)) - gate_one_width
-#
-#             gate_start_one_bin = int((gate_start_one * 1e-12) / tbin_res)
-#             gate_end_one_bin = int(((gate_start_one + (gate_one_width)) * 1e-12) / tbin_res)
-#
-#             gate_start_two_bin = int((gate_start_two * 1e-12) / tbin_res)
-#             gate_end_two_bin = int(((gate_start_two + (gate_two_width)) * 1e-12) / tbin_res)
-#
-#             gate_one = np.zeros((n_tbins))
-#             gate_two = np.zeros((n_tbins))
-#
-#             gate_one[gate_start_one_bin:gate_end_one_bin] = 1
-#             gate_two[gate_start_two_bin:gate_end_two_bin] = 1
-#
-#             gates[i].append([gate_one, gate_two])
-#             print('split gate in half')
-#         else:
-#             gate = np.zeros((n_tbins))
-#             gate_start_bin = int((gate_start_tmp * 1e-12) / tbin_res)
-#             gate_end_bin = int(((gate_start_tmp + (gate_width *(1e3))) * 1e-12) / tbin_res)
-#             gate[gate_start_bin:gate_end_bin] = 1
-#             gates[i].append(gate)
-#
+FOLDER = "/Users/davidparra/PycharmProjects/py-gated-camera/correlation_functions"
+MAKE_BACKUP = True  # set to False if you don't want .bak backups
+DRY_RUN = False     # set True to preview changes without writing files
 
-#gates = np.stack(gates, axis=-1)
+# Example pattern: coarsek4_10mhz_7v_34w_correlations.npz
+# We capture: voltage (float) before 'v_' and size (int) before 'w_'
+FILENAME_RE = re.compile(
+    r"""
+    ^(?P<prefix>.+?)_               # anything up to first underscore
+    (?P<mhz>\d+)mhz_                # frequency
+    (?P<voltage>\d+(?:\.\d+)?)v_    # voltage like 7 or 7.6
+    (?P<size>\d+)w_                 # size like 34
+    correlations\.npz$              # suffix
+    """,
+    re.IGNORECASE | re.VERBOSE
+)
 
-#y = np.asarray(gates)
+def extract_voltage_size(filename: str):
+    m = FILENAME_RE.match(filename)
+    if not m:
+        return None
+    voltage = float(m.group("voltage"))
+    size = int(m.group("size"))
+    return voltage, size
 
-# fig, ax = plt.subplots()
-# colors = ['blue', 'green','red', 'orange']
-#
-# lines = []
-# seqs = []
-#
-# for k, gate_tmp in enumerate(gates.values()):
-#     x = np.arange(n_tbins)
-#
-#     if type(gate_tmp[0]) == list:
-#         (line,) = ax.plot(x, gate_tmp[0][0] + gate_tmp[0][1], animated=True,
-#                           color=colors[k], linewidth=2)
-#     else:
-#         (line,) = ax.plot(x, gate_tmp[0], animated=True,
-#                           color=colors[k], linewidth=2)
-#
-#     lines.append(line)          # <-- keep the artist
-#     seqs.append(gate_tmp)       # <-- keep the data sequence
-#
-# def update(f):
-#     for line, gate_tmp in zip(lines, seqs):
-#         if type(gate_tmp[f]) == list:
-#             line.set_ydata(gate_tmp[f][0] + gate_tmp[f][1])
-#         else:
-#             line.set_ydata(gate_tmp[f])
-#     return tuple(lines)
-#
-# ani = FuncAnimation(fig, update, frames=len(seqs[0]), interval=5, blit=True)
-# plt.show()
+def process_npz(path: Path):
+    """Read NPZ, set fields 'voltage' and 'size' from filename, keep all other fields."""
+    vs = extract_voltage_size(path.name)
+    if vs is None:
+        print(f"Skip (pattern mismatch): {path.name}")
+        return False
+    voltage_val, size_val = vs
 
-# List your files
-files = [
-    "/Users/davidparra/PycharmProjects/py-gated-camera/correlation_functions/hamk3_10mhz_8.5v_20w_correlations.npz",
-    "/Users/davidparra/PycharmProjects/py-gated-camera/correlation_functions/hamk4_10mhz_8.5v_20w_correlations.npz",
-]
+    # Load and copy all fields
+    with np.load(path, allow_pickle=True) as f:
+        data = {k: f[k] for k in f.files}
 
-for path in files:
-    # Load everything
-    data = np.load(path, allow_pickle=True)
+    # Decide if update needed
+    already_ok = ("voltage" in data and np.allclose(data["voltage"], voltage_val)) and \
+                 ("size"    in data and np.array_equal(np.array(data["size"]), np.array(size_val)))
 
-    # Extract all items into a dictionary
-    data_dict = {k: data[k] for k in data.files}
+    if already_ok:
+        print(f"Unchanged (already has voltage={voltage_val}, size={size_val}): {path.name}")
+        return False
 
-    # Flip the 'correlations' array on axis 0
-    if 'correlations' in data_dict:
-        #data_dict['correlations'] = np.flip(data_dict['correlations'], axis=0)
-        data_dict['correlations'] = np.flip(data_dict['correlations'], axis=-1)
-        print(f"Flipped 'correlations' for {path}")
-    else:
-        print(f"Warning: 'correlations' not found in {path}")
+    # Write/update fields
+    data["voltage"] = np.array(voltage_val)  # store scalars explicitly
+    data["size"] = np.array(size_val)
 
-    # Save back to the same file, overwriting it
-    np.savez(path, **data_dict)
+    # Backup
+    if MAKE_BACKUP and not DRY_RUN:
+        backup = path.with_suffix(path.suffix + ".bak")
+        if not backup.exists():
+            shutil.copy2(path, backup)
 
-print("All files processed successfully.")
+    # Save in place
+    if not DRY_RUN:
+        np.savez(path, **data)
+
+    print(f"Updated: {path.name}  -> voltage={voltage_val}, size={size_val}")
+    return True
+
+def main():
+    npz_paths = [Path(p) for p in glob.glob(os.path.join(FOLDER, "*.npz"))]
+    updated = 0
+    skipped = 0
+    mismatched = 0
+
+    for p in sorted(npz_paths):
+        vs = extract_voltage_size(p.name)
+        if vs is None:
+            mismatched += 1
+            print(f"Skip (no match): {p.name}")
+            continue
+        changed = process_npz(p)
+        if changed:
+            updated += 1
+        else:
+            skipped += 1
+
+    print("\nSummary")
+    print(f"  Updated files:       {updated}")
+    print(f"  Already correct:     {skipped}")
+    print(f"  Name mismatches:     {mismatched}")
+
+if __name__ == "__main__":
+    main()

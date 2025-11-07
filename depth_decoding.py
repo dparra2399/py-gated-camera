@@ -1,45 +1,21 @@
 import os
 import glob
-import math
 
 import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
-import matplotlib.patches as patches
-from PIL import Image
-from scipy.ndimage import gaussian_filter, median_filter, gaussian_filter1d
-
-# project / SPAD utils
-from spad_lib.spad512utils import (
-    calculate_tof_domain_params,
-    get_voltage_function,
-    get_coarse_coding_matrix,
-    get_hamiltonain_correlations,
-    cluster_kmeans,
-    build_coding_matrix_from_correlations,
-    decode_depth_map,
-    intrinsics_from_pixel_pitch,
-    range_to_z
-)
-
-from spad_lib.file_utils import (
-    get_data_folder,
-    filter_npz_files,
-    load_hot_mask,
-    load_correlations_file,
-    get_scheme_name
-)
+from spad_lib.spad512utils import *
+from spad_lib.file_utils import *
+from plot_scripts.plot_utils import *
 
 # -----------------------------------------------------------------------------
 # CONFIG
 # -----------------------------------------------------------------------------
 PIXEL_PITCH = 16.38 #in uM
 FOCAL_LENGTH = 25 #in mm
-EXP_NUM = 3
-K_FILTER = [4]
-N_TBINS_DEFAULT = 333
-VMIN = -0.2
-VMAX = 0.3
+EXP_NUM = 5
+K_FILTER = [3]
+N_TBINS_DEFAULT = 2048
+VMIN = -0.3
+VMAX = 0.2
 MEDIAN_FILTER_SIZE = 3
 SIGMA_SIZE = 30 #How much to smooth correlations functions
 SHIFT_SIZE = 100 #How much to shift correlations functions
@@ -47,17 +23,17 @@ USE_CORRELATIONS = True
 USE_FULL_CORRELATIONS = False
 CORRECT_MASTER = False
 MASK_BACKGROUND_PIXELS = True
-INCLUDE_SPLIT_MEASUREMENTS = True
-CORRECT_DEPTH_DISTORTION = True
+INCLUDE_SPLIT_MEASUREMENTS = False
+CORRECT_DEPTH_DISTORTION = False
 
-HOT_MASK_PATH_MAC = "/Users/davidparra/PycharmProjects/py-gated-camera/masks/hot_pixels.PNG"
+HOT_MASK_PATH_MAC = "./masks/hot_pixels.PNG"
 DATA_FOLDER_MAC = f"/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/exp{EXP_NUM}"
 DATA_FOLDER_LINUX = f"/mnt/researchdrive/research_users/David/Gated_Camera_Project/gated_project_data/exp{EXP_NUM}"
 
 EPSILON = 1e-12
 
 
-def main():
+if __name__ == "__main__":
     folder = get_data_folder(DATA_FOLDER_MAC, DATA_FOLDER_LINUX)
     hot_mask = load_hot_mask(HOT_MASK_PATH_MAC)
 
@@ -148,6 +124,7 @@ def main():
             assert False, 'Path needs to be "hamiltonian" or "coarse"'
 
         name = get_scheme_name(path, coded_vals.shape[-1])
+
         print(
             f"{name}\n\tVoltage: {voltage}\n\tSize: {size}\n\tTotal Time: {total_time}\n\tSplit Measurements: {split_measurements}"
         )
@@ -167,7 +144,7 @@ def main():
 
         if CORRECT_DEPTH_DISTORTION:
             fx, fy, cx, cy = intrinsics_from_pixel_pitch(im_width, im_width, FOCAL_LENGTH, PIXEL_PITCH)
-            depth_map = range_to_z(depth_map, fx, fy, cx, cy)
+            depth_map = ellipsoid_range_to_z(depth_map, fx, fy, cx, cy, 0.01, 0, 0)
         # hot pixel fix
         filtered = median_filter(depth_map, size=3, mode="nearest")
         depth_map[hot_mask == 1] = filtered[hot_mask == 1]
@@ -223,7 +200,10 @@ def main():
             depth_map = depth_map * mask
             gt_depth_map = gt_depth_map * mask
 
+
         depth_map_plot = depth_map - np.mean(depth_map)
+        if CORRECT_MASTER:
+            depth_map_plot[:, :im_width // 2] = -depth_map_plot[:, :im_width // 2]
         patch = depth_map_plot[y : y + height, x : x + width]
 
         # full map ---------------------------------------------------------
@@ -264,5 +244,3 @@ def main():
     plt.show()
 
 
-if __name__ == "__main__":
-    main()

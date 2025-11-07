@@ -44,3 +44,99 @@ def get_scheme_name(path: str, K: int) -> str:
     elif 'gt' in path:
         name += '_GroundTruth'
     return name
+
+def save_capture_data(
+    save_path,
+    save_name,
+    total_time,
+    im_width,
+    bit_depth,
+    n_tbins,
+    iterations,
+    overlap,
+    timeout,
+    pileup,
+    gate_steps,
+    gate_step_arbitrary,
+    gate_step_size,
+    gate_direction,
+    gate_trig,
+    freq,
+    voltage,
+    coded_vals,
+    split_measurements,
+    size,
+    laser_freq = None,
+):
+    """Save SPAD capture data and metadata to a .npz file."""
+    os.makedirs(save_path, exist_ok=True)
+    np.savez(
+        os.path.join(save_path, save_name),
+        total_time=total_time,
+        im_width=im_width,
+        bitDepth=bit_depth,
+        n_tbins=n_tbins,
+        iterations=iterations,
+        overlap=overlap,
+        timeout=timeout,
+        pileup=pileup,
+        gate_steps=gate_steps,
+        gate_step_arbitrary=gate_step_arbitrary,
+        gate_step_size=gate_step_size,
+        gate_direction=gate_direction,
+        gate_trig=gate_trig,
+        freq=freq,
+        voltage=voltage,
+        coded_vals=coded_vals,
+        split_measurements=split_measurements,
+        size=size,
+        laser_freq=laser_freq,
+    )
+    print(f"✅ Saved capture data to {os.path.join(save_path, save_name)}.npz")
+
+
+
+def save_correlation_data(
+    save_path,
+    save_name,
+    total_time,
+    im_width,
+    bit_depth,
+    n_tbins,
+    iterations,
+    overlap,
+    timeout,
+    pileup,
+    gate_steps,
+    gate_step_arbitrary,
+    gate_step_size,
+    gate_direction,
+    gate_trig,
+    freq,
+    voltage,
+    size,
+    correlations,
+):
+    """Save SPAD capture data and metadata to a .npz file."""
+    os.makedirs(save_path, exist_ok=True)
+    np.savez(
+        os.path.join(save_path, save_name),
+        total_time=total_time,
+        im_width=im_width,
+        bitDepth=bit_depth,
+        n_tbins=n_tbins,
+        iterations=iterations,
+        overlap=overlap,
+        timeout=timeout,
+        pileup=pileup,
+        gate_steps=gate_steps,
+        gate_step_arbitrary=gate_step_arbitrary,
+        gate_step_size=gate_step_size,
+        gate_direction=gate_direction,
+        gate_trig=gate_trig,
+        freq=freq,
+        voltage=voltage,
+        size=size,
+        correlations=correlations,
+    )
+    print(f"✅ Saved correlation data to {os.path.join(save_path, save_name)}.npz")

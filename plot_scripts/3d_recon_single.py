@@ -31,7 +31,7 @@ fov_major_axis_deg = 5
 
 test_file = f'/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/exp{exp}/{type}k{k}_exp{exp}.npz'
 
-hot_mask_filename = '/Users/davidparra/PycharmProjects/py-gated-camera/masks/hot_pixels.PNG'
+hot_mask_filename = '/masks/hot_pixels.PNG'
 hot_mask = np.array(Image.open(hot_mask_filename))
 hot_mask[hot_mask < 5000] = 0
 hot_mask[hot_mask > 0] = 1
