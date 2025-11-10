@@ -5,6 +5,7 @@ from scipy.ndimage import gaussian_filter, gaussian_filter1d
 from sklearn.cluster import KMeans
 from felipe_utils import CodingFunctionsFelipe
 from felipe_utils.tof_utils_felipe import zero_norm_t
+import math
 
 EPILSON = 1e-8
 SPEED_OF_LIGHT = 3e8
@@ -284,3 +285,45 @@ def intrinsics_from_pixel_pitch(W, H, f_mm, pitch_um):
     fx = fy = f_mm / p_mm
     cx, cy = W/2, H/2
     return fx, fy, cx, cy
+
+
+def GetHamK3_GateShifts(freq):
+    K = 3
+    tau = float(1 / freq) #Repition tau
+    demodDuty = 1./2.
+    shifts = [0, (1. / 3.), (2. / 3.)]
+    gate_widths = [[], [], []]
+    gate_starts = [[], [], []]
+    for i in range(K):
+        gate_widths[i].append(int((demodDuty * tau * 1e9)))
+        gate_starts[i].append(int((shifts[i] * tau * 1e12)))
+    return gate_widths, gate_starts
+
+
+def GetHamK4_GateShifts(freq):
+    K = 4
+    tau = float(1 / freq) #Repition tau
+    demodDuty1 = np.array([6./12.,6./12.])
+    shift1 = 5./12.
+    demodDuty2 = np.array([6./12.,6./12.])
+    shift2 = 2./12.
+    demodDuty3 = np.array([3./12.,4./12.,3./12.,2./12.])
+    shift3 = 0./12.
+    demodDuty4 = np.array([2./12.,3./12,4./12.,3./12.])
+    shift4 = 4./12.
+    gate_starts = [[], [], [], []]
+    gate_widths = [[], [], [], []]
+    demodDutys = [demodDuty1, demodDuty2, demodDuty3, demodDuty4]
+    shifts = [shift1, shift2, shift3, shift4]
+    for i in range(0,K):
+        demodDuty = demodDutys[i]
+        #startIndeces = np.floor((np.cumsum(demodDuty) - demodDuty)*N)
+        gate_start = (np.cumsum(demodDuty) - demodDuty)
+        print(np.cumsum(demodDuty) - demodDuty)
+        #endIndeces = startIndeces + np.floor(demodDuty*N) - 1
+        for j in range(len(demodDuty)):
+            if((j%2) == 0):
+                shift = int(shifts[i] * tau * 1e12)
+                gate_starts[i].append(int(gate_start[j] * tau * 1e12) + shift)
+                gate_widths[i].append(int(demodDuty[j] * tau * 1e9))
+    return gate_widths, gate_starts
