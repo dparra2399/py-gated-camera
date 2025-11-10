@@ -25,15 +25,15 @@ GATE_DIRECTION = 1
 GATE_TRIG = 0
 
 # Editable parameters (defaults; can be overridden via CLI)
-TOTAL_TIME = 4000  # integration time
+TOTAL_TIME = 40  # integration time
 SPLIT_MEASUREMENTS = False
 IM_WIDTH = 512  # image width
 BIT_DEPTH = 12
-K = 3
+K = 4
 N_TBINS = 640
 CORRECT_MASTER = True
 DECODE_DEPTHS = True
-SAVE_INTO_FILE = True
+SAVE_INTO_FILE = False
 USE_CORRELATIONS = True
 USE_FULL_CORRELATIONS = False
 SIGMA_SIZE = 30

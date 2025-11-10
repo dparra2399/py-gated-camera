@@ -3,10 +3,6 @@ import os
 import glob
 import math
 
-<<<<<<< HEAD
-from pulsed_gated_capture import GATE_OFFSET
-=======
->>>>>>> 121238d (m)
 from spad_lib.SPAD512S import SPAD512S
 from spad_lib.spad512utils import *
 from spad_lib.file_utils import *
@@ -29,8 +25,8 @@ VOLTAGE = 8.5
 DUTY = 20
 PLOT_CORRELATIONS = True
 SAVE_INTO_FILE = False
-SMOOTH_SIGMA = 30
-SMOOTH_CORRELATIONS = False
+SMOOTH_SIGMA = 10
+SMOOTH_CORRELATIONS = True
 
 # Non-Editable Parameters
 ITERATIONS = 1
@@ -63,7 +59,7 @@ if __name__ == "__main__":
     INT_TIME = args.int_time
     NUM_GATES = args.num_gates
     IM_WIDTH = args.im_width
-    BIT_DEPTH = args.bit_depthTrue
+    BIT_DEPTH = args.bit_depth
     SHIFT = args.shift
     VOLTAGE = args.voltage
     DUTY = args.duty
@@ -86,10 +82,10 @@ if __name__ == "__main__":
 
     TAU = ((1/float(freq[-2])) * 1e12) #Tau in picosecond
     N_TBINS = int(TAU // SHIFT)
-    #N_TBINS_EXTENDED = N_TBINS * 2
+    N_TBINS_EXTENDED = N_TBINS * 2
     MHZ = int(float(freq[-2]) * 1e-6)
-    LASER_MHZ = int((float(freq[-2]) * 1e-6) //2)
-    LASER_TAU = TAU / 2
+    LASER_MHZ = int((float(freq[-2]) * 1e-6))
+    LASER_TAU = TAU / 1
 
     print('--------------------Parameters---------------')
     print(f'Number of effective bins: {N_TBINS}')

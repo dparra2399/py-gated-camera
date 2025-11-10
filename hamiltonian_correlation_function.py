@@ -14,16 +14,16 @@ PORT = 9999  # Check the command Server in the setting tab of the software and c
 VEX = 7
 
 # Editable parameters (defaults; can be overridden via CLI)
-INT_TIME = 4000  # integration time
-K = 4  # number of time bins
+INT_TIME = 400  # integration time
+K = 3  # number of time bins
 IM_WIDTH = 512  # image width
 BIT_DEPTH = 12
 SHIFT = 300  # shift in picoseconds
 VOLTAGE = 8.5
 DUTY = 20
 PLOT_CORRELATIONS = True
-SAVE_INTO_FILE = True
-SMOOTH_SIGMA = 30
+SAVE_INTO_FILE = False
+SMOOTH_SIGMA = 10
 SMOOTH_CORRELATIONS = True
 
 SAVE_PATH = '/home/ubi-user/David_P_folder'
@@ -122,17 +122,18 @@ if __name__ == "__main__":
                         gate_start_tmp = gate_start + j * SHIFT
                         gate_start_tmp = gate_start_tmp % TAU
 
-                        if (gate_start_tmp + (gate_width * 1e3)) > TAU:
-                            gate_start_one = gate_start_tmp
-                            gate_start_two = 0
-                            gate_one_width = TAU - gate_start_tmp
-                            gate_two_width = (gate_width * (1e3)) - gate_one_width
-                            gate_starts_helper = [gate_start_one, gate_start_two]
-                            gate_widths_helper = [gate_one_width, gate_two_width]
+                        # if (gate_start_tmp + (gate_width * 1e3)) > TAU:
+                        #     gate_start_one = gate_start_tmp
+                        #     gate_start_two = 0
+                        #     gate_one_width = TAU - gate_start_tmp
+                        #     gate_two_width = (gate_width * (1e3)) - gate_one_width
+                        #     gate_starts_helper = [gate_start_one, gate_start_two]
+                        #     gate_widths_helper = [gate_one_width, gate_two_width]
 
-                        else:
-                            gate_starts_helper = [gate_start_tmp]
-                            gate_widths_helper = [gate_width]
+                        # else:
+                        #     
+                        gate_starts_helper = [gate_start_tmp]
+                        gate_widths_helper = [gate_width]
 
                         for p, gate_start_input in enumerate(gate_starts_helper):
                             gate_width_help = gate_widths_helper[p]

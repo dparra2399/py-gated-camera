@@ -21,5 +21,5 @@ TAU = ((1 / float(freq[-2])) * 1e12)  # Tau in picoseconds
 MHZ = int(float(freq[-2]) * 1e-6)
 GATE_WIDTH = math.ceil(((TAU / 2) // NUM_GATES) * 1e-3)
 
-print(TAU * 2)
+print(TAU / 2)
 print(GATE_WIDTH)
