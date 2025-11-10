@@ -90,7 +90,7 @@ if __name__ == "__main__":
     print(f'Frequency: {int(float(freq[-2]) * 1e-6)}MHZ')
     print('---------------------------------------------')
 
-    SAVE_NAME = f'hamk{K}_{MHZ}mhz_{VOLTAGE}v_{DUTY}w_correlations'
+    SAVE_NAME = f'coarsek{NUM_GATES}_{MHZ}mhz_{VOLTAGE}v_{DUTY}w_correlations'
 
     GATE_WIDTH = math.ceil((((1/float(freq[-2]))*1e12) // NUM_GATES) * 1e-3 )
     gate_starts = np.array([(GATE_WIDTH * (gate_step)) for gate_step in range(NUM_GATES)]) * 1e3
@@ -99,7 +99,7 @@ if __name__ == "__main__":
 
     print(f'Time bin depth resolution {tbin_depth_res * 1000:.3f} mm')
 
-    correlations = np.zeros((IM_WIDTH, IM_WIDTH, K, N_TBINS))
+    correlations = np.zeros((IM_WIDTH, IM_WIDTH, NUM_GATES, N_TBINS))
 
     for i in range(NUM_GATES):
         gate_start = gate_starts[i]

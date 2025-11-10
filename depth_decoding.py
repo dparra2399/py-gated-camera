@@ -144,7 +144,6 @@ if __name__ == "__main__":
 
         if CORRECT_DEPTH_DISTORTION:
             fx, fy, cx, cy = intrinsics_from_pixel_pitch(im_width, im_width, FOCAL_LENGTH, PIXEL_PITCH)
-            depth_map = ellipsoid_range_to_z(depth_map, fx, fy, cx, cy, 0.01, 0, 0)
         # hot pixel fix
         filtered = median_filter(depth_map, size=3, mode="nearest")
         depth_map[hot_mask == 1] = filtered[hot_mask == 1]
