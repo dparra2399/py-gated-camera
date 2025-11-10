@@ -3,7 +3,10 @@ import os
 import glob
 import math
 
+<<<<<<< HEAD
 from pulsed_gated_capture import GATE_OFFSET
+=======
+>>>>>>> 121238d (m)
 from spad_lib.SPAD512S import SPAD512S
 from spad_lib.spad512utils import *
 from spad_lib.file_utils import *
@@ -17,7 +20,7 @@ VEX = 7
 
 
 # Editable parameters (defaults; can be overridden via CLI)
-INT_TIME = 4000  # integration time
+INT_TIME = 400  # integration time
 NUM_GATES = 3  # number of time bins
 IM_WIDTH = 512  # image width
 BIT_DEPTH = 12
@@ -34,7 +37,9 @@ ITERATIONS = 1
 OVERLAP = 0
 TIMEOUT = 0
 PILEUP = 0
+GATE_STEPS = 1
 GATE_STEP_ARBITRARY = 0
+GATE_STEP_SIZE = 0
 GATE_DIRECTION = 1
 GATE_TRIG = 0
 
@@ -58,7 +63,7 @@ if __name__ == "__main__":
     INT_TIME = args.int_time
     NUM_GATES = args.num_gates
     IM_WIDTH = args.im_width
-    BIT_DEPTH = args.bit_depth
+    BIT_DEPTH = args.bit_depthTrue
     SHIFT = args.shift
     VOLTAGE = args.voltage
     DUTY = args.duty
