@@ -16,13 +16,13 @@ VEX = 7
 
 
 # Editable parameters (defaults; can be overridden via CLI)
-INT_TIME = 400 # integration time
-NUM_GATES = 4  # number of time bins
+INT_TIME = 300 # integration time
+NUM_GATES = 3  # number of time bins
 IM_WIDTH = 512  # image width
 BIT_DEPTH = 12
-SHIFT = 300  # shift in picoseconds
+SHIFT = 1000  # shift in picoseconds
 VOLTAGE = 8.5
-DUTY = 20
+SIZE = 20
 PLOT_CORRELATIONS = True
 SAVE_INTO_FILE = False
 SMOOTH_SIGMA = 10
@@ -52,7 +52,7 @@ if __name__ == "__main__":
     parser.add_argument("--bit_depth", type=int, default=BIT_DEPTH)
     parser.add_argument("--shift", type=int, default=SHIFT)
     parser.add_argument("--voltage", type=float, default=10)
-    parser.add_argument("--duty", type=int, default=DUTY)
+    parser.add_argument("--size", type=int, default=SIZE)
 
     args = parser.parse_args()
 
@@ -62,7 +62,7 @@ if __name__ == "__main__":
     BIT_DEPTH = args.bit_depth
     SHIFT = args.shift
     VOLTAGE = args.voltage
-    DUTY = args.duty
+    SIZE = args.size
 
     SPAD1 = SPAD512S(PORT)
 
@@ -89,8 +89,6 @@ if __name__ == "__main__":
     print(f'Shift: {SHIFT}')
     print(f'Frequency: {int(float(freq[-2]) * 1e-6)}MHZ')
     print('---------------------------------------------')
-
-    SAVE_NAME = f'coarsek{NUM_GATES}_{MHZ}mhz_{VOLTAGE}v_{DUTY}w_correlations'
 
     GATE_WIDTH = math.ceil((((1/float(freq[-2]))*1e12) // NUM_GATES) * 1e-3 )
     gate_starts = np.array([(GATE_WIDTH * (gate_step)) for gate_step in range(NUM_GATES)]) * 1e3
@@ -167,6 +165,8 @@ if __name__ == "__main__":
         VOLTAGE = 10
         SIZE = 12
 
+    SAVE_NAME = f'coarsek{NUM_GATES}_{MHZ}mhz_{VOLTAGE}v_{SIZE}w_correlations'
+
 
     if PLOT_CORRELATIONS:
         irf = get_voltage_function(MHZ, VOLTAGE, SIZE, 'pulse', N_TBINS)
@@ -202,5 +202,5 @@ if __name__ == "__main__":
             gate_trig=GATE_TRIG,
             freq=float(freq[-2]),
             voltage=VOLTAGE,
-            size=DUTY,
+            size=SIZE,
             correlations=correlations,)

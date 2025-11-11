@@ -16,7 +16,7 @@ VEX = 7
 
 # Editable parameters (defaults; can be overridden via CLI)
 INT_TIME = 4000  # integration time
-K = 4  # number of time bins
+K = 3  # number of time bins
 IM_WIDTH = 512  # image width
 BIT_DEPTH = 12
 SHIFT = 300  # shift in picoseconds
@@ -24,8 +24,8 @@ VOLTAGE = 8.5
 DUTY = 20
 PLOT_CORRELATIONS = True
 SAVE_INTO_FILE = True
-SMOOTH_SIGMA = 30
-SMOOTH_CORRELATIONS = True
+SMOOTH_SIGMA = 30  
+SMOOTH_CORRELATIONS = False
 
 SAVE_PATH = '/home/ubi-user/David_P_folder'
 
@@ -82,14 +82,6 @@ if __name__ == "__main__":
     N_TBINS = int(TAU // SHIFT)
     MHZ = int(float(freq[-2]) * 1e-6)
 
-    if DUTY == 20 and MHZ == 10:
-        VOLTAGE = 8.5
-    elif DUTY == 20 and MHZ == 5:
-        VOLTAGE = 6.5
-    else:
-        VOLTAGE = 10
-
-    SAVE_NAME = f'hamk{K}_{MHZ}mhz_{VOLTAGE}v_{DUTY}w_correlations'
 
     print('--------------------Parameters---------------')
     print(f'Number of effective bins: {N_TBINS}')
@@ -98,8 +90,8 @@ if __name__ == "__main__":
     print('---------------------------------------------')
 
 
-    func = getattr(spad512utils, f"GetHamK{K}_GateStarts")
-    ham_gate_widths, ham_gate_starts = func(freq[-2])
+    func = getattr(spad512utils, f"GetHamK{K}_GateShifts")
+    ham_gate_widths, ham_gate_starts = func(float(freq[-2]))
 
     (rep_tau, rep_freq, tbin_res, t_domain, max_depth, tbin_depth_res) = calculate_tof_domain_params(N_TBINS, 1. / float(freq[-2]))
 
@@ -117,11 +109,12 @@ if __name__ == "__main__":
         gate_starts_tmp = ham_gate_starts[i]
         for j in range(N_TBINS):
             counts = np.zeros((IM_WIDTH, IM_WIDTH))
-            for k in range(gate_starts_tmp):
+            #print(gate_starts_tmp)
+            for k in range(len(gate_starts_tmp)):
                 gate_width = gate_widths_tmp[k]
-                gate_starts_tmp = gate_starts_tmp[k]
+                gate_start = gate_starts_tmp[k]
 
-                gate_start= gate_starts_tmp + j * SHIFT
+                gate_start = gate_start + j * SHIFT
                 gate_start = gate_start % TAU
 
                 if j == 0:
@@ -161,6 +154,8 @@ if __name__ == "__main__":
         VOLTAGE = 6.5
     else:
         VOLTAGE = 10
+
+    SAVE_NAME = f'hamk{K}_{MHZ}mhz_{VOLTAGE}v_{DUTY}w_correlations'
     # print(mhz)
 
     if 'pulse' in SAVE_NAME:

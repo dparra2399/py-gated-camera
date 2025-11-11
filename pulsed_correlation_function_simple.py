@@ -17,16 +17,16 @@ VEX = 7
 
 # Editable parameters (defaults; can be overridden via CLI)
 INT_TIME = 4000  # integration time
-NUM_GATES = 4  # number of time bins
+NUM_GATES = 3  # number of time bins
 IM_WIDTH = 512  # image width
 BIT_DEPTH = 12
+SIZE = 12
 SHIFT = 300  # shift in picoseconds
 VOLTAGE = 8.5
-DUTY = 20
 PLOT_CORRELATIONS = True
-SAVE_INTO_FILE = False
+SAVE_INTO_FILE = True
 SMOOTH_SIGMA = 10
-SMOOTH_CORRELATIONS = True
+SMOOTH_CORRELATIONS = False
 
 # Non-Editable Parameters
 ITERATIONS = 1
@@ -51,8 +51,8 @@ if __name__ == "__main__":
     parser.add_argument("--im_width", type=int, default=IM_WIDTH)
     parser.add_argument("--bit_depth", type=int, default=BIT_DEPTH)
     parser.add_argument("--shift", type=int, default=SHIFT)
-    parser.add_argument("--voltage", type=float, default=10)
-    parser.add_argument("--duty", type=int, default=DUTY)
+    parser.add_argument("--voltage", type=float, default=VOLTAGE)
+    parser.add_argument("--size", type=int, default=SIZE)
 
     args = parser.parse_args()
 
@@ -62,7 +62,7 @@ if __name__ == "__main__":
     BIT_DEPTH = args.bit_depth
     SHIFT = args.shift
     VOLTAGE = args.voltage
-    DUTY = args.duty
+    SIZE = args.size
 
     SPAD1 = SPAD512S(PORT)
 
@@ -90,8 +90,6 @@ if __name__ == "__main__":
     print(f'Frequency: {int(float(freq[-2]) * 1e-6)}MHZ')
     print('---------------------------------------------')
 
-    SAVE_NAME = f'coarsek{NUM_GATES}_{MHZ}mhz_{VOLTAGE}v_{DUTY}w_correlations'
-
     GATE_WIDTH = math.ceil((((1/float(freq[-2]))*1e12) // NUM_GATES) * 1e-3 )
     gate_starts = np.array([(GATE_WIDTH * (gate_step)) for gate_step in range(NUM_GATES)]) * 1e3
 
@@ -102,16 +100,20 @@ if __name__ == "__main__":
     correlations = np.zeros((IM_WIDTH, IM_WIDTH, NUM_GATES, N_TBINS))
 
     for i in range(NUM_GATES):
-        gate_start = gate_starts[i]
+        gate_start_tmp = gate_starts[i]
 
         print('-------------------------------------------------------')
-        print(f'Starting to measure correlations for gate number {i}')
+        print(f'Starting to measure correlations for gate number {i+1}')
         print('-------------------------------------------------------')
 
         for j in range(N_TBINS):
-            gate_start= gate_start + j * SHIFT
+            gate_start = gate_start_tmp + j * SHIFT
             gate_start = gate_start % TAU
 
+            if j == 0:
+                print(f'\tGate start: {gate_start}')
+                print(f'\tGate width: {GATE_WIDTH}')
+            
             counts = np.zeros((IM_WIDTH, IM_WIDTH))
             current_intTime = INT_TIME
             while current_intTime > 480:
@@ -122,17 +124,17 @@ if __name__ == "__main__":
                                                     IM_WIDTH)[:, :, 0]
                 current_intTime -= 480
 
-                counts += SPAD1.get_gated_intensity(BIT_DEPTH, current_intTime, ITERATIONS, GATE_STEPS, GATE_STEP_SIZE,
-                                                    GATE_STEP_ARBITRARY, GATE_WIDTH,
-                                                    gate_start, GATE_DIRECTION, GATE_TRIG, OVERLAP, 1, PILEUP,
-                                                    IM_WIDTH)[:, :, 0]
+            counts += SPAD1.get_gated_intensity(BIT_DEPTH, current_intTime, ITERATIONS, GATE_STEPS, GATE_STEP_SIZE,
+                                                GATE_STEP_ARBITRARY, GATE_WIDTH,
+                                                gate_start, GATE_DIRECTION, GATE_TRIG, OVERLAP, 1, PILEUP,
+                                                IM_WIDTH)[:, :, 0]
 
             if j % 20 == 0:
                 print(f'Measuring gate shift number {j}')
 
             correlations[:, :, i, j] = counts
         print('-------------------------------------------------------')
-        print(f'Finished to measure correlations for gate number {i}')
+        print(f'Finished to measure correlations for gate number {i+1}')
         print('-------------------------------------------------------')
 
     correlations = np.flip(correlations, axis=-1)
@@ -152,6 +154,8 @@ if __name__ == "__main__":
     else:
         VOLTAGE = 10
         SIZE = 12
+
+    SAVE_NAME = f'coarsek{NUM_GATES}_{MHZ}mhz_{VOLTAGE}v_{SIZE}w_correlations'
 
 
     if PLOT_CORRELATIONS:
@@ -188,5 +192,5 @@ if __name__ == "__main__":
             gate_trig=GATE_TRIG,
             freq=float(freq[-2]),
             voltage=VOLTAGE,
-            size=DUTY,
+            size=SIZE,
             correlations=correlations,)
