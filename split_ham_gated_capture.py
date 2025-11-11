@@ -3,7 +3,6 @@ import os
 
 from spad_lib.SPAD512S import SPAD512S
 from spad_lib.spad512utils import *
-from spad_lib import spad512utils
 from spad_lib.file_utils import *
 import numpy as np
 from felipe_utils import CodingFunctionsFelipe
@@ -110,36 +109,40 @@ if __name__=='__main__':
     SPAD1.set_Vex(VEX)
 
     #Get demodulation functions and split for use with Gated SPAD
-    func = getattr(spad512utils, f"GetHamK{K}_GateStarts")
-    ham_gate_widths, ham_gate_starts = func(freq[-2])
+    func = getattr(CodingFunctionsFelipe, f"GetHamK{K}")
+    (modfs, demodfs) = func(N=N_TBINS)
+    gated_demodfs_np, gated_demodfs_arr = decompose_ham_codes(demodfs)
 
+    #For each demod function we make a gate sequence
+    intTimes = [int(TOTAL_TIME // K)] * K
     coded_vals = np.zeros((IM_WIDTH, IM_WIDTH, K))
-    for i in range(K):
-        gate_widths_tmp = ham_gate_widths[i]
-        gate_starts_tmp = ham_gate_starts[i]
-        counts = np.zeros((IM_WIDTH, IM_WIDTH))
-        for k in range(len(gate_starts_tmp)):
-            gate_width = gate_widths_tmp[k]
-            gate_start = gate_starts_tmp[k]
+    for i, item in enumerate(gated_demodfs_arr):
+        for j in range(item.shape[-1]):
+            gate = item[:, j]
+            gate_width, gate_offset = get_offset_width_spad512(gate, float(freq[-2]))
+            print(f'gate width = {gate_width}, gate offset = {gate_offset}')
 
             if SPLIT_MEASUREMENTS:
-                intTime = int(TOTAL_TIME // sum(len(sublist) for sublist in gate_starts_tmp))
+                intTime = int(TOTAL_TIME // gated_demodfs_np.shape[-1])
             else:
                 intTime = TOTAL_TIME
 
+            print(f'Integration time for hamiltonian row #{i+1}.{j+1}: {intTime}')
+
             current_intTime = intTime
+            counts = np.zeros((IM_WIDTH, IM_WIDTH))
             while current_intTime > 480:
                 print(f'starting current time {current_intTime}')
                 counts += SPAD1.get_gated_intensity(BIT_DEPTH, 480, ITERATIONS, GATE_STEPS, GATE_STEP_SIZE,
                                                     GATE_STEP_ARBITRARY, gate_width,
-                                                    gate_start, GATE_DIRECTION, GATE_TRIG, OVERLAP, 1, PILEUP, IM_WIDTH)[:, :, 0]
+                                                    gate_offset, GATE_DIRECTION, GATE_TRIG, OVERLAP, 1, PILEUP, IM_WIDTH)[:, :, 0]
                 current_intTime -= 480
 
             counts += SPAD1.get_gated_intensity(BIT_DEPTH, current_intTime, ITERATIONS, GATE_STEPS, GATE_STEP_SIZE,
                                                 GATE_STEP_ARBITRARY, gate_width,
-                                                gate_start, GATE_DIRECTION, GATE_TRIG, OVERLAP, 1, PILEUP, IM_WIDTH)[:, :, 0]
+                                                gate_offset, GATE_DIRECTION, GATE_TRIG, OVERLAP, 1, PILEUP, IM_WIDTH)[:, :, 0]
 
-        coded_vals[:, :, i] = counts
+            coded_vals[:, :, i] += counts
 
     print(coded_vals.shape)
     unit = "ms"

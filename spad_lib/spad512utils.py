@@ -327,3 +327,8 @@ def GetHamK4_GateShifts(freq):
                 gate_starts[i].append(int(gate_start[j] * tau * 1e12) + shift)
                 gate_widths[i].append(int(demodDuty[j] * tau * 1e9))
     return gate_widths, gate_starts
+
+
+freq = 10000000
+g1, g2 = GetHamK4_GateShifts(freq)
+print(g1, g2)
