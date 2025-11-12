@@ -66,6 +66,8 @@ def save_capture_data(
     coded_vals,
     split_measurements,
     size,
+    gate_width,
+    K,
     laser_freq = None,
 ):
     """Save SPAD capture data and metadata to a .npz file."""
@@ -90,6 +92,8 @@ def save_capture_data(
         coded_vals=coded_vals,
         split_measurements=split_measurements,
         size=size,
+        gate_width=gate_width,
+        K = K,
         laser_freq=laser_freq,
     )
     print(f"✅ Saved capture data to {os.path.join(save_path, save_name)}.npz")
@@ -115,6 +119,8 @@ def save_correlation_data(
     freq,
     voltage,
     size,
+    gate_width,
+    K,
     correlations,
 ):
     """Save SPAD capture data and metadata to a .npz file."""
@@ -137,6 +143,8 @@ def save_correlation_data(
         freq=freq,
         voltage=voltage,
         size=size,
+        gate_width=gate_width,
+        K=K,
         correlations=correlations,
     )
     print(f"✅ Saved correlation data to {os.path.join(save_path, save_name)}.npz")

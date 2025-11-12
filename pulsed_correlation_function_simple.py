@@ -193,4 +193,6 @@ if __name__ == "__main__":
             freq=float(freq[-2]),
             voltage=VOLTAGE,
             size=SIZE,
+            gate_width=GATE_WIDTH,
+            K=NUM_GATES,
             correlations=correlations,)

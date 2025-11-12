@@ -12,23 +12,24 @@ PORT = 9999  # Check the command Server in the setting tab of the software and c
 VEX = 7
 
 # Editable parameters (defaults; can be overridden via CLI)
-TOTAL_TIME = 4000  # integration time
+TOTAL_TIME = 100  # integration time
 SPLIT_MEASUREMENTS = False
 NUM_GATES = 3  # number of time bins
 IM_WIDTH = 512  # image width
 BIT_DEPTH = 12
 N_TBINS = 640
-CORRECT_MASTER = True
+CORRECT_MASTER = False
 DECODE_DEPTHS = True
 SAVE_INTO_FILE = True
 USE_CORRELATIONS = True
 USE_FULL_CORRELATIONS = False
-SIGMA_SIZE = 30
+SIGMA_SIZE = 1
 SHIFT_SIZE = 150
 MEDIAN_FILTER_SIZE = 3
+GROUND_TRUTH = False
 
-VMIN = None
-VMAX = None
+VMIN = 7
+VMAX = 7.5
 
 #Non-Editable parameters
 ITERATIONS = 1
@@ -45,7 +46,10 @@ EXP_NUM = 2
 # SAVE_PATH = '/mnt/researchdrive/research_users/David/gated_project_data'
 SAVE_PATH = '/home/ubi-user/David_P_folder'
 
-SAVE_NAME = f'coarsek{NUM_GATES}_exp{EXP_NUM}'
+if GROUND_TRUTH:
+    SAVE_NAME = f'coarsek{NUM_GATES}_gt_exp{EXP_NUM}'
+else:
+    SAVE_NAME = f'coarsek{NUM_GATES}_exp{EXP_NUM}'
 
 if __name__ == '__main__':
     # --- Hardware constants and initialization ---
@@ -81,7 +85,7 @@ if __name__ == '__main__':
     parser.add_argument("--vmax", type=float, default=VMAX)
     parser.add_argument("--exp_num", type=int, default=EXP_NUM)
     parser.add_argument("--save_path", type=str, default=SAVE_PATH)
-    parser.add_argument("--save_name", type=str, default=None)
+    parser.add_argument("--save_name", type=str, default=SAVE_NAME)
 
     args = parser.parse_args()
 
@@ -99,16 +103,16 @@ if __name__ == '__main__':
     VMAX = args.vmax
     EXP_NUM = args.exp_num
     SAVE_PATH = args.save_path
-    SAVE_NAME = args.save_name if args.save_name is not None else f"coarsek{NUM_GATES}_exp{EXP_NUM}"
+    SAVE_NAME = args.save_name
 
     #Make list of gate starts which will be the offet param in the SPAD512
-    gate_width = math.ceil((((1/float(freq[-2]))*1e12) // NUM_GATES) * 1e-3 )
-    gate_starts = np.array([(gate_width * (gate_step)) for gate_step in range(NUM_GATES)]) * 1e3
+    GATE_WIDTH = math.ceil((((1/float(freq[-2]))*1e12) // NUM_GATES) * 1e-3 )
+    gate_starts = np.array([(GATE_WIDTH * (gate_step)) for gate_step in range(NUM_GATES)]) * 1e3
 
     print("\nGate Starts (offsets):")
     print(gate_starts)
     print(f'\nnum gates: {NUM_GATES}')
-    print(f'\ngate width: {gate_width}')
+    print(f'\ngate width: {GATE_WIDTH}')
 
     #For each gate make a gated acq. using the offset provided above
     coded_vals = np.zeros((IM_WIDTH, IM_WIDTH, NUM_GATES))
@@ -127,12 +131,12 @@ if __name__ == '__main__':
         while current_intTime > 480:
             print(f'starting current time {current_intTime}')
             counts += SPAD1.get_gated_intensity(BIT_DEPTH, 480, ITERATIONS, GATE_STEPS, GATE_STEP_SIZE,
-                                                GATE_STEP_ARBITRARY, gate_width,
+                                                GATE_STEP_ARBITRARY, GATE_WIDTH,
                                                 gate_offset, GATE_DIRECTION, GATE_TRIG, OVERLAP, 1, PILEUP, IM_WIDTH)[:, :, 0]
             current_intTime -= 480
 
         counts += SPAD1.get_gated_intensity(BIT_DEPTH, current_intTime, ITERATIONS, GATE_STEPS, GATE_STEP_SIZE,
-                                            GATE_STEP_ARBITRARY, gate_width,
+                                            GATE_STEP_ARBITRARY, GATE_WIDTH,
                                             gate_offset, GATE_DIRECTION, GATE_TRIG, OVERLAP, 1, PILEUP, IM_WIDTH)[:, :, 0]
 
         coded_vals[:, :, i] = counts
@@ -165,7 +169,7 @@ if __name__ == '__main__':
 
         if USE_CORRELATIONS:
             corr_path = (
-                f"/Users/davidparra/PycharmProjects/py-gated-camera/correlation_functions/"
+                f"/home/ubi-user/David_P_folder/py-gated-camera/correlation_functions/"
                 f"coarsek{coded_vals.shape[-1]}_{mhz}mhz_{VOLTAGE}v_{SIZE}w_correlations.npz"
             )
             correlations_total, n_tbins_corr = load_correlations_file(corr_path)
@@ -176,7 +180,7 @@ if __name__ == '__main__':
                 t_domain,
                 max_depth,
                 tbin_depth_res,
-            ) = calculate_tof_domain_params(n_tbins_corr, 1.0 / freq)
+            ) = calculate_tof_domain_params(n_tbins_corr, 1.0 / float(freq[-2]))
             coding_matrix = build_coding_matrix_from_correlations(correlations_total, IM_WIDTH, n_tbins_corr, freq,
                                                                   USE_FULL_CORRELATIONS, SIGMA_SIZE, SHIFT_SIZE)
             N_TBINS = n_tbins_corr
@@ -184,10 +188,10 @@ if __name__ == '__main__':
         else:
             irf = get_voltage_function(mhz, VOLTAGE, SIZE, "pulse", N_TBINS)
             coding_matrix = get_coarse_coding_matrix(
-                gate_width * 1e3,
+                GATE_WIDTH * 1e3,
                 coded_vals.shape[-1],
                 0,
-                gate_width * 1e3,
+                GATE_WIDTH * 1e3,
                 rep_tau * 1e12,
                 N_TBINS,
                 irf,
@@ -239,4 +243,6 @@ if __name__ == '__main__':
             coded_vals=coded_vals,
             split_measurements=SPLIT_MEASUREMENTS,
             size=SIZE,
+            gate_width=GATE_WIDTH,
+            K=NUM_GATES
         )

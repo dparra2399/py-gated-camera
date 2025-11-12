@@ -112,9 +112,9 @@ if __name__ == "__main__":
             #print(gate_starts_tmp)
             for k in range(len(gate_starts_tmp)):
                 gate_width = gate_widths_tmp[k]
-                gate_start = gate_starts_tmp[k]
+                gate_start_helper = gate_starts_tmp[k]
 
-                gate_start = gate_start + j * SHIFT
+                gate_start = gate_start_helper + j * SHIFT
                 gate_start = gate_start % TAU
 
                 if j == 0:
@@ -200,4 +200,6 @@ if __name__ == "__main__":
             freq=float(freq[-2]),
             voltage=VOLTAGE,
             size=DUTY,
+            gate_width=None,
+            K=K,
             correlations=correlations,)

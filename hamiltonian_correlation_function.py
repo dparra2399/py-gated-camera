@@ -14,7 +14,7 @@ PORT = 9999  # Check the command Server in the setting tab of the software and c
 VEX = 7
 
 # Editable parameters (defaults; can be overridden via CLI)
-INT_TIME = 400  # integration time
+INT_TIME = 2000  # integration time
 K = 3  # number of time bins
 IM_WIDTH = 512  # image width
 BIT_DEPTH = 12
@@ -22,9 +22,9 @@ SHIFT = 300  # shift in picoseconds
 VOLTAGE = 8.5
 DUTY = 20
 PLOT_CORRELATIONS = True
-SAVE_INTO_FILE = False
+SAVE_INTO_FILE = True
 SMOOTH_SIGMA = 10
-SMOOTH_CORRELATIONS = True
+SMOOTH_CORRELATIONS = False
 
 SAVE_PATH = '/home/ubi-user/David_P_folder'
 
@@ -214,4 +214,6 @@ if __name__ == "__main__":
             freq=float(freq[-2]),
             voltage=VOLTAGE,
             size=DUTY,
+            gate_width=None,
+            K=K,
             correlations=correlations,)

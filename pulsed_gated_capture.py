@@ -24,6 +24,7 @@ USE_FULL_CORRELATIONS = False
 SIGMA_SIZE = 30
 SHIFT_SIZE = 150
 MEDIAN_FILTER_SIZE = 3
+GROUND_TRUTH = True
 
 VMIN = None
 VMAX = None
@@ -45,7 +46,12 @@ EXP_NUM = 2
 # SAVE_PATH = '/mnt/researchdrive/research_users/David/gated_project_data'
 SAVE_PATH = '/home/ubi-user/David_P_folder'
 
-SAVE_NAME = f'coarsek{NUM_GATES}_exp{EXP_NUM}'
+
+if GROUND_TRUTH:
+    SAVE_NAME = f'coarsek{NUM_GATES}_gt_exp{EXP_NUM}'
+else:
+    SAVE_NAME = f'coarsek{NUM_GATES}_exp{EXP_NUM}'
+
 
 if __name__ == '__main__':
     # --- Hardware constants and initialization ---
@@ -82,7 +88,7 @@ if __name__ == '__main__':
     parser.add_argument("--vmax", type=float, default=VMAX)
     parser.add_argument("--exp_num", type=int, default=EXP_NUM)
     parser.add_argument("--save_path", type=str, default=SAVE_PATH)
-    parser.add_argument("--save_name", type=str, default=None)
+    parser.add_argument("--save_name", type=str, default=SAVE_NAME)
 
     args = parser.parse_args()
 
@@ -100,7 +106,7 @@ if __name__ == '__main__':
     VMAX = args.vmax
     EXP_NUM = args.exp_num
     SAVE_PATH = args.save_path
-    SAVE_NAME = args.save_name if args.save_name is not None else f"coarsek{NUM_GATES}_exp{EXP_NUM}"
+    SAVE_NAME = args.save_name
 
     # Make list of gate starts which will be the offet param in the SPAD512
     GATE_WIDTH = math.ceil((((1 / float(freq[-2])) * 1e12) // NUM_GATES) * 1e-3)
@@ -157,7 +163,7 @@ if __name__ == '__main__':
 
         if USE_CORRELATIONS:
             corr_path = (
-                f"/Users/davidparra/PycharmProjects/py-gated-camera/correlation_functions/"
+                f"/home/ubi-user/David_P_folder/py-gated-camera/correlation_functions/"
                 f"coarsek{coded_vals.shape[-1]}_{mhz}mhz_{VOLTAGE}v_{SIZE}w_correlations.npz"
             )
             correlations_total, n_tbins_corr = load_correlations_file(corr_path)
@@ -231,4 +237,6 @@ if __name__ == '__main__':
             coded_vals=coded_vals,
             split_measurements=SPLIT_MEASUREMENTS,
             size=SIZE,
+            gate_width=GATE_WIDTH,
+            K=NUM_GATES
         )

@@ -24,13 +24,13 @@ GATE_DIRECTION = 1
 GATE_TRIG = 0
 
 # Editable parameters (defaults; can be overridden via CLI)
-TOTAL_TIME = 4000  # integration time
+TOTAL_TIME = 500000  # integration time
 SPLIT_MEASUREMENTS = False
 IM_WIDTH = 512  # image width
 BIT_DEPTH = 12
 K = 3
 N_TBINS = 640
-CORRECT_MASTER = True
+CORRECT_MASTER = False
 DECODE_DEPTHS = True
 SAVE_INTO_FILE = True
 USE_CORRELATIONS = True
@@ -38,16 +38,19 @@ USE_FULL_CORRELATIONS = False
 SIGMA_SIZE = 30
 SHIFT_SIZE = 150
 MEDIAN_FILTER_SIZE = 3
+GROUND_TRUTH = True
 
 DUTY = 20
 VMIN = None
 VMAX = None
 
-EXP_NUM = 2
+EXP_NUM = 3
 SAVE_PATH = '/home/ubi-user/David_P_folder'
 # save_path = '/mnt/researchdrive/research_users/David/gated_project_data'
-SAVE_NAME = f'hamK{K}_exp{EXP_NUM}'
-
+if GROUND_TRUTH:
+    SAVE_NAME = f'hamk{K}_gt_exp{EXP_NUM}'
+else:
+    SAVE_NAME = f'hamk{K}_exp{EXP_NUM}'
 
 if __name__=='__main__':
     # --- CLI overrides (hybrid approach): defaults above, CLI can override ---
@@ -69,7 +72,7 @@ if __name__=='__main__':
 
     parser.add_argument("--exp_num", type=int, default=EXP_NUM)
     parser.add_argument("--save_path", type=str, default=SAVE_PATH)
-    parser.add_argument("--save_name", type=str, default=None, help="Optional explicit output name; defaults to hamK{K}_exp{EXP_NUM}")
+    parser.add_argument("--save_name", type=str, default=SAVE_NAME)
 
     args = parser.parse_args()
 
@@ -91,7 +94,7 @@ if __name__=='__main__':
 
     EXP_NUM = args.exp_num
     SAVE_PATH = args.save_path
-    SAVE_NAME = args.save_name if args.save_name is not None else f"hamK{K}_exp{EXP_NUM}"
+    SAVE_NAME = args.save_name
 
     SPAD1 = SPAD512S(PORT)
     # Get informations on the system used
@@ -125,7 +128,7 @@ if __name__=='__main__':
             if SPLIT_MEASUREMENTS:
                 intTime = int(TOTAL_TIME // gated_demodfs_np.shape[-1])
             else:
-                intTime = TOTAL_TIME
+                intTime = TOTAL_TIME // item.shape[-1]
 
             print(f'Integration time for hamiltonian row #{i+1}.{j+1}: {intTime}')
 
@@ -169,7 +172,7 @@ if __name__=='__main__':
 
         if USE_CORRELATIONS:
             corr_path = (
-                f"/Users/davidparra/PycharmProjects/py-gated-camera/correlation_functions/"
+                f"/home/ubi-user/David_P_folder/py-gated-camera/correlation_functions/"
                 f"hamk{coded_vals.shape[-1]}_{mhz}mhz_{VOLTAGE}v_{DUTY}w_correlations.npz"
             )
             correlations_total, n_tbins_corr = load_correlations_file(corr_path)
@@ -180,7 +183,7 @@ if __name__=='__main__':
                 t_domain,
                 max_depth,
                 tbin_depth_res,
-            ) = calculate_tof_domain_params(n_tbins_corr, 1.0 / freq)
+            ) = calculate_tof_domain_params(n_tbins_corr, 1.0 / float(freq[-2]))
             coding_matrix = build_coding_matrix_from_correlations(correlations_total, IM_WIDTH, n_tbins_corr, freq,
                                                                   USE_FULL_CORRELATIONS, SIGMA_SIZE, SHIFT_SIZE)
             N_TBINS = n_tbins_corr
@@ -235,4 +238,6 @@ if __name__=='__main__':
             coded_vals=coded_vals,
             split_measurements=SPLIT_MEASUREMENTS,
             size=DUTY,
+            gate_width=None,
+            K=K
         )
