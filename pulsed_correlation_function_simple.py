@@ -16,17 +16,18 @@ VEX = 7
 
 
 # Editable parameters (defaults; can be overridden via CLI)
-INT_TIME = 4000  # integration time
+INT_TIME = 1000  # integration time
 NUM_GATES = 3  # number of time bins
 IM_WIDTH = 512  # image width
 BIT_DEPTH = 12
 SIZE = 12
-SHIFT = 300  # shift in picoseconds
-VOLTAGE = 8.5
+SHIFT = 600  # shift in picoseconds
+VOLTAGE = 10
 PLOT_CORRELATIONS = True
 SAVE_INTO_FILE = True
 SMOOTH_SIGMA = 10
 SMOOTH_CORRELATIONS = False
+EXTENDED = True
 
 # Non-Editable Parameters
 ITERATIONS = 1
@@ -82,18 +83,21 @@ if __name__ == "__main__":
 
     TAU = ((1/float(freq[-2])) * 1e12) #Tau in picoseconds
     N_TBINS = int(TAU // SHIFT)
-    MHZ = int(float(freq[-2]) * 1e-6)
+    FREQ = float(freq[-2]) * 2 if EXTENDED else float(freq[-2])
+    MHZ = int(FREQ * 1e-6)
+
 
     print('--------------------Parameters---------------')
     print(f'Number of effective bins: {N_TBINS}')
     print(f'Shift: {SHIFT}')
-    print(f'Frequency: {int(float(freq[-2]) * 1e-6)}MHZ')
+    print(f'Frequency: {MHZ}MHZ')
     print('---------------------------------------------')
 
-    GATE_WIDTH = math.ceil((((1/float(freq[-2]))*1e12) // NUM_GATES) * 1e-3 )
+
+    GATE_WIDTH = math.ceil((((1/FREQ)*1e12) // NUM_GATES) * 1e-3 )
     gate_starts = np.array([(GATE_WIDTH * (gate_step)) for gate_step in range(NUM_GATES)]) * 1e3
 
-    (rep_tau, rep_freq, tbin_res, t_domain, max_depth, tbin_depth_res) = calculate_tof_domain_params(N_TBINS, 1. / float(freq[-2]))
+    (rep_tau, rep_freq, tbin_res, t_domain, max_depth, tbin_depth_res) = calculate_tof_domain_params(N_TBINS, 1. / FREQ)
 
     print(f'Time bin depth resolution {tbin_depth_res * 1000:.3f} mm')
 
@@ -108,7 +112,7 @@ if __name__ == "__main__":
 
         for j in range(N_TBINS):
             gate_start = gate_start_tmp + j * SHIFT
-            gate_start = gate_start % TAU
+            #gate_start = gate_start % TAU
 
             if j == 0:
                 print(f'\tGate start: {gate_start}')
@@ -139,6 +143,12 @@ if __name__ == "__main__":
 
     correlations = np.flip(correlations, axis=-1)
 
+    if EXTENDED:
+        correlation_circ = correlations[:, :, :, :(N_TBINS +1) // 2:].copy()
+        tail = correlations[:, :, :, (N_TBINS +1) // 2:]
+        correlation_circ[:, :, :, :N_TBINS - ((N_TBINS +1)//2)] += tail
+        correlations = correlation_circ
+
     if NUM_GATES == 3 and MHZ == 10:
         VOLTAGE = 7
         SIZE = 34
@@ -156,6 +166,7 @@ if __name__ == "__main__":
         SIZE = 12
 
     SAVE_NAME = f'coarsek{NUM_GATES}_{MHZ}mhz_{VOLTAGE}v_{SIZE}w_correlations'
+    SAVE_NAME = SAVE_NAME + '_extended' if EXTENDED else SAVE_NAME
 
 
     if PLOT_CORRELATIONS:

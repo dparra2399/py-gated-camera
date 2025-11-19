@@ -25,27 +25,28 @@ GATE_DIRECTION = 1
 GATE_TRIG = 0
 
 # Editable parameters (defaults; can be overridden via CLI)
-TOTAL_TIME = 100 # integration time
+TOTAL_TIME = 1000000# integration time
 SPLIT_MEASUREMENTS = False
 IM_WIDTH = 512  # image width
 BIT_DEPTH = 12
 K = 3
 N_TBINS = 640
 CORRECT_MASTER = False
-DECODE_DEPTHS = True
+DECODE_DEPTHS = False
 SAVE_INTO_FILE = True
-USE_CORRELATIONS = True
+USE_CORRELATIONS = False
 USE_FULL_CORRELATIONS = False
 SIGMA_SIZE = 1
 SHIFT_SIZE = 150
 MEDIAN_FILTER_SIZE = 3
-GROUND_TRUTH = False
+GROUND_TRUTH = True
+PULSE = True
 
 DUTY = 20
 VMIN = 7
-VMAX = 7.5
+VMAX = 8
 
-EXP_NUM = 2
+EXP_NUM = 3
 SAVE_PATH = '/home/ubi-user/David_P_folder'
 # save_path = '/mnt/researchdrive/research_users/David/gated_project_data'
 
@@ -54,6 +55,7 @@ if GROUND_TRUTH:
 else:
     SAVE_NAME = f'hamk{K}_exp{EXP_NUM}'
 
+SAVE_NAME = SAVE_NAME if PULSE==False else SAVE_NAME + '_pulse'
 
 if __name__=='__main__':
     # --- CLI overrides (hybrid approach): defaults above, CLI can override ---
@@ -163,11 +165,8 @@ if __name__=='__main__':
 
     if 'pulse' in SAVE_NAME:
         illum_type = 'pulse'
-        DUTY = 12
-        VOLTAGE = 10
     else:
         illum_type = 'square'
-        DUTY = 20
 
     if DECODE_DEPTHS:
         (rep_tau, rep_freq, tbin_res, t_domain, max_depth, tbin_depth_res) = calculate_tof_domain_params(N_TBINS, 1./ float(freq[-2]))

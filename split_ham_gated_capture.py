@@ -24,7 +24,7 @@ GATE_DIRECTION = 1
 GATE_TRIG = 0
 
 # Editable parameters (defaults; can be overridden via CLI)
-TOTAL_TIME = 500000  # integration time
+TOTAL_TIME = 1000  # integration time
 SPLIT_MEASUREMENTS = False
 IM_WIDTH = 512  # image width
 BIT_DEPTH = 12
@@ -33,18 +33,18 @@ N_TBINS = 640
 CORRECT_MASTER = False
 DECODE_DEPTHS = True
 SAVE_INTO_FILE = True
-USE_CORRELATIONS = True
+USE_CORRELATIONS = False
 USE_FULL_CORRELATIONS = False
 SIGMA_SIZE = 30
 SHIFT_SIZE = 150
 MEDIAN_FILTER_SIZE = 3
-GROUND_TRUTH = True
+GROUND_TRUTH = False
 
 DUTY = 20
 VMIN = None
 VMAX = None
 
-EXP_NUM = 3
+EXP_NUM = 1
 SAVE_PATH = '/home/ubi-user/David_P_folder'
 # save_path = '/mnt/researchdrive/research_users/David/gated_project_data'
 if GROUND_TRUTH:
@@ -128,7 +128,7 @@ if __name__=='__main__':
             if SPLIT_MEASUREMENTS:
                 intTime = int(TOTAL_TIME // gated_demodfs_np.shape[-1])
             else:
-                intTime = TOTAL_TIME // item.shape[-1]
+                intTime = TOTAL_TIME
 
             print(f'Integration time for hamiltonian row #{i+1}.{j+1}: {intTime}')
 

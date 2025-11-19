@@ -14,18 +14,17 @@ PORT = 9999  # Check the command Server in the setting tab of the software and c
 VEX = 7
 
 # Editable parameters (defaults; can be overridden via CLI)
-INT_TIME = 2000  # integration time
+INT_TIME = 100  # integration time
 K = 3  # number of time bins
 IM_WIDTH = 512  # image width
 BIT_DEPTH = 12
-SHIFT = 300  # shift in picoseconds
+SHIFT = 1000  # shift in picoseconds
 VOLTAGE = 8.5
 DUTY = 20
 PLOT_CORRELATIONS = True
-SAVE_INTO_FILE = True
+SAVE_INTO_FILE = False
 SMOOTH_SIGMA = 10
 SMOOTH_CORRELATIONS = False
-
 SAVE_PATH = '/home/ubi-user/David_P_folder'
 
 # Non-Editable Parameters
@@ -137,7 +136,7 @@ if __name__ == "__main__":
 
                         for p, gate_start_input in enumerate(gate_starts_helper):
                             gate_width_help = gate_widths_helper[p]
-                            current_intTime = INT_TIME
+                            current_intTime = INT_TIME // item.shape[-1]
                             while current_intTime > 480:
                                 #print(f'starting current time {current_intTime}')
                                 counts += SPAD1.get_gated_intensity(BIT_DEPTH, 480, ITERATIONS, GATE_STEPS, GATE_STEP_SIZE,
