@@ -15,17 +15,19 @@ PORT = 9999  # Check the command Server in the setting tab of the software and c
 VEX = 7
 
 # Editable parameters (defaults; can be overridden via CLI)
-INT_TIME = 4000  # integration time
+INT_TIME = 100  # integration time
 K = 3  # number of time bins
 IM_WIDTH = 512  # image width
 BIT_DEPTH = 12
-SHIFT = 300  # shift in picoseconds
+SHIFT = 1250  # shift in picoseconds
 VOLTAGE = 8.5
-DUTY = 20
+DUTY = 201250
 PLOT_CORRELATIONS = True
-SAVE_INTO_FILE = True
-SMOOTH_SIGMA = 30  
+SAVE_INTO_FILE = False
+SMOOTH_SIGMA = 30
 SMOOTH_CORRELATIONS = False
+PULSED = False
+EXTENDED = False
 
 SAVE_PATH = '/home/ubi-user/David_P_folder'
 
@@ -80,20 +82,21 @@ if __name__ == "__main__":
 
     TAU = ((1/float(freq[-2])) * 1e12) #Tau in picoseconds
     N_TBINS = int(TAU // SHIFT)
-    MHZ = int(float(freq[-2]) * 1e-6)
+    FREQ = float(freq[-2]) * 2 if EXTENDED else float(freq[-2])
+    MHZ = int(FREQ * 1e-6)
 
 
     print('--------------------Parameters---------------')
     print(f'Number of effective bins: {N_TBINS}')
     print(f'Shift: {SHIFT}')
-    print(f'Frequency: {int(float(freq[-2]) * 1e-6)}MHZ')
+    print(f'Frequency: {MHZ}MHZ')
     print('---------------------------------------------')
 
 
     func = getattr(spad512utils, f"GetHamK{K}_GateShifts")
-    ham_gate_widths, ham_gate_starts = func(float(freq[-2]))
+    ham_gate_widths, ham_gate_starts = func(FREQ)
 
-    (rep_tau, rep_freq, tbin_res, t_domain, max_depth, tbin_depth_res) = calculate_tof_domain_params(N_TBINS, 1. / float(freq[-2]))
+    (rep_tau, rep_freq, tbin_res, t_domain, max_depth, tbin_depth_res) = calculate_tof_domain_params(N_TBINS, 1. / FREQ)
 
     print(f'Time bin depth resolution {tbin_depth_res * 1000:.3f} mm')
 
@@ -107,42 +110,62 @@ if __name__ == "__main__":
 
         gate_widths_tmp = ham_gate_widths[i]
         gate_starts_tmp = ham_gate_starts[i]
-        for j in range(N_TBINS):
-            counts = np.zeros((IM_WIDTH, IM_WIDTH))
-            #print(gate_starts_tmp)
-            for k in range(len(gate_starts_tmp)):
-                gate_width = gate_widths_tmp[k]
-                gate_start_helper = gate_starts_tmp[k]
+        #for j in range(N_TBINS):
+        #counts = np.zeros((IM_WIDTH, IM_WIDTH))
 
-                gate_start = gate_start_helper + j * SHIFT
-                gate_start = gate_start % TAU
+        counts = np.zeros((IM_WIDTH, IM_WIDTH, N_TBINS))
+        for k in range(len(gate_starts_tmp)):
+            gate_width = gate_widths_tmp[k]
+            gate_start_helper = gate_starts_tmp[k]
 
-                if j == 0:
-                    print(f'\tGate start: {gate_start}')
-                    print(f'\tGate width: {gate_width}')
+            #gate_start = gate_start_helper + j * SHIFT
+            #gate_start = gate_start % TAU
+            gate_start = gate_starts_tmp[k]
 
-                current_intTime = INT_TIME
-                while current_intTime > 480:
-                    #print(f'starting current time {current_intTime}')
-                    counts += SPAD1.get_gated_intensity(BIT_DEPTH, 480, ITERATIONS, GATE_STEPS, GATE_STEP_SIZE,
-                                                        GATE_STEP_ARBITRARY, gate_width,
-                                                        gate_start, GATE_DIRECTION, GATE_TRIG, OVERLAP, 1, PILEUP, IM_WIDTH)[:, :, 0]
-                    current_intTime -= 480
+            #if i == 0:
+            print(f'\tGate start: {gate_start}')
+            print(f'\tGate width: {gate_width}')
 
-                counts += SPAD1.get_gated_intensity(BIT_DEPTH, current_intTime, ITERATIONS, GATE_STEPS, GATE_STEP_SIZE,
+            # current_intTime = INT_TIME
+            # while current_intTime > 480:
+            #     #print(f'starting current time {current_intTime}')
+            #     counts += SPAD1.get_gated_intensity(BIT_DEPTH, 480, ITERATIONS, GATE_STEPS, GATE_STEP_SIZE,
+            #                                         GATE_STEP_ARBITRARY, gate_width,
+            #                                         gate_start, GATE_DIRECTION, GATE_TRIG, OVERLAP, 1, PILEUP, IM_WIDTH)[:, :, 0]
+            #     current_intTime -= 480
+
+            # counts += SPAD1.get_gated_intensity(BIT_DEPTH, current_intTime, ITERATIONS, GATE_STEPS, GATE_STEP_SIZE,
+            #                                     GATE_STEP_ARBITRARY, gate_width,
+            #                                     gate_start, GATE_DIRECTION, GATE_TRIG, OVERLAP, 1, PILEUP, IM_WIDTH)[:, :,  0]
+            
+            current_intTime = INT_TIME
+            while current_intTime > 480:
+                #print(f'starting current time {current_intTime}')
+                counts += SPAD1.get_gated_intensity(BIT_DEPTH, 480, ITERATIONS, N_TBINS, SHIFT,
                                                     GATE_STEP_ARBITRARY, gate_width,
-                                                    gate_start, GATE_DIRECTION, GATE_TRIG, OVERLAP, 1, PILEUP, IM_WIDTH)[:, :,  0]
+                                                    gate_start, GATE_DIRECTION, GATE_TRIG, OVERLAP, 1, PILEUP, IM_WIDTH)
+                current_intTime -= 480
 
-                if j % 20 == 0:
-                    print(f'Measuring Time Bin: {j}')
+            counts += SPAD1.get_gated_intensity(BIT_DEPTH, current_intTime, ITERATIONS, N_TBINS, SHIFT,
+                                                GATE_STEP_ARBITRARY, gate_width,
+                                                gate_start, GATE_DIRECTION, GATE_TRIG, OVERLAP, 1, PILEUP, IM_WIDTH)
 
-            correlations[:, :, i, j] += counts
+            #if j % 20 == 0:
+            #    print(f'Measuring Time Bin: {j}')
 
-        print('-------------------------------------------------------')
-        print(f'Finished to measure correlations for demodulation function number {i+1}')
-        print('-------------------------------------------------------')
+        correlations[:, :, i, :] += counts
+
+    print('-------------------------------------------------------')
+    print(f'Finished to measure correlations for demodulation function number {i+1}')
+    print('-------------------------------------------------------')
 
     correlations = np.flip(correlations, axis=-1)
+
+    if EXTENDED:
+        correlation_circ = correlations[:, :, :, :(N_TBINS +1) // 2:].copy()
+        tail = correlations[:, :, :, (N_TBINS +1) // 2:]
+        correlation_circ[:, :, :, :N_TBINS - ((N_TBINS +1)//2)] += tail
+        correlations = correlation_circ
 
     unit = "ms"
     factor_unit = 1e-3
@@ -154,21 +177,24 @@ if __name__ == "__main__":
         VOLTAGE = 6.5
     else:
         VOLTAGE = 10
-
-    SAVE_NAME = f'hamk{K}_{MHZ}mhz_{VOLTAGE}v_{DUTY}w_correlations'
     # print(mhz)
 
-    if 'pulse' in SAVE_NAME:
+    if PULSED:
         illum_type = 'pulse'
-        DUTY = 12
-        VOLTAGE = 10
+        #DUTY = 12
+        #VOLTAGE = 10
     else:
         illum_type = 'square'
-        DUTY = 20
+        #DUTY = 20
+
+    SAVE_NAME = f'hamk{K}_{MHZ}mhz_{VOLTAGE}v_{DUTY}w_correlations'
+
+    SAVE_NAME = SAVE_NAME + '_extended' if EXTENDED else SAVE_NAME    
+    SAVE_NAME = SAVE_NAME + '_pulsed' if PULSED else SAVE_NAME
 
 
     if PLOT_CORRELATIONS:
-        coding_matrix = get_hamiltonain_correlations(K, MHZ, VOLTAGE, DUTY, illum_type, n_tbins=N_TBINS)
+        coding_matrix = get_hamiltonain_correlations(K, 10, 8.5, 20, 'square', n_tbins=N_TBINS)
 
         point_list = [(10, 10), (200, 200), (50, 200)]
 

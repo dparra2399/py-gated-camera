@@ -12,16 +12,16 @@ PORT = 9999  # Check the command Server in the setting tab of the software and c
 VEX = 7
 
 # Editable parameters (defaults; can be overridden via CLI)
-TOTAL_TIME = 100  # integration time
+TOTAL_TIME = 300000  # integration time
 SPLIT_MEASUREMENTS = False
-NUM_GATES = 3  # number of time bins
+NUM_GATES = 4  # number of time bins
 IM_WIDTH = 512  # image width
 BIT_DEPTH = 12
 N_TBINS = 640
-CORRECT_MASTER = False
+CORRECT_MASTER = False # 
 DECODE_DEPTHS = True
 SAVE_INTO_FILE = True
-USE_CORRELATIONS = True
+USE_CORRELATIONS = False
 USE_FULL_CORRELATIONS = False
 SIGMA_SIZE = 1
 SHIFT_SIZE = 150
@@ -42,7 +42,7 @@ GATE_STEP_SIZE = 0
 GATE_DIRECTION = 1
 GATE_TRIG = 0
 
-EXP_NUM = 2
+EXP_NUM = 3
 # SAVE_PATH = '/mnt/researchdrive/research_users/David/gated_project_data'
 SAVE_PATH = '/home/ubi-user/David_P_folder'
 
