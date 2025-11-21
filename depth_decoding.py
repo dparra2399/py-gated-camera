@@ -11,24 +11,29 @@ from plot_scripts.plot_utils import *
 # -----------------------------------------------------------------------------
 PIXEL_PITCH = 16.38 #in uM
 FOCAL_LENGTH = 25 #in mm
-EXP_NUM = 5
+EXP_NUM = 1
 K_FILTER = [3]
-N_TBINS_DEFAULT = 2048
-VMIN = -0.3
+N_TBINS_DEFAULT = 2000
+VMIN = -0.2
 VMAX = 0.2
-MEDIAN_FILTER_SIZE = 3
-SIGMA_SIZE = 30 #How much to smooth correlations functions
-SHIFT_SIZE = 100 #How much to shift correlations functions
+MEDIAN_FILTER_SIZE = 7
+SIGMA_SIZE = 1 #How much to smooth correlations functions
+SHIFT_SIZE = 150 #How much to shift correlations functions
 USE_CORRELATIONS = True
 USE_FULL_CORRELATIONS = False
 CORRECT_MASTER = False
 MASK_BACKGROUND_PIXELS = True
 INCLUDE_SPLIT_MEASUREMENTS = False
 CORRECT_DEPTH_DISTORTION = False
+NORMALIZE_DEPTH_MAPS = True
+HAM_TMP_CORRELATIONS = '_pulse'
+SUB_FOLDER = ''
+
+SUB_FOLDER = SUB_FOLDER if SUB_FOLDER=='' else SUB_FOLDER + '/'
 
 HOT_MASK_PATH_MAC = "./masks/hot_pixels.PNG"
-DATA_FOLDER_MAC = f"/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/exp{EXP_NUM}"
-DATA_FOLDER_LINUX = f"/mnt/researchdrive/research_users/David/Gated_Camera_Project/gated_project_data/exp{EXP_NUM}"
+DATA_FOLDER_MAC = f"/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/{SUB_FOLDER}exp{EXP_NUM}"
+DATA_FOLDER_LINUX = f"/mnt/researchdrive/research_users/David/Gated_Camera_Project/gated_project_data/{SUB_FOLDER}exp{EXP_NUM}"
 
 EPSILON = 1e-12
 
@@ -43,6 +48,8 @@ if __name__ == "__main__":
     depths_maps_dict = {}
     gt_depth_maps_dict = {}
 
+    assert len(npz_files) > 0, f'No files found in {folder}'
+
     for path in npz_files:
         f = np.load(path)
 
@@ -55,7 +62,6 @@ if __name__ == "__main__":
             size = f["size"]
         except KeyError:
             size = f['duty']
-        n_tbins = int(f["n_tbins"])
 
         split_measurements = bool(f["split_measurements"])
         if split_measurements != INCLUDE_SPLIT_MEASUREMENTS and 'gt' not in os.path.basename(path):
@@ -68,7 +74,7 @@ if __name__ == "__main__":
             t_domain,
             max_depth,
             tbin_depth_res,
-        ) = calculate_tof_domain_params(n_tbins, 1.0 / freq)
+        ) = calculate_tof_domain_params(N_TBINS_DEFAULT, 1.0 / freq)
         mhz = int(freq * 1e-6)
 
         # -----------------------------------------------------------------
@@ -77,37 +83,30 @@ if __name__ == "__main__":
         if USE_CORRELATIONS:
             if 'coarse' in path:
                 name_tmp = 'coarse'
+                tmp = ''
             elif 'ham' in path:
                 name_tmp = 'ham'
+                tmp = HAM_TMP_CORRELATIONS
             else:
                 assert False
             corr_path = (
                 f"/Users/davidparra/PycharmProjects/py-gated-camera/correlation_functions/"
-                f"{name_tmp}k{coded_vals.shape[-1]}_{mhz}mhz_{voltage}v_{size}w_correlations.npz"
+                f"{name_tmp}k{coded_vals.shape[-1]}_{mhz}mhz_{voltage}v_{size}w_correlations{tmp}.npz"
             )
             correlations_total, n_tbins_corr = load_correlations_file(corr_path)
-            (
-                rep_tau,
-                rep_freq,
-                tbin_res,
-                t_domain,
-                max_depth,
-                tbin_depth_res,
-            ) = calculate_tof_domain_params(n_tbins_corr, 1.0 / freq)
-            coding_matrix = build_coding_matrix_from_correlations(correlations_total, im_width, n_tbins_corr, freq,
-                                                                  USE_FULL_CORRELATIONS, SIGMA_SIZE, SHIFT_SIZE)
-            n_tbins = n_tbins_corr
+            coding_matrix = build_coding_matrix_from_correlations(correlations_total, USE_FULL_CORRELATIONS,
+                                                                  SIGMA_SIZE, SHIFT_SIZE, N_TBINS_DEFAULT)
         elif "coarse" in path:
             gate_width = f["gate_width"]
 
-            irf = get_voltage_function(mhz, voltage, size, "pulse", n_tbins)
+            irf = get_voltage_function(mhz, voltage, size, "pulse", N_TBINS_DEFAULT)
             coding_matrix = get_coarse_coding_matrix(
                 gate_width * 1e3,
                 coded_vals.shape[-1],
                 0,
                 gate_width * 1e3,
                 rep_tau * 1e12,
-                n_tbins,
+                N_TBINS_DEFAULT,
                 irf,
             )
 
@@ -118,7 +117,7 @@ if __name__ == "__main__":
                 illum_type = "square"
 
             coding_matrix = get_hamiltonain_correlations(
-                coded_vals.shape[-1], mhz, voltage, size, illum_type, n_tbins=n_tbins
+                coded_vals.shape[-1], mhz, voltage, size, illum_type, n_tbins=N_TBINS_DEFAULT
                 )
         else:
             assert False, 'Path needs to be "hamiltonian" or "coarse"'
@@ -136,7 +135,7 @@ if __name__ == "__main__":
             coded_vals,
             coding_matrix,
             im_width,
-            n_tbins,
+            N_TBINS_DEFAULT,
             tbin_depth_res,
             USE_CORRELATIONS,
             USE_FULL_CORRELATIONS,
@@ -173,10 +172,16 @@ if __name__ == "__main__":
     # ---------------------------------------------------------------------
     # plotting
     # ---------------------------------------------------------------------
-    depth_maps_normalized = np.stack(
-        [dm - np.mean(dm) for dm in depths_maps_dict.values()],
-        axis=-1,
-    )
+    if NORMALIZE_DEPTH_MAPS:
+        depth_maps_normalized = np.stack(
+            [dm - np.mean(dm) for dm in depths_maps_dict.values()],
+            axis=-1,
+        )
+    else:
+        depth_maps_normalized = np.stack(
+            [dm for dm in depths_maps_dict.values()],
+            axis=-1,
+        )
     vmin = VMIN if VMIN is not None else np.nanmin(depth_maps_normalized)
     vmax = VMAX if VMAX is not None else np.nanmax(depth_maps_normalized)
 
@@ -184,7 +189,7 @@ if __name__ == "__main__":
     width, height = 220, 320
 
     fig = plt.figure(figsize=(6, 4))
-    gs = gridspec.GridSpec(len(depths_maps_dict), 3, height_ratios=[1] * len(depths_maps_dict))
+    gs = gridspec.GridSpec(len(depths_maps_dict), 4, height_ratios=[1] * len(depths_maps_dict))
 
     for i, (name, depth_map) in enumerate(depths_maps_dict.items()):
         gt_info = gt_depth_maps_dict.get(name.split("_")[0] + "_GroundTruth", None)
@@ -199,8 +204,8 @@ if __name__ == "__main__":
             depth_map = depth_map * mask
             gt_depth_map = gt_depth_map * mask
 
+        depth_map_plot = depth_map - np.mean(depth_map) if NORMALIZE_DEPTH_MAPS else np.copy(depth_map)
 
-        depth_map_plot = depth_map - np.mean(depth_map)
         if CORRECT_MASTER:
             depth_map_plot[:, :im_width // 2] = -depth_map_plot[:, :im_width // 2]
         patch = depth_map_plot[y : y + height, x : x + width]
@@ -226,7 +231,8 @@ if __name__ == "__main__":
         # GT / error -------------------------------------------------------
         ax3 = fig.add_subplot(gs[i, 2])
         if gt_depth_map is not None:
-            gt_depth_map_plot = gt_depth_map - np.mean(gt_depth_map)
+            gt_depth_map_plot = gt_depth_map - np.mean(gt_depth_map) if NORMALIZE_DEPTH_MAPS else np.copy(gt_depth_map)
+
             error = np.nanmean(np.abs(depth_map - gt_depth_map))
             rmse = np.sqrt(np.nanmean((depth_map - gt_depth_map) ** 2))
             im3 = ax3.imshow(
@@ -237,6 +243,13 @@ if __name__ == "__main__":
             ax3.set_title("Ground Truth")
         else:
             ax3.set_axis_off()
+
+        # Error map -------------------------------------------------------
+        ax4 = fig.add_subplot(gs[i, 3])
+        error_map = np.abs(depth_map - gt_depth_map)
+        im4 = ax4.imshow(error_map, vmin=0, vmax=0.5)
+        fig.colorbar(im4, ax=ax4, fraction=0.046, pad=0.04, label="Absolute Error (m)")
+        ax4.set_title("Error Map")
 
     fig.subplots_adjust(left=0.05, right=0.98, top=0.97, bottom=0.05, wspace=0.05, hspace=0.05)
     plt.tight_layout(pad=0.2, w_pad=0.2, h_pad=0.2)

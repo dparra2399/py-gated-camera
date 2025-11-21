@@ -8,21 +8,22 @@ from plot_scripts.plot_utils import *
 # -----------------------------------------------------------------------------
 PIXEL_PITCH = 16.38 #in uM
 FOCAL_LENGTH = 25 #in mm
-EXP = 6
-K = 4
-DATASET_TYPE = 'ham'  # was `type`
+EXP = 3
+K = 8
+DATASET_TYPE = 'coarse'  # was `type`
 
-N_TBINS_DEFAULT = 640
-VMIN = 6.
-VMAX = 7.5
+N_TBINS_DEFAULT = 1500
+VMIN = None
+VMAX = None
 MEDIAN_FILTER_SIZE = 5
 CORRECT_MASTER = False
-MASK_BACKGROUND_PIXELS = False
+MASK_BACKGROUND_PIXELS = True
 USE_CORRELATIONS = True
 USE_FULL_CORRELATIONS = False
-SIGMA_SIZE = 30
+SIGMA_SIZE = None
 SHIFT_SIZE = 150
 CORRECT_DEPTH_DISTORTION = False
+HAM_TMP_CORRELATIONS = ''
 
 # paths
 TEST_FILE = f'/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/exp{EXP}/{DATASET_TYPE}k{K}_exp{EXP}.npz'
@@ -39,6 +40,11 @@ if __name__ == '__main__':
 
     gt_depth_map = None
     depth_map = None
+    coded_vals_save = None
+    coding_matrix_save = None
+    coded_vals = None
+    coding_matrix = None
+    mask = None
 
     for path in [TEST_FILE, GT_FILE]:
 
@@ -56,7 +62,6 @@ if __name__ == '__main__':
             size = f["size"]
         except KeyError:
             size = f['duty']
-        n_tbins = int(f["n_tbins"])
         split_measurements = f["split_measurements"]
 
         # TOF params -------------------------------------------------------
@@ -66,7 +71,7 @@ if __name__ == '__main__':
              t_domain,
              max_depth,
              tbin_depth_res,
-         ) = calculate_tof_domain_params(n_tbins, 1.0 / freq)
+         ) = calculate_tof_domain_params(N_TBINS_DEFAULT, 1.0 / freq)
         mhz = int(freq * 1e-6)
 
         # -----------------------------------------------------------------
@@ -75,37 +80,30 @@ if __name__ == '__main__':
         if USE_CORRELATIONS:
             if 'coarse' in path:
                 name_tmp = 'coarse'
+                tmp = ''
             elif 'ham' in path:
                 name_tmp = 'ham'
+                tmp = HAM_TMP_CORRELATIONS
             else:
                 assert False
             corr_path = (
                 f"/Users/davidparra/PycharmProjects/py-gated-camera/correlation_functions/"
-                f"{name_tmp}k{coded_vals.shape[-1]}_{mhz}mhz_{voltage}v_{size}w_correlations.npz"
+                f"{name_tmp}k{coded_vals.shape[-1]}_{mhz}mhz_{voltage}v_{size}w_correlations{tmp}.npz"
             )
             correlations_total, n_tbins_corr = load_correlations_file(corr_path)
-            (
-                rep_tau,
-                rep_freq,
-                tbin_res,
-                t_domain,
-                max_depth,
-                tbin_depth_res,
-            ) = calculate_tof_domain_params(n_tbins_corr, 1.0 / freq)
-            coding_matrix = build_coding_matrix_from_correlations(correlations_total, im_width, n_tbins_corr, freq,
-                                                                  USE_FULL_CORRELATIONS, SIGMA_SIZE, SHIFT_SIZE)
-            n_tbins = n_tbins_corr
+            coding_matrix = build_coding_matrix_from_correlations(correlations_total, USE_FULL_CORRELATIONS,
+                                                                  SIGMA_SIZE, SHIFT_SIZE, N_TBINS_DEFAULT)
         elif "coarse" in path:
             gate_width = f["gate_width"]
 
-            irf = get_voltage_function(mhz, voltage, size, "pulse", n_tbins)
+            irf = get_voltage_function(mhz, voltage, size, "pulse", N_TBINS_DEFAULT)
             coding_matrix = get_coarse_coding_matrix(
                 gate_width * 1e3,
                 coded_vals.shape[-1],
                 0,
                 gate_width * 1e3,
                 rep_tau * 1e12,
-                n_tbins,
+                N_TBINS_DEFAULT,
                 irf,
             )
 
@@ -116,7 +114,7 @@ if __name__ == '__main__':
                 illum_type = "square"
 
             coding_matrix = get_hamiltonain_correlations(
-                coded_vals.shape[-1], mhz, voltage, size, illum_type, n_tbins=n_tbins
+                coded_vals.shape[-1], mhz, voltage, size, illum_type, n_tbins=N_TBINS_DEFAULT
             )
         else:
             assert False, 'Path needs to be "hamiltonian" or "coarse"'
@@ -133,7 +131,7 @@ if __name__ == '__main__':
             coded_vals,
             coding_matrix,
             im_width,
-            n_tbins,
+            N_TBINS_DEFAULT,
             tbin_depth_res,
             USE_CORRELATIONS,
             USE_FULL_CORRELATIONS,
@@ -152,23 +150,31 @@ if __name__ == '__main__':
             depth_map = depth_map[:, : im_width // 2]
             coded_vals = coded_vals[:, : im_width // 2]
 
+        if MASK_BACKGROUND_PIXELS:
+            depth_map = depth_map[20:450, :]
+            mask = None
         # assign to GT or test map
         if path == GT_FILE:
             gt_depth_map = np.copy(depth_map)
-            if MASK_BACKGROUND_PIXELS:
-                mask = cluster_kmeans(np.copy(gt_depth_map), n_clusters=2)
-                mask[mask == np.nanmax(mask)] = np.nan
-                mask[mask == np.nanmin(mask)] = 1
+            # if MASK_BACKGROUND_PIXELS:
+            #     mask = cluster_kmeans(np.copy(gt_depth_map), n_clusters=2)
+            #     mask[mask == np.nanmax(mask)] = np.nan
+            #     mask[mask == np.nanmin(mask)] = 1
+
         else:
             depth_map = np.copy(depth_map)
             coded_vals_save = np.copy(coded_vals)
             coding_matrix_save = np.copy(coding_matrix)
 
     # apply mask to depth map if requested
-    if MASK_BACKGROUND_PIXELS and gt_depth_map is not None:
-        depth_map *= mask
+    # if MASK_BACKGROUND_PIXELS and gt_depth_map is not None:
+    #     depth_map *= mask
     if CORRECT_MASTER is False:
         hot_mask = hot_mask[:, : im_width // 2]
+    if coded_vals_save is None:
+        coded_vals_save = np.copy(coded_vals)
+        coding_matrix_save = np.copy(coding_matrix)
+
 
     coded_vals_filt = np.zeros_like(coded_vals_save)
     for i in range(coded_vals_save.shape[-1]):
@@ -181,9 +187,9 @@ if __name__ == '__main__':
     # Diagnostics plots (coding vs coded at a few points)
     # ------------------------------------------------------------------
     # fallbacks if fewer than K points are given
-    x1, y1 = (70, 70)
-    x2, y2 = (220, 330)
-    x3, y3 = (140, 240)
+    x1, y1 = (180, 40)
+    x2, y2 = (180, 160)
+    x3, y3 = (180, 330)
     points = [(x1, y1), (x2, y2), (x3, y3)]
     colors = ['blue', 'green', 'red', 'orange', 'purple', 'brown']
 

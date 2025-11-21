@@ -4,6 +4,7 @@ import glob
 
 from spad_lib.SPAD512S import SPAD512S
 from spad_lib.spad512utils import *
+from spad_lib import spad512utils
 from spad_lib.file_utils import *
 from plot_scripts.plot_utils import plot_correlation_functions
 import numpy as np
@@ -15,7 +16,7 @@ VEX = 7
 
 # Editable parameters (defaults; can be overridden via CLI)
 INT_TIME = 4000  # integration time
-K = 4  # number of time bins
+K = 3  # number of time bins
 IM_WIDTH = 512  # image width
 BIT_DEPTH = 12
 SHIFT = 300  # shift in picoseconds
@@ -24,7 +25,7 @@ DUTY = 20
 PLOT_CORRELATIONS = True
 SAVE_INTO_FILE = True
 SMOOTH_SIGMA = 30
-SMOOTH_CORRELATIONS = True
+SMOOTH_CORRELATIONS = False
 
 SAVE_PATH = '/home/ubi-user/David_P_folder'
 
@@ -33,8 +34,9 @@ ITERATIONS = 1
 OVERLAP = 0
 TIMEOUT = 0
 PILEUP = 0
+GATE_STEPS = 1
 GATE_STEP_ARBITRARY = 0
-GATE_STEP_SIZE = SHIFT
+GATE_STEP_SIZE = 0
 GATE_DIRECTION = 1
 GATE_TRIG = 0
 
@@ -47,7 +49,7 @@ if __name__ == "__main__":
     parser.add_argument("--im_width", type=int, default=IM_WIDTH)
     parser.add_argument("--bit_depth", type=int, default=BIT_DEPTH)
     parser.add_argument("--shift", type=int, default=SHIFT)
-    parser.add_argument("--voltage", type=float, default=VOLTAGE)
+    parser.add_argument("--voltage", type=float, default=10)
     parser.add_argument("--duty", type=int, default=DUTY)
 
     args = parser.parse_args()
@@ -78,21 +80,8 @@ if __name__ == "__main__":
 
     TAU = ((1/float(freq[-2])) * 1e12) #Tau in picoseconds
     N_TBINS = int(TAU // SHIFT)
-    N_TBINS_EXTENDED = N_TBINS * 3
-
     MHZ = int(float(freq[-2]) * 1e-6)
-    LASER_MHZ = int(MHZ * 2)
 
-    print(f'Laser Repition Rate = {LASER_MHZ}MHZ and Gate Trigger Rate = {MHZ}MHZ')
-
-    if DUTY == 20 and LASER_MHZ == 10:
-        VOLTAGE = 8.5
-    elif DUTY == 20 and LASER_MHZ == 5:
-        VOLTAGE = 6.5
-    else:
-        VOLTAGE = 10
-
-    SAVE_NAME = f'hamk{K}_{LASER_MHZ}mhz_{VOLTAGE}v_{DUTY}w_correlations'
 
     print('--------------------Parameters---------------')
     print(f'Number of effective bins: {N_TBINS}')
@@ -101,9 +90,8 @@ if __name__ == "__main__":
     print('---------------------------------------------')
 
 
-    func = getattr(CodingFunctionsFelipe, f"GetHamK{K}")
-    (modfs, demodfs) = func(N=N_TBINS, N2=N_TBINS_EXTENDED)
-    gated_demodfs_np, gated_demodfs_arr = decompose_ham_codes(demodfs)
+    func = getattr(spad512utils, f"GetHamK{K}_GateShifts")
+    ham_gate_widths, ham_gate_starts = func(float(freq[-2]))
 
     (rep_tau, rep_freq, tbin_res, t_domain, max_depth, tbin_depth_res) = calculate_tof_domain_params(N_TBINS, 1. / float(freq[-2]))
 
@@ -111,32 +99,48 @@ if __name__ == "__main__":
 
     correlations = np.zeros((IM_WIDTH, IM_WIDTH, K, N_TBINS))
 
-    for i, item in enumerate(gated_demodfs_arr):
-            print('-------------------------------------------------------')
-            print(f'Starting to measure correlations for demodulation function number {i+1}')
-            print('-------------------------------------------------------')
-            counts = np.zeros((IM_WIDTH, IM_WIDTH, N_TBINS))
-            for k in range(item.shape[-1]):
-                gate = item[:, k]
-                gate_width, gate_start = get_offset_width_spad512(gate, float(freq[-2]))
+    for i in range(K):
+
+        print('-------------------------------------------------------')
+        print(f'Starting to measure correlations for demodulation function number {i+1}')
+        print('-------------------------------------------------------')
+
+        gate_widths_tmp = ham_gate_widths[i]
+        gate_starts_tmp = ham_gate_starts[i]
+        for j in range(N_TBINS):
+            counts = np.zeros((IM_WIDTH, IM_WIDTH))
+            #print(gate_starts_tmp)
+            for k in range(len(gate_starts_tmp)):
+                gate_width = gate_widths_tmp[k]
+                gate_start_helper = gate_starts_tmp[k]
+
+                gate_start = gate_start_helper + j * SHIFT
+                gate_start = gate_start % TAU
+
+                if j == 0:
+                    print(f'\tGate start: {gate_start}')
+                    print(f'\tGate width: {gate_width}')
 
                 current_intTime = INT_TIME
                 while current_intTime > 480:
-                    print(f'starting current time {current_intTime}')
-                    counts += SPAD1.get_gated_intensity(BIT_DEPTH, 480, ITERATIONS, N_TBINS, GATE_STEP_SIZE,
+                    #print(f'starting current time {current_intTime}')
+                    counts += SPAD1.get_gated_intensity(BIT_DEPTH, 480, ITERATIONS, GATE_STEPS, GATE_STEP_SIZE,
                                                         GATE_STEP_ARBITRARY, gate_width,
                                                         gate_start, GATE_DIRECTION, GATE_TRIG, OVERLAP, 1, PILEUP, IM_WIDTH)[:, :, 0]
                     current_intTime -= 480
 
-                counts += SPAD1.get_gated_intensity(BIT_DEPTH, current_intTime, ITERATIONS, N_TBINS, GATE_STEP_SIZE,
-                                                        GATE_STEP_ARBITRARY, gate_width,
-                                                        gate_start, GATE_DIRECTION, GATE_TRIG, OVERLAP, 1, PILEUP, IM_WIDTH)[:, :,  0]
+                counts += SPAD1.get_gated_intensity(BIT_DEPTH, current_intTime, ITERATIONS, GATE_STEPS, GATE_STEP_SIZE,
+                                                    GATE_STEP_ARBITRARY, gate_width,
+                                                    gate_start, GATE_DIRECTION, GATE_TRIG, OVERLAP, 1, PILEUP, IM_WIDTH)[:, :,  0]
 
-            correlations[:, :, i, :] += counts
+                if j % 20 == 0:
+                    print(f'Measuring Time Bin: {j}')
 
-            print('-------------------------------------------------------')
-            print(f'Finished to measure correlations for demodulation function number {i+1}')
-            print('-------------------------------------------------------')
+            correlations[:, :, i, j] += counts
+
+        print('-------------------------------------------------------')
+        print(f'Finished to measure correlations for demodulation function number {i+1}')
+        print('-------------------------------------------------------')
 
     correlations = np.flip(correlations, axis=-1)
 
@@ -144,12 +148,14 @@ if __name__ == "__main__":
     factor_unit = 1e-3
 
 
-    if DUTY == 20 and LASER_MHZ == 10:
+    if DUTY == 20 and MHZ == 10:
         VOLTAGE = 8.5
-    elif DUTY == 20 and LASER_MHZ == 5:
+    elif DUTY == 20 and MHZ == 5:
         VOLTAGE = 6.5
     else:
         VOLTAGE = 10
+
+    SAVE_NAME = f'hamk{K}_{MHZ}mhz_{VOLTAGE}v_{DUTY}w_correlations'
     # print(mhz)
 
     if 'pulse' in SAVE_NAME:
@@ -162,7 +168,7 @@ if __name__ == "__main__":
 
 
     if PLOT_CORRELATIONS:
-        coding_matrix = get_hamiltonain_correlations(K, LASER_MHZ, VOLTAGE, DUTY, illum_type, n_tbins=N_TBINS)
+        coding_matrix = get_hamiltonain_correlations(K, MHZ, VOLTAGE, DUTY, illum_type, n_tbins=N_TBINS)
 
         point_list = [(10, 10), (200, 200), (50, 200)]
 
@@ -186,7 +192,7 @@ if __name__ == "__main__":
             overlap=OVERLAP,
             timeout=TIMEOUT,
             pileup=PILEUP,
-            gate_steps=N_TBINS,
+            gate_steps=GATE_STEPS,
             gate_step_arbitrary=GATE_STEP_ARBITRARY,
             gate_step_size=GATE_STEP_SIZE,
             gate_direction=GATE_DIRECTION,

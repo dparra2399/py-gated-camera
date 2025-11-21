@@ -212,31 +212,43 @@ def cluster_kmeans(decoded, n_clusters=2):
 
 def build_coding_matrix_from_correlations(
     correlations_total: np.ndarray,
-    im_width: int,
-    n_tbins: int,
-    freq: float,
-    use_full: bool,
-    sigma_size: int,
-    shift_size: int,
+    use_full,
+    sigma_size,
+    shift_size,
+    n_tbins=None,
 ) -> np.ndarray:
     if use_full:
         # correlations_total: (H, W, n_tbins, K)
-        corr_tmp = gaussian_filter(
+        coding_matrix = gaussian_filter(
             correlations_total.swapaxes(-1, -2),  # -> (H,W,K,n_tbins)
             sigma=(1, 1, 1, 0),
         )
         # roll along time
-        corr_tmp = np.roll(corr_tmp, shift=shift_size, axis=-2)
+        if shift_size is not None:
+            coding_matrix = np.roll(coding_matrix, shift=shift_size, axis=-2)
         # smooth along time again
-        coding_matrix = gaussian_filter1d(corr_tmp, sigma=sigma_size, axis=-2)
+        if sigma_size is not None:
+            coding_matrix = gaussian_filter1d(coding_matrix, sigma=sigma_size, axis=-2)
         return coding_matrix  # (H,W,n_tbins,K)
 
     # legacy path: spatial-sum correlations
     coding_matrix = np.transpose(
-        np.sum(np.sum(correlations_total[:], axis=0), axis=0)
+        np.sum(np.sum(correlations_total[:, :correlations_total.shape[1]//2, :], axis=0), axis=0)
     )  # (n_tbins,K)
-    coding_matrix = np.roll(coding_matrix, shift=shift_size, axis=0)
-    coding_matrix = gaussian_filter1d(coding_matrix, sigma=sigma_size, axis=0)
+    if shift_size is not None:
+        coding_matrix = np.roll(coding_matrix, shift=shift_size, axis=0)
+    if sigma_size is not None:
+        coding_matrix = gaussian_filter1d(coding_matrix, sigma=sigma_size, axis=0)
+    if n_tbins is not None:
+        original_len = coding_matrix.shape[0]
+        f = interp1d(
+            np.linspace(0, 1, original_len),
+            coding_matrix,
+            kind='cubic',
+            axis=0,
+            fill_value='extrapolate'
+        )
+        coding_matrix = f(np.linspace(0, 1, n_tbins))
     return coding_matrix
 
 
