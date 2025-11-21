@@ -295,8 +295,8 @@ def GetHamK3_GateShifts(freq):
     gate_widths = [[], [], []]
     gate_starts = [[], [], []]
     for i in range(K):
-        gate_widths[i].append(int((demodDuty * tau * 1e9)))
-        gate_starts[i].append(int((shifts[i] * tau * 1e12)))
+        gate_widths[i].append(math.ceil((demodDuty * tau * 1e9)))
+        gate_starts[i].append(math.ceil((shifts[i] * tau * 1e12)))
     return gate_widths, gate_starts
 
 
@@ -323,9 +323,9 @@ def GetHamK4_GateShifts(freq):
         #endIndeces = startIndeces + np.floor(demodDuty*N) - 1
         for j in range(len(demodDuty)):
             if((j%2) == 0):
-                shift = int(shifts[i] * tau * 1e12)
-                gate_starts[i].append(int(gate_start[j] * tau * 1e12) + shift)
-                gate_widths[i].append(int(demodDuty[j] * tau * 1e9))
+                shift = math.ceil(shifts[i] * tau * 1e12)
+                gate_starts[i].append(math.ceil(gate_start[j] * tau * 1e12) + shift)
+                gate_widths[i].append(math.ceil(demodDuty[j] * tau * 1e9))
     return gate_widths, gate_starts
 
 
