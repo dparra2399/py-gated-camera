@@ -15,15 +15,15 @@ PORT = 9999  # Check the command Server in the setting tab of the software and c
 VEX = 7
 
 # Editable parameters (defaults; can be overridden via CLI)
-INT_TIME = 1000  # integration time
+INT_TIME = 100  # integration time
 K = 3  # number of time bins
 IM_WIDTH = 512  # image width
 BIT_DEPTH = 12
 SHIFT = 1250  # shift in picoseconds
 VOLTAGE = 8.5
-DUTY = 20
+DUTY = 201250
 PLOT_CORRELATIONS = True
-SAVE_INTO_FILE = True
+SAVE_INTO_FILE = False
 SMOOTH_SIGMA = 30
 SMOOTH_CORRELATIONS = False
 PULSED = False
@@ -115,7 +115,7 @@ if __name__ == "__main__":
 
         counts = np.zeros((IM_WIDTH, IM_WIDTH, N_TBINS))
         for k in range(len(gate_starts_tmp)):
-            gate_width = gate_widths_tmp[k] - 20
+            gate_width = gate_widths_tmp[k]
             gate_start_helper = gate_starts_tmp[k]
 
             #gate_start = gate_start_helper + j * SHIFT
