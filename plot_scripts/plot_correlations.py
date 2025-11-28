@@ -1,12 +1,13 @@
 import os
 import sys
+sys.path.append('..')
+sys.path.append('.')
 import glob
 from felipe_utils.research_utils.signalproc_ops import gaussian_pulse
 from felipe_utils.CodingFunctionsFelipe import *
 from depth_decoding_single import N_TBINS_DEFAULT
 
-sys.path.append('..')
-sys.path.append('.')
+
 
 
 from spad_lib.spad512utils import *
@@ -16,16 +17,20 @@ from felipe_utils import CodingFunctionsFelipe
 
 
 #filename = 'coarsek4_10mhz_7.6v_25w_correlations.npz'
-filename = 'coarsek3_10mhz_7v_34w_correlations.npz'
+#filename = 'coarsek3_10mhz_7v_34w_correlations.npz'
 #filename = 'hamk3_10mhz_8.5v_20w_correlations.npz'
 #filename = 'coarsek8_10mhz_10v_12w_correlations.npz'
+
+filename =  'hamk3_5mhz_6.5v_20w_correlations.npz'
+#ilename = 'coarsek3_9mhz_10v_12w_correlations_extended.npz'
+
 SMOOTH_CORRELATIONS = False
 SMOOTH_SIGMA = 5
-N_TBINS_DEFAULT = 330
+N_TBINS_DEFAULT = 99
 SHIFT = 190
 
 try:
-    path = f'/home/ubi-user/David_P_folder/py-gated-camera/correlation_functions/{filename}'
+    path = f'/home/ubi-user/David_P_folder/{filename}'
     file = np.load(path)
 except FileNotFoundError:
     path = f'/Users/davidparra/PycharmProjects/py-gated-camera/correlation_functions/{filename}'

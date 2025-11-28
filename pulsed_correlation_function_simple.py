@@ -16,18 +16,18 @@ VEX = 7
 
 
 # Editable parameters (defaults; can be overridden via CLI)
-INT_TIME = 1000  # integration time
+INT_TIME = 100  # integration time
 NUM_GATES = 3  # number of time bins
 IM_WIDTH = 512  # image width
 BIT_DEPTH = 12
 SIZE = 12
-SHIFT = 1250  # shift in picoseconds
+SHIFT = 3000  # shift in picoseconds
 VOLTAGE = 10
 PLOT_CORRELATIONS = True
 SAVE_INTO_FILE = True
 SMOOTH_SIGMA = 10
 SMOOTH_CORRELATIONS = False
-EXTENDED = False
+EXTENDED = True
 
 # Non-Editable Parameters
 ITERATIONS = 1
@@ -185,7 +185,10 @@ if __name__ == "__main__":
 
 
     if PLOT_CORRELATIONS:
-        irf = get_voltage_function(MHZ, VOLTAGE, SIZE, 'pulse', N_TBINS)
+        try:
+            irf = get_voltage_function(MHZ, VOLTAGE, SIZE, 'pulse', N_TBINS)
+        except:
+            irf = get_voltage_function(10, 7, 34, 'pulse', N_TBINS)
         coding_matrix = get_coarse_coding_matrix(GATE_WIDTH * 1e3, NUM_GATES, 0, GATE_WIDTH * 1e3, rep_tau * 1e12,
                                                  N_TBINS, irf)
 

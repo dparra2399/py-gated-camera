@@ -16,15 +16,15 @@ VEX = 7
 
 
 # Editable parameters (defaults; can be overridden via CLI)
-INT_TIME = 300 # integration time
+INT_TIME = 100 # integration time
 NUM_GATES = 3  # number of time bins
 IM_WIDTH = 512  # image width
 BIT_DEPTH = 12
-SHIFT = 1000  # shift in picoseconds
+SHIFT = 2000  # shift in picoseconds
 VOLTAGE = 8.5
 SIZE = 20
 PLOT_CORRELATIONS = True
-SAVE_INTO_FILE = False
+SAVE_INTO_FILE = True
 SMOOTH_SIGMA = 10
 SMOOTH_CORRELATIONS = False
 
@@ -45,7 +45,7 @@ SAVE_PATH = '/home/ubi-user/David_P_folder'
 
 if __name__ == "__main__":
     # --- CLI overrides (hybrid approach) ---
-    parser = argparse.ArgumentParser(description="Hamiltonian correlaition function capture")
+    parser = argparse.ArgumentParser(description="pulsed correlaition function capture")
     parser.add_argument("--int_time", type=int, default=INT_TIME)
     parser.add_argument("--num_gates", type=int, default=NUM_GATES)
     parser.add_argument("--im_width", type=int, default=IM_WIDTH)
@@ -110,17 +110,19 @@ if __name__ == "__main__":
             gate_start_tmp = gate_start + j * SHIFT
             gate_start_tmp = gate_start_tmp % TAU
 
-            # if (gate_start_tmp + (GATE_WIDTH * 1e3)) > TAU:
-            #     gate_start_one = gate_start_tmp
-            #     gate_start_two = 0
-            #     gate_one_width = TAU - gate_start_tmp
-            #     gate_two_width = (GATE_WIDTH * (1e3)) - gate_one_width
-            #     gate_starts_helper = [gate_start_one, gate_start_two]
-            #     gate_widths_helper = [gate_one_width, gate_two_width]
+            if (gate_start_tmp + (GATE_WIDTH * 1e3)) > TAU:
+                gate_start_one = math.ceil(gate_start_tmp)
+                gate_start_two = 0
+                gate_one_width = math.ceil((TAU - gate_start_tmp) * 1e-3)
+                gate_two_width = math.floor((GATE_WIDTH) - gate_one_width)
+                gate_starts_helper = [gate_start_one, gate_start_two]
+                gate_widths_helper = [gate_one_width, gate_two_width]
+                #print(gate_starts_helper)
+                #print(gate_widths_helper)
 
-            # else:
-            gate_starts_helper = [gate_start_tmp]
-            gate_widths_helper = [GATE_WIDTH]
+            else:
+                gate_starts_helper = [gate_start_tmp]
+                gate_widths_helper = [GATE_WIDTH]
 
             counts = np.zeros((IM_WIDTH, IM_WIDTH))
             for p, gate_start_input in enumerate(gate_starts_helper):
@@ -169,7 +171,10 @@ if __name__ == "__main__":
 
 
     if PLOT_CORRELATIONS:
-        irf = get_voltage_function(MHZ, VOLTAGE, SIZE, 'pulse', N_TBINS)
+        try:
+            irf = get_voltage_function(MHZ, VOLTAGE, SIZE, 'pulse', N_TBINS)
+        except:
+            irf = get_voltage_function(10, 7, 34, 'pulse', N_TBINS)
         coding_matrix = get_coarse_coding_matrix(GATE_WIDTH * 1e3, NUM_GATES, 0, GATE_WIDTH * 1e3, rep_tau * 1e12,
                                                  N_TBINS, irf)
 

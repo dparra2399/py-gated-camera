@@ -18,11 +18,11 @@ INT_TIME = 100  # integration time
 K = 3  # number of time bins
 IM_WIDTH = 512  # image width
 BIT_DEPTH = 12
-SHIFT = 1000  # shift in picoseconds
+SHIFT = 2000  # shift in picoseconds
 VOLTAGE = 8.5
 DUTY = 20
 PLOT_CORRELATIONS = True
-SAVE_INTO_FILE = False
+SAVE_INTO_FILE = True
 SMOOTH_SIGMA = 10
 SMOOTH_CORRELATIONS = False
 SAVE_PATH = '/home/ubi-user/David_P_folder'
@@ -116,27 +116,28 @@ if __name__ == "__main__":
                     for k in range(item.shape[-1]):
                         gate = item[:, k]
                         gate_width, gate_start = get_offset_width_spad512(gate, float(freq[-2]))
+                        #gate_width -= 20
 
 
                         gate_start_tmp = gate_start + j * SHIFT
                         gate_start_tmp = gate_start_tmp % TAU
 
-                        # if (gate_start_tmp + (gate_width * 1e3)) > TAU:
-                        #     gate_start_one = gate_start_tmp
-                        #     gate_start_two = 0
-                        #     gate_one_width = TAU - gate_start_tmp
-                        #     gate_two_width = (gate_width * (1e3)) - gate_one_width
-                        #     gate_starts_helper = [gate_start_one, gate_start_two]
-                        #     gate_widths_helper = [gate_one_width, gate_two_width]
+                        if (gate_start_tmp + (gate_width * 1e3)) > TAU:
+                            gate_start_one = math.ceil(gate_start_tmp)
+                            gate_start_two = 0
+                            gate_one_width = math.ceil((TAU - gate_start_tmp) * 1e-3)
+                            gate_two_width = math.floor((gate_width) - gate_one_width)
+                            gate_starts_helper = [gate_start_one, gate_start_two]
+                            gate_widths_helper = [gate_one_width, gate_two_width]
 
-                        # else:
-                        #     
-                        gate_starts_helper = [gate_start_tmp]
-                        gate_widths_helper = [gate_width]
+                        else:
+                    
+                            gate_starts_helper = [gate_start_tmp]
+                            gate_widths_helper = [gate_width]
 
                         for p, gate_start_input in enumerate(gate_starts_helper):
                             gate_width_help = gate_widths_helper[p]
-                            current_intTime = INT_TIME // item.shape[-1]
+                            current_intTime = INT_TIME
                             while current_intTime > 480:
                                 #print(f'starting current time {current_intTime}')
                                 counts += SPAD1.get_gated_intensity(BIT_DEPTH, 480, ITERATIONS, GATE_STEPS, GATE_STEP_SIZE,
@@ -181,7 +182,7 @@ if __name__ == "__main__":
 
 
     if PLOT_CORRELATIONS:
-        coding_matrix = get_hamiltonain_correlations(K, MHZ, VOLTAGE, DUTY, illum_type, n_tbins=N_TBINS)
+        coding_matrix = get_hamiltonain_correlations(K, 10, 8.5, 20, 'square', n_tbins=N_TBINS)
 
         point_list = [(10, 10), (200, 200), (50, 200)]
 

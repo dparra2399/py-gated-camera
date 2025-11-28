@@ -13,7 +13,10 @@ from scipy.interpolate import interp1d
 from scipy.ndimage import gaussian_filter1d
 
 def get_voltage_function(mhz, voltage, size, illum_type, n_tbins=None):
-    function = np.genfromtxt(f'/Users/davidparra/PycharmProjects/py-gated-camera/voltage_functions/{illum_type}_{mhz}mhz_{voltage}v_{size}w.csv',delimiter=',')[:, 1]
+    try:
+        function = np.genfromtxt(f'/home/ubi-user/David_P_folder/py-gated-camera/voltage_functions/{illum_type}_{mhz}mhz_{voltage}v_{size}w.csv',delimiter=',')[:, 1]
+    except FileNotFoundError:
+        function = np.genfromtxt(f'/Users/davidparra/PycharmProjects/py-gated-camera/voltage_functions/{illum_type}_{mhz}mhz_{voltage}v_{size}w.csv',delimiter=',')[:, 1]
 
     modfs = function[2:]
     if illum_type == 'pulse':
@@ -37,27 +40,29 @@ def get_voltage_function(mhz, voltage, size, illum_type, n_tbins=None):
 #matplotlib.use('QTkAgg')
 breakpoint = debugger.set_trace
 
-photon_count = 1000
-sbr = 0.5
+photon_count = 3000
+sbr =1.0
 trials = 100
 n_tbins = 1998
 
-simulated_correlations = True
+simulated_correlations = False
 apd_correlations = False
 
 smooth_correlations = True
-smooth_sigma = 5
+smooth_sigma = 1
 
-depths = np.arange(100, n_tbins-100, 1)
+depths = np.arange(200, n_tbins-200, 1)
 
-coarse_filename = 'coarsek4_10mhz_7.6v_25w_correlations.npz'
-#coarse_filename = 'coarsek3_5mhz_5.7v_67w_correlations.npz'
+#coarse_filename = 'coarsek4_10mhz_7.6v_25w_correlations.npz'
+coarse_filename = 'coarsek3_5mhz_5.7v_67w_correlations.npz'
 #coarse_filename = 'coarsek3_10mhz_7v_34w_correlations.npz'
 #coarse_filename = 'coarsek8_10mhz_10v_12w_correlations.npz'
+#coarse_filename = 'coarsek3_9mhz_10v_12w_correlations_extended.npz'
 
 #ham_filename = 'hamk3_10mhz_8.5v_20w_correlations.npz'
-#ham_filename = 'hamk3_5mhz_6.5v_20w_correlations_tmp2.npz'
-ham_filename = 'hamk4_10mhz_8.5v_20w_correlations.npz'
+ham_filename = 'hamk3_5mhz_6.5v_20w_correlations.npz'
+#ham_filename = 'hamk4_10mhz_8.5v_20w_correlations.npz'
+#ham_filename = 'hamk3_9mhz_10v_20w_correlations_extended.npz'
 
 
 
@@ -67,7 +72,7 @@ rng = np.random.default_rng()
 fig, axs = plt.subplots(len(filenames), 4, figsize=(13, 8), squeeze=False)
 for i, filename in enumerate(filenames):
     try:
-        path = f'/home/ubi-user/David_P_folder/py-gated-camera/correlation_functions/{filename}'
+        path = f'/home/ubi-user/David_P_folder/{filename}' #py-gated-camera/correlation_functions/{filename}'
         file = np.load(path)
     except FileNotFoundError:
         path = f'/Users/davidparra/PycharmProjects/py-gated-camera/correlation_functions/{filename}'
@@ -129,8 +134,6 @@ for i, filename in enumerate(filenames):
                          modfs2.shape[-1])
         coding_matrix = np.fft.ifft(np.fft.fft(modfs2, axis=0).conj() * np.fft.fft(demodfs, axis=0),
                                     axis=0).real
-    else:
-        assert False
 
     original_len = coding_matrix.shape[0]
     f = interp1d(

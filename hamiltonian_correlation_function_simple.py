@@ -19,9 +19,9 @@ INT_TIME = 100  # integration time
 K = 3  # number of time bins
 IM_WIDTH = 512  # image width
 BIT_DEPTH = 12
-SHIFT = 1250  # shift in picoseconds
+SHIFT = 3000  #50  # shift in picoseconds
 VOLTAGE = 8.5
-DUTY = 201250
+DUTY = 20
 PLOT_CORRELATIONS = True
 SAVE_INTO_FILE = False
 SMOOTH_SIGMA = 30
@@ -30,7 +30,7 @@ PULSED = False
 EXTENDED = False
 
 SAVE_PATH = '/home/ubi-user/David_P_folder'
-
+False
 # Non-Editable Parameters
 ITERATIONS = 1
 OVERLAP = 0
@@ -82,7 +82,7 @@ if __name__ == "__main__":
 
     TAU = ((1/float(freq[-2])) * 1e12) #Tau in picoseconds
     N_TBINS = int(TAU // SHIFT)
-    FREQ = float(freq[-2]) * 2 if EXTENDED else float(freq[-2])
+    FREQ = float(freq[-2]) * 3 if EXTENDED else float(freq[-2])
     MHZ = int(FREQ * 1e-6)
 
 
@@ -162,9 +162,20 @@ if __name__ == "__main__":
     correlations = np.flip(correlations, axis=-1)
 
     if EXTENDED:
-        correlation_circ = correlations[:, :, :, :(N_TBINS +1) // 2:].copy()
-        tail = correlations[:, :, :, (N_TBINS +1) // 2:]
-        correlation_circ[:, :, :, :N_TBINS - ((N_TBINS +1)//2)] += tail
+        # chunk size
+        base = N_TBINS // 3
+
+        # main chunk (first third)
+        correlation_circ = correlations[:, :, :, :base].copy()
+
+        # Fold chunk 1 (second third)
+        tail1 = correlations[:, :, :, base:2*base]
+        correlation_circ += tail1
+
+        # Fold chunk 2 (third third)
+        tail2 = correlations[:, :, :, 2*base:3*base]
+        correlation_circ += tail2
+
         correlations = correlation_circ
 
     unit = "ms"
