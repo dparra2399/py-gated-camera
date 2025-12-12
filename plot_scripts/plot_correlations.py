@@ -22,15 +22,15 @@ from felipe_utils import CodingFunctionsFelipe
 #filename = 'coarsek8_10mhz_10v_12w_correlations.npz'
 
 filename =  'hamk3_5mhz_6.5v_20w_correlations.npz'
-#ilename = 'coarsek3_9mhz_10v_12w_correlations_extended.npz'
+#filename = 'coarsek3_5mhz_5.7v_67w_correlations.npz'
 
 SMOOTH_CORRELATIONS = False
 SMOOTH_SIGMA = 5
-N_TBINS_DEFAULT = 99
-SHIFT = 190
+N_TBINS_DEFAULT = 1000
+SHIFT = 190 #-340
 
 try:
-    path = f'/home/ubi-user/David_P_folder/{filename}'
+    path = f'C:\\Users\\compops\\Desktop\\David_Folder\\gated_correlations\\{filename}'
     file = np.load(path)
 except FileNotFoundError:
     path = f'/Users/davidparra/PycharmProjects/py-gated-camera/correlation_functions/{filename}'
@@ -65,14 +65,14 @@ mhz = 10
 
 
 if 'ham' in filename:
-    (modfs, demodfs) = GetHamK3(N=n_tbins)
-    irf = gaussian_pulse(np.arange(n_tbins), 0, 1, circ_shifted=True)
+    (modfs, demodfs) = GetHamK3(N=N_TBINS_DEFAULT)
+    irf = gaussian_pulse(np.arange(N_TBINS_DEFAULT), 0, 20, circ_shifted=True)
     modfs = np.fft.ifft(np.fft.fft(irf[..., np.newaxis], axis=0).conj() * np.fft.fft(modfs, axis=0), axis=0).real
     coding_matrix = np.fft.ifft(np.fft.fft(modfs, axis=0).conj() * np.fft.fft(demodfs, axis=0), axis=0).real
     coding_matrix = np.fft.ifft(np.fft.fft(irf[..., np.newaxis], axis=0).conj() * np.fft.fft(coding_matrix, axis=0),
                                 axis=0).real
 elif 'coarse' in filename:
-    coding_matrix = np.kron(np.eye(K), np.ones((1, n_tbins // K)))
+    coding_matrix = np.kron(np.eye(K), np.ones((1, N_TBINS_DEFAULT // K)))
     irf = gaussian_pulse(np.arange(coding_matrix.shape[-1]), 0, 180, circ_shifted=True)
     coding_matrix = np.fft.ifft(
         np.fft.fft(irf[..., np.newaxis], axis=0).conj() * np.fft.fft(np.transpose(coding_matrix), axis=0),
@@ -101,15 +101,15 @@ point_list = [(10, 10), (200, 200), (50, 200)]
 # irf = get_voltage_function(mhz, voltage, size, 'pulse', n_tbins)
 # plt.plot(irf)
 # plt.show()
-
-plot_correlation_functions(
-        point_list,
-        correlations,
-        coding_matrix,
-        SMOOTH_SIGMA,
-        SMOOTH_CORRELATIONS,
-        N_TBINS_DEFAULT,
-)
+#
+# plot_correlation_functions(
+#         point_list,
+#         correlations,
+#         coding_matrix,
+#         SMOOTH_SIGMA,
+#         SMOOTH_CORRELATIONS,
+#         N_TBINS_DEFAULT,
+# )
 
 plot_correlation_comparison(
         correlations,

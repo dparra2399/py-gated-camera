@@ -1,5 +1,6 @@
 # Python imports
 # Library imports
+import os
 import time
 
 import numpy as np
@@ -8,16 +9,18 @@ from IPython.core import debugger
 from felipe_utils import tof_utils_felipe
 from felipe_utils.research_utils.signalproc_ops import gaussian_pulse
 from felipe_utils.CodingFunctionsFelipe import *
+from spad_lib.global_constants import *
 from felipe_utils import CodingFunctionsFelipe
 from scipy.interpolate import interp1d
 from scipy.ndimage import gaussian_filter1d
 
 def get_voltage_function(mhz, voltage, size, illum_type, n_tbins=None):
     try:
-        function = np.genfromtxt(f'/home/ubi-user/David_P_folder/py-gated-camera/voltage_functions/{illum_type}_{mhz}mhz_{voltage}v_{size}w.csv',delimiter=',')[:, 1]
+        function = np.genfromtxt(os.path.join(READ_PATH_VOLTAGE_FUNCTIONS_WINDOWS,
+                                              f'{illum_type}_{mhz}mhz_{voltage}v_{size}w.csv'),delimiter=',')[:, 1]
     except FileNotFoundError:
-        function = np.genfromtxt(f'/Users/davidparra/PycharmProjects/py-gated-camera/voltage_functions/{illum_type}_{mhz}mhz_{voltage}v_{size}w.csv',delimiter=',')[:, 1]
-
+        function = np.genfromtxt(os.path.join(READ_PATH_VOLTAGE_FUNCTIONS_MAC,
+                                              f'{illum_type}_{mhz}mhz_{voltage}v_{size}w.csv'),delimiter=',')[:, 1]
     modfs = function[2:]
     if illum_type == 'pulse':
         if size == 12:
@@ -41,7 +44,7 @@ def get_voltage_function(mhz, voltage, size, illum_type, n_tbins=None):
 breakpoint = debugger.set_trace
 
 photon_count = 3000
-sbr =1.0
+sbr = 1.0
 trials = 100
 n_tbins = 1998
 
@@ -49,7 +52,10 @@ simulated_correlations = False
 apd_correlations = False
 
 smooth_correlations = True
-smooth_sigma = 1
+smooth_sigma = 4
+
+shift_correlations = True
+shift = 110
 
 depths = np.arange(200, n_tbins-200, 1)
 
@@ -68,14 +74,14 @@ ham_filename = 'hamk3_5mhz_6.5v_20w_correlations.npz'
 
 filenames = [coarse_filename, ham_filename]
 rng = np.random.default_rng()
-
+names = []
 fig, axs = plt.subplots(len(filenames), 4, figsize=(13, 8), squeeze=False)
 for i, filename in enumerate(filenames):
     try:
-        path = f'/home/ubi-user/David_P_folder/{filename}' #py-gated-camera/correlation_functions/{filename}'
+        path = os.path.join(READ_PATH_CORRELATIONS_WINDOWS, filename)
         file = np.load(path)
     except FileNotFoundError:
-        path = f'/Users/davidparra/PycharmProjects/py-gated-camera/correlation_functions/{filename}'
+        path = os.path.join(READ_PATH_CORRELATIONS_MAC, filename)
         file = np.load(path)
 
     correlations = file['correlations']
@@ -112,13 +118,13 @@ for i, filename in enumerate(filenames):
     if 'ham' in filename and simulated_correlations:
         func = getattr(CodingFunctionsFelipe, f"GetHamK{K}")
         (modfs, demodfs) = func(N=n_tbins)
-        irf = gaussian_pulse(np.arange(n_tbins), 0, 20, circ_shifted=True)
+        irf = gaussian_pulse(np.arange(n_tbins), 0, 40, circ_shifted=True)
         modfs = np.fft.ifft(np.fft.fft(irf[..., np.newaxis], axis=0).conj() * np.fft.fft(modfs, axis=0), axis=0).real
         coding_matrix = np.fft.ifft( np.fft.fft( modfs, axis=0 ).conj() * np.fft.fft( demodfs, axis=0 ), axis=0 ).real
-        #coding_matrix =  np.fft.ifft( np.fft.fft(irf[..., np.newaxis], axis=0 ).conj() * np.fft.fft( coding_matrix, axis=0 ), axis=0 ).real
+        coding_matrix =  np.fft.ifft( np.fft.fft(irf[..., np.newaxis], axis=0 ).conj() * np.fft.fft( coding_matrix, axis=0 ), axis=0 ).real
     elif 'coarse' in filename and simulated_correlations:
         coding_matrix = np.kron(np.eye(K), np.ones((1, n_tbins // K)))
-        irf = gaussian_pulse(np.arange(coding_matrix.shape[-1]), 0, n_tbins // (K+3), circ_shifted=True)
+        irf = gaussian_pulse(np.arange(coding_matrix.shape[-1]), 0, n_tbins // (K+2), circ_shifted=True)
         coding_matrix = np.fft.ifft(np.fft.fft(irf[..., np.newaxis], axis=0).conj() * np.fft.fft(np.transpose(coding_matrix), axis=0),
                                     axis=0).real
     elif 'coarse' in filename and apd_correlations:
@@ -149,6 +155,16 @@ for i, filename in enumerate(filenames):
     if smooth_correlations:
         coding_matrix = gaussian_filter1d(coding_matrix, sigma=smooth_sigma, axis=0)
 
+    if shift_correlations:
+        coding_matrix = np.roll(coding_matrix, shift=shift, axis=0)
+
+    coding_matrix /= np.max(np.abs(coding_matrix), axis=0, keepdims=True)
+
+    if 'ham' in filename:
+       coding_matrix[:, 1] = np.roll(coding_matrix[:, 1], 20)
+       coding_matrix[:, 0] = np.roll(coding_matrix[:, 0], 20)
+
+
     clean_coded_vals = coding_matrix[depths, :]
 
     clean_coded_vals = (clean_coded_vals / np.sum(clean_coded_vals, axis=-1, keepdims=True)) * photon_count
@@ -174,24 +190,44 @@ for i, filename in enumerate(filenames):
 
     axs[i, 0].imshow(np.repeat(np.transpose(coding_matrix), 100, axis=0), aspect='auto')
     axs[i, 0].set_title('Coding Matrix')
-    axs[i, 1].plot(coding_matrix)
+    axs[i, 1].plot(coding_matrix - np.mean(coding_matrix, axis=0, keepdims=True))
     axs[i, 1].set_title('Coding Matrix')
     axs[i, 2].plot(zncc[0, 0, :])
     axs[i, 2].axvline(x=depths[0], c='r', linestyle='--')
     #axs[i, 3].axvline(x=decoded_depth[0, 0], c='g', linestyle='--')
     axs[i, 2].set_title('ZNCC Reconstruction')
-    if i < len(filenames) - 1:
+    if i < len(filenames) - 2:
         axs[i, 3].set_axis_off()
+
+    axs[-2, 3].bar([i],np.sqrt(np.mean((decoded_depth - depths) ** 2)), label=name)
+    axs[-2, 3].text(
+        i,  # x position
+        np.sqrt(np.mean((decoded_depth - depths) ** 2)),  # y position (height of bar)
+        f"{np.sqrt(np.mean((decoded_depth - depths) ** 2)):.2f}",  # displayed text, formatted
+        ha='center', va='bottom'
+    )
+    axs[-2, 3].set_title('RMSE (Lower is better)')
+    axs[-2, 3].set_ylabel('RMSE (time bins)')
+
     axs[-1, 3].bar([i], np.mean(np.abs(decoded_depth - depths)), label=name)
+    axs[-1, 3].text(
+        i,  # x position
+        np.mean(np.abs(decoded_depth - depths)),  # y position (height of bar)
+        f"{np.mean(np.abs(decoded_depth - depths)):.2f}",  # displayed text, formatted
+        ha='center', va='bottom'
+    )
     axs[-1, 3].set_title('MAE (Lower is better)')
-    axs[-1, 3].legend()
     axs[-1, 3].set_ylabel('MAE (time bins)')
+
+    names.append(name)
 
 
 
 
     print(f'{name}: \n\t MAE: {np.mean(np.abs(decoded_depth - depths)): .3f} \n\t RMSE: {np.sqrt(np.mean((decoded_depth - depths) ** 2)): .3f}')
 
+axs[-1, 3].set_xticks(np.arange(0, len(names)))
+axs[-1, 3].set_xticklabels(names)
 plt.subplots_adjust(wspace=0.5, hspace=0.4)
 plt.show()
 

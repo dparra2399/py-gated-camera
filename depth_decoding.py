@@ -5,41 +5,43 @@ import numpy as np
 from spad_lib.spad512utils import *
 from spad_lib.file_utils import *
 from plot_scripts.plot_utils import *
+from spad_lib.global_constants import *
 
 # -----------------------------------------------------------------------------
 # CONFIG
 # -----------------------------------------------------------------------------
 PIXEL_PITCH = 16.38 #in uM
 FOCAL_LENGTH = 25 #in mm
-EXP_NUM = 1
+EXP_NUM = 3
 K_FILTER = [3]
 N_TBINS_DEFAULT = 2000
-VMIN = -0.2
-VMAX = 0.2
-MEDIAN_FILTER_SIZE = 7
+VMIN = 14
+VMAX = 16
+MEDIAN_FILTER_SIZE = 3
 SIGMA_SIZE = 1 #How much to smooth correlations functions
-SHIFT_SIZE = 150 #How much to shift correlations functions
+SHIFT_SIZE = 75 #How much to shift correlations functions
 USE_CORRELATIONS = True
 USE_FULL_CORRELATIONS = False
 CORRECT_MASTER = False
 MASK_BACKGROUND_PIXELS = True
 INCLUDE_SPLIT_MEASUREMENTS = False
 CORRECT_DEPTH_DISTORTION = False
-NORMALIZE_DEPTH_MAPS = True
-HAM_TMP_CORRELATIONS = '_pulse'
+NORMALIZE_DEPTH_MAPS = False
+HAM_TMP_CORRELATIONS = ''
 SUB_FOLDER = ''
 
 SUB_FOLDER = SUB_FOLDER if SUB_FOLDER=='' else SUB_FOLDER + '/'
 
 HOT_MASK_PATH_MAC = "./masks/hot_pixels.PNG"
-DATA_FOLDER_MAC = f"/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/{SUB_FOLDER}exp{EXP_NUM}"
-DATA_FOLDER_LINUX = f"/mnt/researchdrive/research_users/David/Gated_Camera_Project/gated_project_data/{SUB_FOLDER}exp{EXP_NUM}"
+DATA_FOLDER_MAC = os.path.join(READ_PATH_CAPTURE_MAC, f"{SUB_FOLDER}exp{EXP_NUM}")
+DATA_FOLDER_WINDOWS = os.path.join(READ_PATH_CAPTURE_WINDOWS, f"{SUB_FOLDER}exp{EXP_NUM}")
 
 EPSILON = 1e-12
 
 
 if __name__ == "__main__":
-    folder = get_data_folder(DATA_FOLDER_MAC, DATA_FOLDER_LINUX)
+    folder = get_data_folder(DATA_FOLDER_MAC, DATA_FOLDER_WINDOWS)
+    correlation_folder = get_data_folder(READ_PATH_CORRELATIONS_MAC, READ_PATH_CORRELATIONS_WINDOWS)
     hot_mask = load_hot_mask(HOT_MASK_PATH_MAC)
 
     npz_files = glob.glob(os.path.join(folder, "*.npz"))
@@ -90,8 +92,8 @@ if __name__ == "__main__":
             else:
                 assert False
             corr_path = (
-                f"/Users/davidparra/PycharmProjects/py-gated-camera/correlation_functions/"
-                f"{name_tmp}k{coded_vals.shape[-1]}_{mhz}mhz_{voltage}v_{size}w_correlations{tmp}.npz"
+                os.path.join(correlation_folder,
+                f"{name_tmp}k{coded_vals.shape[-1]}_{mhz}mhz_{voltage}v_{size}w_correlations{tmp}.npz")
             )
             correlations_total, n_tbins_corr = load_correlations_file(corr_path)
             coding_matrix = build_coding_matrix_from_correlations(correlations_total, USE_FULL_CORRELATIONS,
@@ -156,10 +158,10 @@ if __name__ == "__main__":
             # mask = cluster_kmeans(np.copy(depth_map), n_clusters=2)
             # mask[mask == np.nanmax(mask)] = np.nan
             # mask[mask == np.nanmin(mask)] = 1
-            depth_map = depth_map[20:450, :]
+            depth_map = depth_map[50:450, :]
             mask = None
         elif MASK_BACKGROUND_PIXELS:
-            depth_map = depth_map[20:450, :]
+            depth_map = depth_map[50:450, :]
             mask = None
         else:
             mask = None

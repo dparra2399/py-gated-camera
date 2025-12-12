@@ -191,9 +191,10 @@ def plot_correlation_comparison(
         n_tbins = None,
         shift = None,
 ):
-    average_correlation = np.transpose(np.mean(np.mean(correlations, axis=0), axis=0))
+    average_correlation = np.transpose(np.mean(np.mean(correlations[:, :correlations.shape[1] // 2, :], axis=0), axis=0))
     if smooth_correlations:
         average_correlation = gaussian_filter1d(average_correlation, sigma=smooth_sigma, axis=0)
+
 
     if n_tbins is not None:
         original_len = average_correlation.shape[0]
@@ -208,6 +209,9 @@ def plot_correlation_comparison(
 
     if shift is not None:
         average_correlation = np.roll(average_correlation, shift)
+
+    average_correlation[:, 1] = np.roll(average_correlation[:, 1], 15)
+    #average_correlation[:, 0] = np.roll(average_correlation[:, 0], 30)
 
     zero_mean_coding_matrix = coding_matrix - np.mean(coding_matrix, axis=0, keepdims=True)
     zero_mean_coding_matrix /=  np.max(np.abs(zero_mean_coding_matrix), axis=0, keepdims=True)

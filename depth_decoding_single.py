@@ -26,6 +26,7 @@ CORRECT_DEPTH_DISTORTION = False
 HAM_TMP_CORRELATIONS = ''
 
 # paths
+
 TEST_FILE = f'/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/exp{EXP}/{DATASET_TYPE}k{K}_exp{EXP}.npz'
 GT_FILE   = f'/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/exp{EXP}/{DATASET_TYPE}k{K}_gt_exp{EXP}.npz'
 HOT_MASK_PATH = '/Users/davidparra/PycharmProjects/py-gated-camera/masks/hot_pixels.PNG'

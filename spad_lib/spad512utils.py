@@ -1,6 +1,8 @@
 import numpy as np
 from scipy.interpolate import interp1d
 import matplotlib.pyplot as plt
+from spad_lib.global_constants import *
+import os
 from scipy.ndimage import gaussian_filter, gaussian_filter1d
 from sklearn.cluster import KMeans
 from felipe_utils import CodingFunctionsFelipe
@@ -137,10 +139,11 @@ def split_into_indices(square_array):
 
 def get_voltage_function(mhz, voltage, size, illum_type, n_tbins=None ,K=3, hamiltonian=False):
     try:
-        function = np.genfromtxt(f'/home/ubi-user/David_P_folder/py-gated-camera/voltage_functions/{illum_type}_{mhz}mhz_{voltage}v_{size}w.csv',delimiter=',')[:, 1]
+        function = np.genfromtxt(os.path.join(READ_PATH_VOLTAGE_FUNCTIONS_WINDOWS,
+                                              f'{illum_type}_{mhz}mhz_{voltage}v_{size}w.csv'),delimiter=',')[:, 1]
     except FileNotFoundError:
-        function = np.genfromtxt(f'/Users/davidparra/PycharmProjects/py-gated-camera/voltage_functions/{illum_type}_{mhz}mhz_{voltage}v_{size}w.csv',delimiter=',')[:, 1]
-
+        function = np.genfromtxt(os.path.join(READ_PATH_VOLTAGE_FUNCTIONS_MAC,
+                                              f'{illum_type}_{mhz}mhz_{voltage}v_{size}w.csv'),delimiter=',')[:, 1]
     modfs = function[2:]
     if illum_type == 'pulse': 
         if size == 12:

@@ -3,6 +3,7 @@ import os
 from spad_lib.SPAD512S import SPAD512S
 from spad_lib.spad512utils import *
 from spad_lib.file_utils import *
+from spad_lib.global_constants import SAVE_PATH_CAPTURE
 from plot_scripts.plot_utils import *
 import numpy as np
 import math
@@ -12,12 +13,12 @@ PORT = 9999  # Check the command Server in the setting tab of the software and c
 VEX = 7
 
 # Editable parameters (defaults; can be overridden via CLI)
-TOTAL_TIME = 500  # integration time
+TOTAL_TIME = 5000  # integration time
 SPLIT_MEASUREMENTS = False
 NUM_GATES = 3  # number of time bins
 IM_WIDTH = 512  # image width
 BIT_DEPTH = 12
-N_TBINS = 640
+N_TBINS = 1000
 CORRECT_MASTER = False  # ie # 
 DECODE_DEPTHS = True
 SAVE_INTO_FILE = True
@@ -31,6 +32,11 @@ GROUND_TRUTH = False
 VMIN = 5
 VMAX = 6
 
+GATE_SHRINKAGE = 10
+
+EXP_NUM = 3
+SAVE_PATH = SAVE_PATH_CAPTURE
+
 #Non-Editable parameters
 ITERATIONS = 1
 OVERLAP = 0
@@ -41,10 +47,6 @@ GATE_STEP_ARBITRARY = 0
 GATE_STEP_SIZE = 0
 GATE_DIRECTION = 1
 GATE_TRIG = 0
-
-EXP_NUM = 0
-# SAVE_PATH = '/mnt/researchdrive/research_users/David/gated_project_data'
-SAVE_PATH = '/home/ubi-user/David_P_folder'
 
 if GROUND_TRUTH:
     SAVE_NAME = f'coarsek{NUM_GATES}_gt_exp{EXP_NUM}'
@@ -131,12 +133,12 @@ if __name__ == '__main__':
         while current_intTime > 480:
             print(f'starting current time {current_intTime}')
             counts += SPAD1.get_gated_intensity(BIT_DEPTH, 480, ITERATIONS, GATE_STEPS, GATE_STEP_SIZE,
-                                                GATE_STEP_ARBITRARY, GATE_WIDTH,
+                                                GATE_STEP_ARBITRARY, GATE_WIDTH - GATE_SHRINKAGE,
                                                 gate_offset, GATE_DIRECTION, GATE_TRIG, OVERLAP, 1, PILEUP, IM_WIDTH)[:, :, 0]
             current_intTime -= 480
 
         counts += SPAD1.get_gated_intensity(BIT_DEPTH, current_intTime, ITERATIONS, GATE_STEPS, GATE_STEP_SIZE,
-                                            GATE_STEP_ARBITRARY, GATE_WIDTH,
+                                            GATE_STEP_ARBITRARY, GATE_WIDTH - GATE_SHRINKAGE,
                                             gate_offset, GATE_DIRECTION, GATE_TRIG, OVERLAP, 1, PILEUP, IM_WIDTH)[:, :, 0]
 
         coded_vals[:, :, i] = counts

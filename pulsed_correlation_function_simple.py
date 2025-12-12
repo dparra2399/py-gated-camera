@@ -2,10 +2,12 @@
 import os
 import glob
 import math
+import time
 
 from spad_lib.SPAD512S import SPAD512S
 from spad_lib.spad512utils import *
 from spad_lib.file_utils import *
+from spad_lib.global_constants import SAVE_PATH_CORRELATIONS
 from plot_scripts.plot_utils import plot_correlation_functions
 import numpy as np
 import matplotlib.pyplot as plt
@@ -16,18 +18,20 @@ VEX = 7
 
 
 # Editable parameters (defaults; can be overridden via CLI)
-INT_TIME = 100  # integration time
+INT_TIME = 400  # integration time
 NUM_GATES = 3  # number of time bins
 IM_WIDTH = 512  # image width
 BIT_DEPTH = 12
 SIZE = 12
-SHIFT = 3000  # shift in picoseconds
+SHIFT = 1250  # shift in picoseconds
 VOLTAGE = 10
 PLOT_CORRELATIONS = True
 SAVE_INTO_FILE = True
 SMOOTH_SIGMA = 10
 SMOOTH_CORRELATIONS = False
-EXTENDED = True
+EXTENDED = False
+
+GATE_SHRINKAGE = 10
 
 # Non-Editable Parameters
 ITERATIONS = 1
@@ -40,9 +44,8 @@ GATE_STEP_SIZE = 0
 GATE_DIRECTION = 1
 GATE_TRIG = 0
 
-SAVE_PATH = '/home/ubi-user/David_P_folder'
-
-
+SAVE_PATH = SAVE_PATH_CORRELATIONS
+#print('hello world')
 
 if __name__ == "__main__":
     # --- CLI overrides (hybrid approach) ---
@@ -64,6 +67,7 @@ if __name__ == "__main__":
     SHIFT = args.shift
     VOLTAGE = args.voltage
     SIZE = args.size
+
 
     SPAD1 = SPAD512S(PORT)
 
@@ -118,7 +122,7 @@ if __name__ == "__main__":
         #if j == 0:
         print(f'\tGate start: {gate_start}')
         print(f'\tGate width: {GATE_WIDTH}')
-        
+
         #counts = np.zeros((IM_WIDTH, IM_WIDTH))
         #current_intTime = INT_TIME
         # while current_intTime > 480:
@@ -139,12 +143,12 @@ if __name__ == "__main__":
         while current_intTime > 480:
             #print(f'starting current time {current_intTime}')
             counts += SPAD1.get_gated_intensity(BIT_DEPTH, 480, ITERATIONS, N_TBINS, SHIFT,
-                                                GATE_STEP_ARBITRARY, GATE_WIDTH,
+                                                GATE_STEP_ARBITRARY, GATE_WIDTH - GATE_SHRINKAGE,
                                                 gate_start, GATE_DIRECTION, GATE_TRIG, OVERLAP, 1, PILEUP, IM_WIDTH)
             current_intTime -= 480
 
         counts += SPAD1.get_gated_intensity(BIT_DEPTH, current_intTime, ITERATIONS, N_TBINS, SHIFT,
-                                            GATE_STEP_ARBITRARY, GATE_WIDTH,
+                                            GATE_STEP_ARBITRARY, GATE_WIDTH - GATE_SHRINKAGE,
                                             gate_start, GATE_DIRECTION, GATE_TRIG, OVERLAP, 1, PILEUP, IM_WIDTH)
 
 

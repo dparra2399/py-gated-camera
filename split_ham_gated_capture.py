@@ -4,6 +4,7 @@ import os
 from spad_lib.SPAD512S import SPAD512S
 from spad_lib.spad512utils import *
 from spad_lib.file_utils import *
+from spad_lib.global_constants import SAVE_PATH_CAPTURE
 import numpy as np
 from felipe_utils import CodingFunctionsFelipe
 import argparse
@@ -45,8 +46,8 @@ VMIN = None
 VMAX = None
 
 EXP_NUM = 1
-SAVE_PATH = '/home/ubi-user/David_P_folder'
-# save_path = '/mnt/researchdrive/research_users/David/gated_project_data'
+SAVE_PATH = SAVE_PATH_CAPTURE
+
 if GROUND_TRUTH:
     SAVE_NAME = f'hamk{K}_gt_exp{EXP_NUM}'
 else:

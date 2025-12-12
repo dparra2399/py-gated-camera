@@ -1,5 +1,6 @@
 import os
 from spad_lib.SPAD512S import SPAD512S
+from spad_lib.global_constants import SAVE_PATH_CAPTURE
 from spad_lib.spad512utils import *
 from spad_lib.file_utils import *
 from plot_scripts.plot_utils import *
@@ -43,8 +44,7 @@ GATE_DIRECTION = 1
 GATE_TRIG = 0
 
 EXP_NUM = 2
-# SAVE_PATH = '/mnt/researchdrive/research_users/David/gated_project_data'
-SAVE_PATH = '/home/ubi-user/David_P_folder'
+SAVE_PATH = SAVE_PATH_CAPTURE
 
 
 if GROUND_TRUTH:

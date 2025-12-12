@@ -5,6 +5,7 @@ from spad_lib.SPAD512S import SPAD512S
 from spad_lib.spad512utils import *
 from spad_lib import spad512utils
 from spad_lib.file_utils import *
+from spad_lib.global_constants import SAVE_PATH_CAPTURE
 import numpy as np
 from felipe_utils import CodingFunctionsFelipe
 import argparse
@@ -25,7 +26,7 @@ GATE_DIRECTION = 1
 GATE_TRIG = 0
 
 # Editable parameters (defaults; can be overridden via CLI)
-TOTAL_TIME = 500# integration time
+TOTAL_TIME = 100 # integration time
 SPLIT_MEASUREMENTS = False
 IM_WIDTH = 512  # image width
 BIT_DEPTH = 12
@@ -41,14 +42,16 @@ SHIFT_SIZE = 150
 MEDIAN_FILTER_SIZE = 11
 GROUND_TRUTH = False
 PULSE = False
-True
+
 DUTY = 20
 VMIN = 5
 VMAX = 6
 
-EXP_NUM = 0
-SAVE_PATH = '/home/ubi-user/David_P_folder'
-# save_path = '/mnt/researchdrive/research_users/David/gated_project_data'
+GATE_SHRINKAGE = 25 #In NS
+
+
+EXP_NUM = 2
+SAVE_PATH = SAVE_PATH_CAPTURE
 
 if GROUND_TRUTH:
     SAVE_NAME = f'hamk{K}_gt_exp{EXP_NUM}'
@@ -126,7 +129,7 @@ if __name__=='__main__':
         gate_starts_tmp = ham_gate_starts[i]
         counts = np.zeros((IM_WIDTH, IM_WIDTH))
         for k in range(len(gate_starts_tmp)):
-            gate_width = gate_widths_tmp[k]
+            gate_width = gate_widths_tmp[k] - GATE_SHRINKAGE
             gate_start = gate_starts_tmp[k]
 
             if SPLIT_MEASUREMENTS:

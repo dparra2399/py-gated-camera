@@ -6,6 +6,7 @@ import math
 from spad_lib.SPAD512S import SPAD512S
 from spad_lib.spad512utils import *
 from spad_lib.file_utils import *
+from spad_lib.global_constants import SAVE_PATH_CORRELATIONS
 from plot_scripts.plot_utils import plot_correlation_functions
 import numpy as np
 import matplotlib.pyplot as plt
@@ -39,7 +40,7 @@ GATE_STEP_SIZE = 0
 GATE_DIRECTION = 1
 GATE_TRIG = 0
 
-SAVE_PATH = '/home/ubi-user/David_P_folder'
+SAVE_PATH = SAVE_PATH_CORRELATIONS
 
 
 

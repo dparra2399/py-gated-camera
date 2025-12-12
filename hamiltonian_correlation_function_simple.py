@@ -6,6 +6,7 @@ from spad_lib.SPAD512S import SPAD512S
 from spad_lib.spad512utils import *
 from spad_lib import spad512utils
 from spad_lib.file_utils import *
+from spad_lib.global_constants import SAVE_PATH_CORRELATIONS
 from plot_scripts.plot_utils import plot_correlation_functions
 import numpy as np
 import matplotlib.pyplot as plt
@@ -15,22 +16,24 @@ PORT = 9999  # Check the command Server in the setting tab of the software and c
 VEX = 7
 
 # Editable parameters (defaults; can be overridden via CLI)
-INT_TIME = 100  # integration time
+INT_TIME = 400  # integration time
 K = 3  # number of time bins
 IM_WIDTH = 512  # image width
 BIT_DEPTH = 12
-SHIFT = 3000  #50  # shift in picoseconds
+SHIFT = 1250  #50  # shift in picoseconds
 VOLTAGE = 8.5
 DUTY = 20
 PLOT_CORRELATIONS = True
-SAVE_INTO_FILE = False
+SAVE_INTO_FILE = True
 SMOOTH_SIGMA = 30
 SMOOTH_CORRELATIONS = False
 PULSED = False
 EXTENDED = False
 
-SAVE_PATH = '/home/ubi-user/David_P_folder'
-False
+SAVE_PATH = SAVE_PATH_CORRELATIONS
+
+GATE_SHRINKAGE = 25 #In NS
+
 # Non-Editable Parameters
 ITERATIONS = 1
 OVERLAP = 0
@@ -115,12 +118,12 @@ if __name__ == "__main__":
 
         counts = np.zeros((IM_WIDTH, IM_WIDTH, N_TBINS))
         for k in range(len(gate_starts_tmp)):
-            gate_width = gate_widths_tmp[k]
+            gate_width = gate_widths_tmp[k] - GATE_SHRINKAGE
             gate_start_helper = gate_starts_tmp[k]
 
             #gate_start = gate_start_helper + j * SHIFT
             #gate_start = gate_start % TAU
-            gate_start = gate_starts_tmp[k]
+            gate_start = max(0, gate_starts_tmp[k] + (0 * i))
 
             #if i == 0:
             print(f'\tGate start: {gate_start}')
