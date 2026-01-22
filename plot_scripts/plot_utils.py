@@ -144,7 +144,7 @@ def plot_correlation_functions(
         smooth_correlations: bool = False,
         n_tbins = None,
 ):
-    average_correlation = np.transpose(np.mean(np.mean(correlations, axis=0), axis=0))
+    average_correlation = np.transpose(np.mean(np.mean(correlations[20:-20, 20:correlations.shape[1]//2, :], axis=0), axis=0))
     if smooth_correlations:
         average_correlation = gaussian_filter1d(average_correlation, sigma=smooth_sigma, axis=0)
 

@@ -52,7 +52,7 @@ simulated_correlations = False
 apd_correlations = False
 
 smooth_correlations = True
-smooth_sigma = 4
+smooth_sigma = 5
 
 shift_correlations = True
 shift = 110

@@ -18,12 +18,12 @@ VEX = 7
 
 
 # Editable parameters (defaults; can be overridden via CLI)
-INT_TIME = 400  # integration time
+INT_TIME = 100  # integration time
 NUM_GATES = 3  # number of time bins
 IM_WIDTH = 512  # image width
 BIT_DEPTH = 12
 SIZE = 12
-SHIFT = 1250  # shift in picoseconds
+SHIFT = 2500  # shift in picoseconds
 VOLTAGE = 10
 PLOT_CORRELATIONS = True
 SAVE_INTO_FILE = True
