@@ -148,3 +148,9 @@ def save_correlation_data(
         correlations=correlations,
     )
     print(f"✅ Saved correlation data to {os.path.join(save_path, save_name)}.npz")
+
+
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    return v.lower() in ("true", "1", "yes", "y")

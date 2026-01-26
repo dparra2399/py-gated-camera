@@ -1,11 +1,9 @@
-import os
 import glob
 
-import numpy as np
 from spad_lib.spad512utils import *
-from spad_lib.file_utils import *
+from utils.file_utils import *
 from plot_scripts.plot_utils import *
-from spad_lib.global_constants import *
+from utils.global_constants import *
 
 # -----------------------------------------------------------------------------
 # CONFIG

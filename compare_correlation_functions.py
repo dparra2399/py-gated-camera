@@ -1,15 +1,13 @@
 # Python imports
 # Library imports
 import os
-import time
 
-import numpy as np
 from IPython.core import debugger
 
 from felipe_utils import tof_utils_felipe
 from felipe_utils.research_utils.signalproc_ops import gaussian_pulse
 from felipe_utils.CodingFunctionsFelipe import *
-from spad_lib.global_constants import *
+from utils.global_constants import *
 from felipe_utils import CodingFunctionsFelipe
 from scipy.interpolate import interp1d
 from scipy.ndimage import gaussian_filter1d

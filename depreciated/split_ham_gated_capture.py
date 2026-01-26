@@ -1,15 +1,15 @@
 # Libraries
-import os
 
 from spad_lib.SPAD512S import SPAD512S
 from spad_lib.spad512utils import *
-from spad_lib import spad512utils
-from spad_lib.file_utils import *
-from spad_lib.global_constants import SAVE_PATH_CAPTURE
+from utils.file_utils import *
+from utils.global_constants import SAVE_PATH_CAPTURE
 import numpy as np
 from felipe_utils import CodingFunctionsFelipe
 import argparse
 from plot_scripts.plot_utils import plot_gated_images
+from utils.tof_utils import calculate_tof_domain_params, decode_depth_map, build_coding_matrix_from_correlations
+from depreciated.spad512utils_depreciated import get_hamiltonain_correlations, decompose_ham_codes, get_offset_width_spad512
 
 PORT = 9999  # Check the command Server in the setting tab of the software and change it if necessary
 VEX = 7
@@ -26,7 +26,7 @@ GATE_DIRECTION = 1
 GATE_TRIG = 0
 
 # Editable parameters (defaults; can be overridden via CLI)
-TOTAL_TIME = 100 # integration time
+TOTAL_TIME = 1000  # integration time
 SPLIT_MEASUREMENTS = False
 IM_WIDTH = 512  # image width
 BIT_DEPTH = 12
@@ -37,28 +37,22 @@ DECODE_DEPTHS = True
 SAVE_INTO_FILE = True
 USE_CORRELATIONS = False
 USE_FULL_CORRELATIONS = False
-SIGMA_SIZE = 1
+SIGMA_SIZE = 30
 SHIFT_SIZE = 150
-MEDIAN_FILTER_SIZE = 11
+MEDIAN_FILTER_SIZE = 3
 GROUND_TRUTH = False
-PULSE = False
 
 DUTY = 20
-VMIN = 5
-VMAX = 6
+VMIN = None
+VMAX = None
 
-GATE_SHRINKAGE = 25 #In NS
-
-
-EXP_NUM = 2
+EXP_NUM = 1
 SAVE_PATH = SAVE_PATH_CAPTURE
 
 if GROUND_TRUTH:
     SAVE_NAME = f'hamk{K}_gt_exp{EXP_NUM}'
 else:
     SAVE_NAME = f'hamk{K}_exp{EXP_NUM}'
-
-SAVE_NAME = SAVE_NAME if PULSE==False else SAVE_NAME + '_pulse'
 
 if __name__=='__main__':
     # --- CLI overrides (hybrid approach): defaults above, CLI can override ---
@@ -120,39 +114,40 @@ if __name__=='__main__':
     SPAD1.set_Vex(VEX)
 
     #Get demodulation functions and split for use with Gated SPAD
-    func = getattr(spad512utils, f"GetHamK{K}_GateShifts")
-    ham_gate_widths, ham_gate_starts = func(float(freq[-2]))
+    func = getattr(CodingFunctionsFelipe, f"GetHamK{K}")
+    (modfs, demodfs) = func(N=N_TBINS)
+    gated_demodfs_np, gated_demodfs_arr = decompose_ham_codes(demodfs)
 
+    #For each demod function we make a gate sequence
+    intTimes = [int(TOTAL_TIME // K)] * K
     coded_vals = np.zeros((IM_WIDTH, IM_WIDTH, K))
-    for i in range(K):
-        gate_widths_tmp = ham_gate_widths[i]
-        gate_starts_tmp = ham_gate_starts[i]
-        counts = np.zeros((IM_WIDTH, IM_WIDTH))
-        for k in range(len(gate_starts_tmp)):
-            gate_width = gate_widths_tmp[k] - GATE_SHRINKAGE
-            gate_start = gate_starts_tmp[k]
+    for i, item in enumerate(gated_demodfs_arr):
+        for j in range(item.shape[-1]):
+            gate = item[:, j]
+            gate_width, gate_offset = get_offset_width_spad512(gate, float(freq[-2]))
+            print(f'gate width = {gate_width}, gate offset = {gate_offset}')
 
             if SPLIT_MEASUREMENTS:
-                intTime = int(TOTAL_TIME // sum(len(sublist) for sublist in gate_starts_tmp))
+                intTime = int(TOTAL_TIME // gated_demodfs_np.shape[-1])
             else:
                 intTime = TOTAL_TIME
-            
-            print(f'Integration time for hamiltonian row #{i+1}.{k+1}: {intTime}')
-            print(f'gate width = {gate_width}, gate offset = {gate_start}')
+
+            print(f'Integration time for hamiltonian row #{i+1}.{j+1}: {intTime}')
 
             current_intTime = intTime
+            counts = np.zeros((IM_WIDTH, IM_WIDTH))
             while current_intTime > 480:
                 print(f'starting current time {current_intTime}')
                 counts += SPAD1.get_gated_intensity(BIT_DEPTH, 480, ITERATIONS, GATE_STEPS, GATE_STEP_SIZE,
                                                     GATE_STEP_ARBITRARY, gate_width,
-                                                    gate_start, GATE_DIRECTION, GATE_TRIG, OVERLAP, 1, PILEUP, IM_WIDTH)[:, :, 0]
+                                                    gate_offset, GATE_DIRECTION, GATE_TRIG, OVERLAP, 1, PILEUP, IM_WIDTH)[:, :, 0]
                 current_intTime -= 480
 
             counts += SPAD1.get_gated_intensity(BIT_DEPTH, current_intTime, ITERATIONS, GATE_STEPS, GATE_STEP_SIZE,
                                                 GATE_STEP_ARBITRARY, gate_width,
-                                                gate_start, GATE_DIRECTION, GATE_TRIG, OVERLAP, 1, PILEUP, IM_WIDTH)[:, :, 0]
+                                                gate_offset, GATE_DIRECTION, GATE_TRIG, OVERLAP, 1, PILEUP, IM_WIDTH)[:, :, 0]
 
-        coded_vals[:, :, i] = counts
+            coded_vals[:, :, i] += counts
 
     print(coded_vals.shape)
     unit = "ms"
@@ -168,8 +163,11 @@ if __name__=='__main__':
 
     if 'pulse' in SAVE_NAME:
         illum_type = 'pulse'
+        DUTY = 12
+        VOLTAGE = 10
     else:
         illum_type = 'square'
+        DUTY = 20
 
     if DECODE_DEPTHS:
         (rep_tau, rep_freq, tbin_res, t_domain, max_depth, tbin_depth_res) = calculate_tof_domain_params(N_TBINS, 1./ float(freq[-2]))
