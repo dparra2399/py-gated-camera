@@ -1,6 +1,8 @@
 import os
 import numpy as np
 from PIL import Image
+from dataclasses import dataclass
+
 
 def get_data_folder(data_folder_mac, data_folder_linux) -> str:
     if os.path.exists(data_folder_mac):
@@ -148,6 +150,45 @@ def save_correlation_data(
         correlations=correlations,
     )
     print(f"✅ Saved correlation data to {os.path.join(save_path, save_name)}.npz")
+
+@dataclass
+class Config:
+    # Camera Parameters
+    im_width: int          # image width
+    bit_depth: int         # sensor bit depth
+
+    # Capture Parameters
+    int_time: int          # integration time
+    k: int                 # number of time bins
+    shift: int             # shift in picoseconds
+    gate_shrinkage: int    # gate shrinkage in ns
+    capture_type: str      # capture coding type (e.g., 'ham', 'gray', etc.)
+
+    # Illumination Parameters
+    voltage: float         # laser drive voltage (Vpp)
+    duty: int              # duty cycle percentage
+    rep_rate: int          # repetition rate (Hz)
+    illum_type: str        # waveform type ('square', 'sine', etc.)
+
+    # Plot Parameters
+    plot_correlations: bool   # enable correlation plotting
+
+    # Save Parameters
+    save_into_file: bool   # save captured data to disk
+    save_path: str         # output directory / filename
+
+
+    # Non-Editable / Control Parameters
+    iterations: int            # number of capture iterations
+    overlap: int               # gate overlap amount
+    timeout: int               # hardware timeout
+    pileup: int                # enable/disable pileup mitigation
+
+    gate_steps: int            # number of discrete gate steps
+    gate_step_arbitrary: int   # use arbitrary stepping mode
+    gate_step_size: int        # step size between gates
+    gate_direction: int        # scan direction (+1 or -1)
+    gate_trig: int             # trigger mode for gate stepping
 
 
 def str2bool(v):

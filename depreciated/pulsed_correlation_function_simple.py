@@ -7,7 +7,7 @@ from utils.global_constants import SAVE_PATH_CORRELATIONS
 from plot_scripts.plot_utils import plot_correlation_functions
 import numpy as np
 import argparse
-from depreciated.spad512utils_depreciated import get_voltage_function, get_coarse_coding_matrix
+from correlation_functions.spad512utils_depreciated import get_voltage_function, get_coarse_coding_matrix
 from utils.tof_utils import calculate_tof_domain_params
 
 PORT = 9999  # Check the command Server in the setting tab of the software and change it if necessary

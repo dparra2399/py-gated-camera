@@ -7,7 +7,7 @@ from utils.global_constants import SAVE_PATH_CORRELATIONS
 from plot_scripts.plot_utils import plot_correlation_functions
 import numpy as np
 import argparse
-from depreciated.spad512utils_depreciated import get_hamiltonain_correlations
+from spad512utils_depreciated import get_hamiltonain_correlations
 from utils.tof_utils import calculate_tof_domain_params
 
 PORT = 9999  # Check the command Server in the setting tab of the software and change it if necessary
@@ -99,9 +99,9 @@ if __name__ == "__main__":
     func = getattr(spad512utils, f"GetHamK{K}_GateShifts")
     ham_gate_widths, ham_gate_starts = func(FREQ)
 
-    (rep_tau, rep_freq, tbin_res, t_domain, max_depth, tbin_depth_res) = calculate_tof_domain_params(N_TBINS, 1. / FREQ)
+    #(rep_tau, rep_freq, tbin_res, t_domain, max_depth, tbin_depth_res) = calculate_tof_domain_params(N_TBINS, 1. / FREQ)
 
-    print(f'Time bin depth resolution {tbin_depth_res * 1000:.3f} mm')
+    #print(f'Time bin depth resolution {tbin_depth_res * 1000:.3f} mm')
 
     correlations = np.zeros((IM_WIDTH, IM_WIDTH, K, N_TBINS))
 

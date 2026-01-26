@@ -5,7 +5,8 @@ import argparse
 
 #Library imports
 from utils.global_constants import *
-from utils.file_utils import str2bool
+from utils.file_utils import str2bool, Config
+from spad_lib.spad512utils import set_up_spad512
 
 ##### Editable parameters (defaults; can be overridden via CLI)  #####
 
@@ -15,6 +16,7 @@ BIT_DEPTH = 12
 
 # Capture parameters
 INT_TIME = 100  # integration time
+BURST_TIME = 480
 K = 3  # number of time bins
 SHIFT = 2500  #50  # shift in picoseconds
 GATE_SHRINKAGE = 25 #In NS
@@ -50,6 +52,8 @@ if __name__ == "__main__":
     # --- CLI overrides (hybrid approach) ---
     parser = argparse.ArgumentParser(description="Correlation function capture")
     parser.add_argument("--int_time", type=int, default=INT_TIME)
+    parser.add_argument("--burst_time", type=int, default=BURST_TIME)
+
     parser.add_argument("--k", type=int, default=K)
     parser.add_argument("--im_width", type=int, default=IM_WIDTH)
     parser.add_argument("--bit_depth", type=int, default=BIT_DEPTH)
@@ -64,6 +68,28 @@ if __name__ == "__main__":
     parser.add_argument("--capture_type", type=str, default=CAPTURE_TYPE)
     parser.add_argument("--illum_type", type=str, default=ILLUM_TYPE)
 
+    ##### Added as command line but do not modify already gave good constraints.
+    parser.add_argument("--iterations", type=int, default=ITERATIONS)
+    parser.add_argument("--overlap", type=int, default=OVERLAP)
+    parser.add_argument("--timeout", type=int, default=TIMEOUT)
+    parser.add_argument("--pileup", type=int, default=PILEUP)
+    parser.add_argument("--gate_steps", type=int, default=GATE_STEPS)
+    parser.add_argument("--gate_step_arbitrary", type=int, default=GATE_STEP_ARBITRARY)
+    parser.add_argument("--gate_step_size", type=int, default=GATE_STEP_SIZE)
+    parser.add_argument("--gate_direction", type=int, default=GATE_DIRECTION)
+    parser.add_argument("--gate_trig", type=int, default=GATE_TRIG)
+
+
     args = parser.parse_args()
+    cfg = Config(**vars(args))
+
+    SPAD1 = set_up_spad512()
+
+
+
+
+
+
+
 
 

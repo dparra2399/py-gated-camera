@@ -9,7 +9,7 @@ from felipe_utils import CodingFunctionsFelipe
 import argparse
 from plot_scripts.plot_utils import plot_gated_images
 from utils.tof_utils import calculate_tof_domain_params, decode_depth_map, build_coding_matrix_from_correlations
-from depreciated.spad512utils_depreciated import get_hamiltonain_correlations, decompose_ham_codes, get_offset_width_spad512
+from correlation_functions.spad512utils_depreciated import get_hamiltonain_correlations, decompose_ham_codes, get_offset_width_spad512
 
 PORT = 9999  # Check the command Server in the setting tab of the software and change it if necessary
 VEX = 7

@@ -1,6 +1,7 @@
 import numpy as np
 import math
-
+import SPAD512S
+from utils.global_constants import VEX, PORT
 
 
 
@@ -63,4 +64,41 @@ def GetHamK4_GateShifts(freq):
                 gate_starts[i].append(math.ceil(gate_start[j] * tau * 1e12) + shift)
                 gate_widths[i].append(math.ceil(demodDuty[j] * tau * 1e9))
     return gate_widths, gate_starts
+
+def print_spad512_information(SPAD1):
+    print('--------------------SPAD INFORMATION-------------------')
+
+    info = SPAD1.get_info()
+    print("\nGeneral informations of the camera :")
+    print(info)
+    temp = SPAD1.get_temps()  # Current temperatures of FPGAs, PCB and Chip
+    print("\nCurrent temperatures of FPGAs, PCB and Chip :")
+    print(temp)
+    freq = SPAD1.get_freq()  # Operating frequencies (Laser and frame)
+    print("\nOperating frequencies (Laser and frame) :")
+    print(freq)
+
+    print('-------------------------------------------------------')
+
+
+def set_up_spad512(print_info=False):
+    SPAD1 = SPAD512S(PORT)
+    # # # Set the voltage to the maximum value
+    SPAD1.set_Vex(VEX)
+    if print_info: print_spad512_information(SPAD1)
+
+
+def burst_capture(cfg):
+    counts = np.zeros((im_width, im_width, n_tbins))
+    current_inttime = int_time
+    while current_inttime > 480:
+        # print(f'starting current time {current_inttime}')
+        counts += spad1.get_gated_intensity(bit_depth, 480, iterations, n_tbins, shift,
+                                            gate_step_arbitrary, gate_width,
+                                            gate_start, gate_direction, gate_trig, overlap, 1, pileup, im_width)
+        current_inttime -= 480
+
+    counts += spad1.get_gated_intensity(bit_depth, current_inttime, iterations, n_tbins, shift,
+                                        gate_step_arbitrary, gate_width,
+                                        gate_start, gate_direction, gate_trig, overlap, 1, pileup, im_width)
 

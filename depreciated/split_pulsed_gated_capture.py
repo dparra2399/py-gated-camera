@@ -7,7 +7,7 @@ from plot_scripts.plot_utils import *
 import numpy as np
 import math
 import argparse
-from depreciated.spad512utils_depreciated import get_voltage_function, get_coarse_coding_matrix
+from correlation_functions.spad512utils_depreciated import get_voltage_function, get_coarse_coding_matrix
 from utils.tof_utils import calculate_tof_domain_params, decode_depth_map, build_coding_matrix_from_correlations
 
 PORT = 9999  # Check the command Server in the setting tab of the software and change it if necessary
