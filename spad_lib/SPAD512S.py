@@ -347,7 +347,7 @@ class SPAD512S:
             self.t.settimeout(5.0)  # Set a timeout of 5 seconds
         else:
             self.t.settimeout(None)  # Remove the timeout
-    
+
         time.sleep(1)
         data = bytearray()
         
@@ -438,7 +438,7 @@ class SPAD512S:
              ------------ Gated mode related functions ------------
     ''' 
     def get_gated_intensity(self, bitDepth, intTime, iterations, gate_steps, gate_step_size, gate_step_arbitrary, gate_width, 
-                                    gate_offset, gate_direction, gate_trig, overlap, stream, pileup, im_width):
+                                    gate_offset, gate_direction, gate_trig, overlap, stream, pileup, im_width, timeout):
         '''
         Starts an intensity measurement with the SPAD512S system, and returns true shifted values.
 
@@ -483,6 +483,12 @@ class SPAD512S:
                         str(gate_direction) + ","  + str(gate_trig)+ "," +
                         str(overlap) + ","+ str(stream),  " utf8 ")
         self.t.send(command)
+        if timeout:
+            self.t.settimeout(5.0)  # Set a timeout of 5 seconds
+        else:
+            self.t.settimeout(None)  # Remove the timeout
+
+        time.sleep(1)
         data = bytearray()
         # Define data type
         if bitDepth == 4 or (bitDepth < 9 and pileup == 0):
@@ -518,7 +524,6 @@ class SPAD512S:
             data = data[:-4]
             img_index = 0
             if bitDepth < 9:
-                print('got here')
                 for i in range(iterations*gate_steps):
                     img_index_old = img_index
                     img_index = (i+1)*self.row*im_width

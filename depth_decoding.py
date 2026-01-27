@@ -4,6 +4,7 @@ from spad_lib.spad512utils import *
 from utils.file_utils import *
 from plot_scripts.plot_utils import *
 from utils.global_constants import *
+from utils.tof_utils import calculate_tof_domain_params
 
 # -----------------------------------------------------------------------------
 # CONFIG

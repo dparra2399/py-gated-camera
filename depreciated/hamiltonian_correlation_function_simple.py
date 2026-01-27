@@ -215,7 +215,6 @@ if __name__ == "__main__":
         plot_correlation_functions(
             point_list,
             correlations,
-            coding_matrix,
             SMOOTH_SIGMA,
             SMOOTH_CORRELATIONS,
         )

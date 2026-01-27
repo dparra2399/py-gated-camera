@@ -1,8 +1,10 @@
 import os
+
 import numpy as np
 from PIL import Image
-from dataclasses import dataclass
-
+from dataclasses import dataclass, fields, asdict, is_dataclass
+from typing import Optional, get_origin, get_args, Union
+import argparse
 
 def get_data_folder(data_folder_mac, data_folder_linux) -> str:
     if os.path.exists(data_folder_mac):
@@ -27,10 +29,6 @@ def filter_npz_files(npz_files, k_list):
             filtered.append(f)
     return filtered
 
-
-def load_correlations_file(path: str):
-    f = np.load(path)
-    return f["correlations"], int(f["n_tbins"])
 
 def get_scheme_name(path: str, K: int) -> str:
     if 'coarse' in path:
@@ -102,96 +100,85 @@ def save_capture_data(
 
 
 
-def save_correlation_data(
-    save_path,
-    save_name,
-    total_time,
-    im_width,
-    bit_depth,
-    n_tbins,
-    iterations,
-    overlap,
-    timeout,
-    pileup,
-    gate_steps,
-    gate_step_arbitrary,
-    gate_step_size,
-    gate_direction,
-    gate_trig,
-    freq,
-    voltage,
-    size,
-    gate_width,
-    K,
-    correlations,
-):
-    """Save SPAD capture data and metadata to a .npz file."""
+def save_correlation_data(save_path, cfg, correlations):
+    save_name = f'{cfg.capture_type}k{cfg.k}_{cfg.rep_rate * 1e-6:.0f}mhz_{cfg.amplitude * 1000:.0f}mV_{cfg.current:.0f}mA_{cfg.duty:.0f}duty_correlations.npz'
     os.makedirs(save_path, exist_ok=True)
-    np.savez(
-        os.path.join(save_path, save_name),
-        total_time=total_time,
-        im_width=im_width,
-        bitDepth=bit_depth,
-        n_tbins=n_tbins,
-        iterations=iterations,
-        overlap=overlap,
-        timeout=timeout,
-        pileup=pileup,
-        gate_steps=gate_steps,
-        gate_step_arbitrary=gate_step_arbitrary,
-        gate_step_size=gate_step_size,
-        gate_direction=gate_direction,
-        gate_trig=gate_trig,
-        freq=freq,
-        voltage=voltage,
-        size=size,
-        gate_width=gate_width,
-        K=K,
-        correlations=correlations,
-    )
-    print(f"✅ Saved correlation data to {os.path.join(save_path, save_name)}.npz")
+    cfg_dict = asdict(cfg) if is_dataclass(cfg) else dict(cfg)
+    out_file = os.path.join(save_path, save_name)
+    np.savez(out_file, correlations=correlations, cfg=cfg_dict)
+    print(f"✅ Saved correlation data to {out_file}.npz")
+
 
 @dataclass
 class Config:
-    # Camera Parameters
-    im_width: int          # image width
-    bit_depth: int         # sensor bit depth
+    # Camera
+    im_width: Optional[int] = None
+    bit_depth: Optional[int] = None
 
-    # Capture Parameters
-    int_time: int          # integration time
-    k: int                 # number of time bins
-    shift: int             # shift in picoseconds
-    gate_shrinkage: int    # gate shrinkage in ns
-    capture_type: str      # capture coding type (e.g., 'ham', 'gray', etc.)
+    # Capture
+    int_time: Optional[int] = None
+    burst_time: Optional[int] = None
+    k: Optional[int] = None
+    shift: Optional[int] = None
+    gate_shrinkage: Optional[int] = None
+    capture_type: Optional[str] = None
 
-    # Illumination Parameters
-    voltage: float         # laser drive voltage (Vpp)
-    duty: int              # duty cycle percentage
-    rep_rate: int          # repetition rate (Hz)
-    illum_type: str        # waveform type ('square', 'sine', etc.)
+    # Illumination
+    amplitude: Optional[float] = None
+    current: Optional[float] = None
+    edge: Optional[float] = None
+    duty: Optional[int] = None
+    rep_rate: Optional[float] = None
+    illum_type: Optional[str] = None
 
-    # Plot Parameters
-    plot_correlations: bool   # enable correlation plotting
+    # Plot
+    plot_correlations: Optional[bool] = None
 
-    # Save Parameters
-    save_into_file: bool   # save captured data to disk
-    save_path: str         # output directory / filename
+    # Save
+    save_into_file: Optional[bool] = None
+    save_path: Optional[str] = None
 
+    # Parameters from previous parameters
+    n_tbins: Optional[int] = None
+    rep_tau: Optional[float] = None
 
-    # Non-Editable / Control Parameters
-    iterations: int            # number of capture iterations
-    overlap: int               # gate overlap amount
-    timeout: int               # hardware timeout
-    pileup: int                # enable/disable pileup mitigation
+    # Non-editable / control
+    iterations: Optional[int] = None
+    overlap: Optional[int] = None
+    timeout: Optional[int] = None
+    pileup: Optional[int] = None
+    gate_steps: Optional[int] = None
+    gate_step_arbitrary: Optional[int] = None
+    gate_step_size: Optional[int] = None
+    gate_direction: Optional[int] = None
+    gate_trig: Optional[int] = None
 
-    gate_steps: int            # number of discrete gate steps
-    gate_step_arbitrary: int   # use arbitrary stepping mode
-    gate_step_size: int        # step size between gates
-    gate_direction: int        # scan direction (+1 or -1)
-    gate_trig: int             # trigger mode for gate stepping
 
 
 def str2bool(v):
     if isinstance(v, bool):
         return v
     return v.lower() in ("true", "1", "yes", "y")
+
+def _base_type(annot):
+    """
+    Optional[int] -> int, Optional[float] -> float, etc.
+    """
+    origin = get_origin(annot)
+    if origin is Union:
+        args = [a for a in get_args(annot) if a is not type(None)]
+        return args[0] if len(args) == 1 else annot
+    return annot
+
+def build_parser_from_config(config_cls, *, bool_parser=str2bool) -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Correlation function capture")
+
+    for f in fields(config_cls):
+        t = _base_type(f.type)
+
+        # argparse can't handle type=bool correctly, so use str2bool
+        arg_type = bool_parser if t is bool else t
+
+        parser.add_argument(f"--{f.name}", type=arg_type, default=None)
+
+    return parser

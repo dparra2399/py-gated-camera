@@ -139,13 +139,11 @@ def plot_sample_points_simple(
 def plot_correlation_functions(
         point_list: list,
         correlations: np.ndarray,
-        coding_matrix: np.ndarray,
-        smooth_sigma: float,
-        smooth_correlations: bool = False,
         n_tbins = None,
+        smooth_sigma: float = None,
 ):
     average_correlation = np.transpose(np.mean(np.mean(correlations[20:-20, 20:correlations.shape[1]//2, :], axis=0), axis=0))
-    if smooth_correlations:
+    if smooth_sigma is not None:
         average_correlation = gaussian_filter1d(average_correlation, sigma=smooth_sigma, axis=0)
 
     if n_tbins is not None:
@@ -159,21 +157,19 @@ def plot_correlation_functions(
         )
         average_correlation = f(np.linspace(0, 1, n_tbins))
 
-    fig, axs = plt.subplots(1, len(point_list)+3, figsize=(15, 8))
+    fig, axs = plt.subplots(1, len(point_list)+2, figsize=(15, 8))
     axs[-1].imshow(np.sum(correlations[:,:,:,0], axis=-1))
     axs[-1].set_title('Intensity Image')
 
-    axs[-2].plot(coding_matrix)
-    axs[-2].set_title('Corrfs \n (APD Signal)')
-    axs[-3].plot(average_correlation)
-    axs[-3].set_title('Corrfs \n (averaged)')
+    axs[-2].plot(average_correlation)
+    axs[-2].set_title('Corrfs \n (averaged)')
     colors = ['red', 'blue', 'orange', 'green', 'purple', 'brown']
     correlations_tmp = correlations.swapaxes(-1, -2)
-    if smooth_correlations:
+    if smooth_sigma is not None:
         correlations_tmp = gaussian_filter(correlations_tmp, sigma=(1, 1, 1, 0))
     for i, item in enumerate(point_list):
         x, y = item
-        if smooth_correlations:
+        if smooth_sigma is not None:
             corr_func = gaussian_filter1d(correlations_tmp[y, x, :, :], sigma=smooth_sigma, axis=0)
         else:
             corr_func = correlations_tmp[y, x, :, :]

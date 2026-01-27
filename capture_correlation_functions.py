@@ -1,13 +1,14 @@
 #Standard imports
 import os
 import numpy as np
-import argparse
+import time
 
 #Library imports
 from utils.global_constants import *
-from utils.file_utils import str2bool, Config
-from spad_lib.spad512utils import set_up_spad512
-
+from utils.file_utils import Config, build_parser_from_config, save_correlation_data
+from spad_lib.spad512utils import set_up_spad512, get_gate_shifts, correlation_capture
+from utils.instrument_utils import SDG5162_GATED_PROJECT, NIDAQ_LDC220
+from plot_scripts.plot_utils import plot_correlation_functions
 ##### Editable parameters (defaults; can be overridden via CLI)  #####
 
 # Camera Parameters
@@ -20,13 +21,15 @@ BURST_TIME = 480
 K = 3  # number of time bins
 SHIFT = 2500  #50  # shift in picoseconds
 GATE_SHRINKAGE = 25 #In NS
-CAPTURE_TYPE = 'ham'
+CAPTURE_TYPE = 'coarse'
 
 # Illumination Parameters:
-VOLTAGE = 8.5 #in Vpp
-DUTY = 20 # In percentage
+AMPLITUDE = 8.5 #in Vpp
+CURRENT = 55 #in mA
+EDGE = 6 * 1e5 #Edge rate for square wave
+DUTY = 32 # In percentage
 REP_RATE = 5 * 1e6 #in HZ
-ILLUM_TYPE = 'square'
+ILLUM_TYPE = 'gaussian'
 
 #Plot Parameters
 PLOT_CORRELATIONS = True
@@ -48,47 +51,84 @@ GATE_DIRECTION = 1
 GATE_TRIG = 0
 
 
+
 if __name__ == "__main__":
-    # --- CLI overrides (hybrid approach) ---
-    parser = argparse.ArgumentParser(description="Correlation function capture")
-    parser.add_argument("--int_time", type=int, default=INT_TIME)
-    parser.add_argument("--burst_time", type=int, default=BURST_TIME)
-
-    parser.add_argument("--k", type=int, default=K)
-    parser.add_argument("--im_width", type=int, default=IM_WIDTH)
-    parser.add_argument("--bit_depth", type=int, default=BIT_DEPTH)
-    parser.add_argument("--shift", type=int, default=SHIFT)
-    parser.add_argument("--voltage", type=float, default=VOLTAGE)
-    parser.add_argument("--duty", type=int, default=DUTY)
-    parser.add_argument("--rep_rate", type=int, default=REP_RATE)
-    parser.add_argument("--save_into_file", type=str2bool, default=SAVE_INTO_FILE)
-    parser.add_argument("--save_path", type=str, default=SAVE_PATH)
-    parser.add_argument("--plot_correlations",type=str2bool, default=PLOT_CORRELATIONS)
-    parser.add_argument("--gate_shrinkage", type=int, default=GATE_SHRINKAGE)
-    parser.add_argument("--capture_type", type=str, default=CAPTURE_TYPE)
-    parser.add_argument("--illum_type", type=str, default=ILLUM_TYPE)
-
-    ##### Added as command line but do not modify already gave good constraints.
-    parser.add_argument("--iterations", type=int, default=ITERATIONS)
-    parser.add_argument("--overlap", type=int, default=OVERLAP)
-    parser.add_argument("--timeout", type=int, default=TIMEOUT)
-    parser.add_argument("--pileup", type=int, default=PILEUP)
-    parser.add_argument("--gate_steps", type=int, default=GATE_STEPS)
-    parser.add_argument("--gate_step_arbitrary", type=int, default=GATE_STEP_ARBITRARY)
-    parser.add_argument("--gate_step_size", type=int, default=GATE_STEP_SIZE)
-    parser.add_argument("--gate_direction", type=int, default=GATE_DIRECTION)
-    parser.add_argument("--gate_trig", type=int, default=GATE_TRIG)
-
-
+    parser = build_parser_from_config(Config)
     args = parser.parse_args()
+
+    def apply_defaults(cfg: Config) -> Config:
+        # Only fill values that are still None
+        defaults = dict(
+            im_width=IM_WIDTH,
+            bit_depth=BIT_DEPTH,
+            int_time=INT_TIME,
+            burst_time=BURST_TIME,
+            k=K,
+            shift=SHIFT,
+            gate_shrinkage=GATE_SHRINKAGE,
+            capture_type=CAPTURE_TYPE,
+            amplitude=AMPLITUDE,
+            current=CURRENT,
+            edge=EDGE,
+            duty=DUTY,
+            rep_rate=REP_RATE,
+            illum_type=ILLUM_TYPE,
+            plot_correlations=PLOT_CORRELATIONS,
+            save_into_file=SAVE_INTO_FILE,
+            save_path=SAVE_PATH,
+            iterations=ITERATIONS,
+            overlap=OVERLAP,
+            timeout=TIMEOUT,
+            pileup=PILEUP,
+            gate_steps=GATE_STEPS,
+            gate_step_arbitrary=GATE_STEP_ARBITRARY,
+            gate_step_size=GATE_STEP_SIZE,
+            gate_direction=GATE_DIRECTION,
+            gate_trig=GATE_TRIG,
+        )
+
+        for k, v in defaults.items():
+            if getattr(cfg, k) is None:
+                setattr(cfg, k, v)
+        setattr(cfg, 'rep_tau', (1/cfg.rep_rate))
+        setattr(cfg, 'n_tbins', int((cfg.rep_tau*1e12) // cfg.shift))
+        return cfg
+
     cfg = Config(**vars(args))
+    cfg = apply_defaults(cfg)
 
     SPAD1 = set_up_spad512()
 
+    sdg = SDG5162_GATED_PROJECT(
+        usb_port="USB0::0xF4ED::0xEE3A::SDG050D2150058::INSTR"
+    )
+
+    ldc220 = NIDAQ_LDC220()
+    ldc220.set_current(0)
 
 
+    sdg.set_waveform_and_trigger(cfg.illum_type, cfg.duty, cfg.rep_rate, cfg.amplitude, cfg.edge)
+    sdg.turn_both_channels_on()
 
+    ldc220.set_current(cfg.current)
 
+    gate_widths, gate_starts = get_gate_shifts(cfg.capture_type, cfg.rep_rate, cfg.k)
+
+    time.sleep(20)
+    correlations = correlation_capture(SPAD1, gate_starts=gate_starts, gate_widths=gate_widths, cfg=cfg)
+
+    ldc220.set_current(0)
+    sdg.turn_both_channels_off()
+
+    if cfg.plot_correlations:
+        point_list = [(10, 10), (200, 200), (50, 200)]
+        plot_correlation_functions(
+            point_list,
+            correlations
+        )
+
+    if cfg.save_into_file:
+        save_correlation_data(save_path=cfg.save_path, cfg=cfg, correlations=correlations)
 
 
 
