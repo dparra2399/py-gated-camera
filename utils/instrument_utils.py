@@ -73,7 +73,7 @@ class NIDAQ_LDC220:
     ):
         self.Imax = Imax
         self.zero_set = zero_set
-        self.max_amps = 75
+        self.max_amps = max_amps
 
     def set_voltage(self, volts):
         volts = max(0, volts)
@@ -153,11 +153,17 @@ class SDG5162_GATED_PROJECT:
         self.sdg.write(f"C1:BSWV WVTP,SQUARE")
         self.sdg.write(f"C1:BSWV AMP,{amplitude}")
         self.sdg.write(f"C1:BSWV DUTY,{duty}")
+        self.sdg.write(f"C1:BSWV FRQ,{rep_rate}")
+        self.sdg.write("C1:OUTP PLRT,INVT")
+
+    def set_pulse(self, duty, rep_rate, amplitude, edge):
+        self.sdg.write(f"C1:BSWV WVTP,PULSE")
+        self.sdg.write(f"C1:BSWV AMP,{amplitude}")
+        self.sdg.write(f"C1:BSWV DUTY,{duty}")
         self.sdg.write(f"C1:BSWV RISE,{edge}")
         self.sdg.write(f"C1:BSWV FALL,{edge}")
         self.sdg.write(f"C1:BSWV FRQ,{rep_rate}")
         self.sdg.write("C1:OUTP PLRT,INVT")
-
 
 
     def turn_channel_on(self, channel):
@@ -197,3 +203,6 @@ class SDG5162_GATED_PROJECT:
     def set_waveform_and_trigger(self, type, duty, rep_rate, amplitude, edge):
         self.set_waveform(type, duty, rep_rate, amplitude, edge)
         self.set_trigger(rep_rate)
+
+# ldc = NIDAQ_LDC220()
+# print(ldc.read_current())

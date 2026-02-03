@@ -3,7 +3,6 @@ import math
 from spad_lib.SPAD512S import SPAD512S
 from utils.global_constants import VEX, PORT
 import sys
-from dataclasses import asdict
 
 
 
@@ -110,35 +109,80 @@ def set_up_spad512(print_info=True):
 
 def burst_capture(
     spad1,
-    im_width, bit_depth,                 # camera
-    int_time, iterations, burst_time,    # timing
-    n_tbins, shift,                      # histogram
-    gate_step_arbitrary, gate_width, gate_start,
-    gate_direction, gate_trig, overlap, pileup   # gating
+    bit_depth, int_time, burst_time, iterations, gate_steps, gate_step_size,
+    gate_step_arbitrary, gate_width, gate_offset,
+    gate_direction, gate_trig, overlap, pileup, im_width, timeout
 ):
-    counts = np.zeros((im_width, im_width, n_tbins))
+    counts = np.zeros((im_width, im_width, gate_steps))
     current_inttime = int_time
 
     while current_inttime > burst_time:
         counts += spad1.get_gated_intensity(
-            bit_depth, burst_time, iterations, n_tbins, shift,
-            gate_step_arbitrary, gate_width, gate_start,
-            gate_direction, gate_trig, overlap, 1, pileup, im_width, True
+            bit_depth, burst_time, iterations, gate_steps, gate_step_size,
+            gate_step_arbitrary, gate_width, gate_offset,
+            gate_direction, gate_trig, overlap, 1, pileup, im_width, timeout
         )
         current_inttime -= burst_time
 
     counts += spad1.get_gated_intensity(
-        bit_depth, current_inttime, iterations, n_tbins, shift,
-        gate_step_arbitrary, gate_width, gate_start,
-        gate_direction, gate_trig, overlap, 1, pileup, im_width, True
+        bit_depth, current_inttime, iterations, gate_steps, gate_step_size,
+        gate_step_arbitrary, gate_width, gate_offset,
+        gate_direction, gate_trig, overlap, 1, pileup, im_width, timeout
     )
 
     return counts
 
 
-def correlation_capture(spad1, gate_starts, gate_widths,  cfg):
-    correlations = np.zeros((cfg.im_width, cfg.im_width, cfg.k, cfg.n_tbins))
-    for i in range(cfg.k):
+
+def depth_map_capture(spad1, gate_starts, gate_widths, k, gate_shrinkage,
+                        bit_depth, int_time, burst_time, iterations, gate_steps, gate_step_size, #SPAD512 Params
+                        gate_step_arbitrary, gate_direction, gate_trig, overlap, pileup, im_width, timeout #SPAD512 Params
+                        ):
+    coded_vals = np.zeros((im_width, im_width, k))
+    for i in range(k):
+
+        print('-------------------------------------------------------')
+        print(f'Starting capture for gated function number {i + 1}')
+        print('-------------------------------------------------------')
+
+        gate_widths_tmp = gate_widths[i]
+        gate_starts_tmp = gate_starts[i]
+
+        counts = np.zeros((im_width, im_width, 1))
+
+        for k in range(len(gate_starts_tmp)):
+            gate_width = gate_widths_tmp[k] - gate_shrinkage
+            gate_start = gate_starts_tmp[k]
+
+
+            #gate_start = max(0, gate_starts_tmp[k] + (0 * i))
+
+
+            print(f'\tGate start: {gate_start}')
+            print(f'\tGate width: {gate_width}')
+
+            counts += burst_capture(spad1,
+                                   bit_depth=bit_depth, int_time=int_time, burst_time=burst_time,
+                                   iterations=iterations, gate_steps=gate_steps, gate_step_size=gate_step_size,
+                                   gate_step_arbitrary=gate_step_arbitrary, gate_width=gate_width,
+                                   gate_offset=gate_start, gate_direction=gate_direction, gate_trig=gate_trig,
+                                   overlap=overlap, pileup=pileup, im_width=im_width, timeout=timeout)
+
+        coded_vals[:, :, i, :] = counts[..., 0]
+
+    print('-------------------------------------------------------')
+    print(f'Ending measurements')
+    print('-------------------------------------------------------')
+
+    return coded_vals
+
+
+def correlation_capture(spad1, gate_starts, gate_widths, k, gate_shrinkage,
+                        bit_depth, int_time, burst_time, iterations, gate_steps, gate_step_size, #SPAD512 Params
+                        gate_step_arbitrary, gate_direction, gate_trig, overlap, pileup, im_width, timeout #SPAD512 Params
+                        ):
+    correlations = np.zeros((im_width, im_width, k, gate_steps))
+    for i in range(k):
 
         print('-------------------------------------------------------')
         print(f'Starting to measure correlations for gated function number {i + 1}')
@@ -147,26 +191,28 @@ def correlation_capture(spad1, gate_starts, gate_widths,  cfg):
         gate_widths_tmp = gate_widths[i]
         gate_starts_tmp = gate_starts[i]
 
-        counts = np.zeros((cfg.im_width, cfg.im_width, cfg.n_tbins))
+        counts = np.zeros((im_width, im_width, gate_steps))
 
         for k in range(len(gate_starts_tmp)):
-            gate_width = gate_widths_tmp[k] - cfg.gate_shrinkage
-            gate_start_helper = gate_starts_tmp[k]
+            gate_width = gate_widths_tmp[k] - gate_shrinkage
+            gate_start = gate_starts_tmp[k]
 
 
-            gate_start = max(0, gate_starts_tmp[k] + (0 * i))
+            #gate_start = max(0, gate_starts_tmp[k] + (0 * i))
 
 
             print(f'\tGate start: {gate_start}')
             print(f'\tGate width: {gate_width}')
 
-            needed = {k: v for k, v in asdict(cfg).items() if k in burst_capture.__code__.co_varnames}
-            needed['gate_width'] = gate_width
-            needed['gate_start'] = gate_start
-            counts = burst_capture(spad1, **needed)
+            counts += burst_capture(spad1,
+                                   bit_depth=bit_depth, int_time=int_time, burst_time=burst_time,
+                                   iterations=iterations, gate_steps=gate_steps, gate_step_size=gate_step_size,
+                                   gate_step_arbitrary=gate_step_arbitrary, gate_width=gate_width,
+                                   gate_offset=gate_start, gate_direction=gate_direction, gate_trig=gate_trig,
+                                   overlap=overlap, pileup=pileup, im_width=im_width, timeout=timeout)
 
-        correlations[:, :, i, :] += counts
-    correlations = np.flip(correlations, axis=-1)
+        correlations[:, :, i, :] = counts
+    #correlations = np.flip(correlations, axis=-1)
 
     print('-------------------------------------------------------')
     print(f'Ending correlation measurements')

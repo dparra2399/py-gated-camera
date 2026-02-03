@@ -180,39 +180,15 @@ def plot_correlation_functions(
 
 
 def plot_correlation_comparison(
-        correlations: np.ndarray,
+        measured_coding_matrix: np.ndarray,
         coding_matrix: np.ndarray,
-        smooth_sigma: float,
-        smooth_correlations: bool = False,
-        n_tbins = None,
-        shift = None,
 ):
-    average_correlation = np.transpose(np.mean(np.mean(correlations[:, :correlations.shape[1] // 2, :], axis=0), axis=0))
-    if smooth_correlations:
-        average_correlation = gaussian_filter1d(average_correlation, sigma=smooth_sigma, axis=0)
-
-
-    if n_tbins is not None:
-        original_len = average_correlation.shape[0]
-        f = interp1d(
-            np.linspace(0, 1, original_len),
-            average_correlation,
-            kind='cubic',
-            axis=0,
-            fill_value='extrapolate'
-        )
-        average_correlation = f(np.linspace(0, 1, n_tbins))
-
-    if shift is not None:
-        average_correlation = np.roll(average_correlation, shift)
-
-    average_correlation[:, 1] = np.roll(average_correlation[:, 1], 15)
-    #average_correlation[:, 0] = np.roll(average_correlation[:, 0], 30)
 
     zero_mean_coding_matrix = coding_matrix - np.mean(coding_matrix, axis=0, keepdims=True)
     zero_mean_coding_matrix /=  np.max(np.abs(zero_mean_coding_matrix), axis=0, keepdims=True)
-    zero_mean_correlations = average_correlation - np.mean(average_correlation, axis=0, keepdims=True)
+    zero_mean_correlations = measured_coding_matrix - np.mean(measured_coding_matrix, axis=0, keepdims=True)
     zero_mean_correlations /= np.max(np.abs(zero_mean_correlations), axis=0, keepdims=True)
+
 
     fig, axs = plt.subplots(1, 1, figsize=(8, 4))
     axs.plot(zero_mean_correlations, label='Measured')
@@ -220,3 +196,17 @@ def plot_correlation_comparison(
     axs.set_title('Measured vs. Ideal Gate Profiles (Correlations)')
     axs.legend()
     plt.show()
+
+import numpy as np
+
+def align_phase(ref, sig):
+    # cross correlation
+    corr = np.correlate(sig, ref, mode='full')
+
+    # lag of max correlation
+    lag = np.argmax(corr) - (len(ref) - 1)
+
+    # shift
+    shifted = np.roll(sig, -lag)
+
+    return shifted, lag
