@@ -168,7 +168,7 @@ def depth_map_capture(spad1, gate_starts, gate_widths, k, gate_shrinkage,
                                    gate_offset=gate_start, gate_direction=gate_direction, gate_trig=gate_trig,
                                    overlap=overlap, pileup=pileup, im_width=im_width, timeout=timeout)
 
-        coded_vals[:, :, i, :] = counts[..., 0]
+        coded_vals[:, :, i] = counts[..., 0]
 
     print('-------------------------------------------------------')
     print(f'Ending measurements')

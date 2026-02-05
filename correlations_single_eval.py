@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 from felipe_utils import tof_utils_felipe
 from utils.global_constants import *
-from utils.file_utils import get_data_folder, make_correlation_filename
+from utils.file_utils import get_data_folder, make_correlation_filename, corr_parse_run
 from utils.tof_utils import (
     build_coding_matrix_from_correlations,
     decode_from_correlations,
@@ -33,22 +33,10 @@ ham,3,5,100,50,10
 """
 
 DEFAULT_RUNS = [
-    "ham,3,5, 5000,50,20",
-    "coarse,3,5, 5000,50,30",
+    "ham,3,5, 2000,70,20",
+    "coarse,3,5, 2000,70,30",
 ]
 
-
-def parse_run(s: str):
-    cap, k, f, mv, ma, duty = s.split(",")
-
-    return dict(
-        capture_type=cap,
-        k=int(k),
-        freq_mhz=float(f),
-        mV=float(mv),
-        mA=float(ma),
-        duty=float(duty),
-    )
 
 
 def parse_args():
@@ -58,7 +46,7 @@ def parse_args():
     p.add_argument(
         "--run",
         action="append",
-        type=parse_run,
+        type=corr_parse_run,
         help="run spec: capture_type,k,freq_mhz,mV,mA,duty",
     )
 
@@ -76,7 +64,7 @@ def parse_args():
 
     # if no runs given, use defaults
     if args.run is None:
-        args.run = [parse_run(r) for r in DEFAULT_RUNS]
+        args.run = [corr_parse_run(r) for r in DEFAULT_RUNS]
 
     return args
 
@@ -137,7 +125,7 @@ if __name__ == "__main__":
                 coding_matrix[..., 0] = np.roll(coding_matrix[..., 0], 10)
 
 
-        coding_matrix /= np.max(np.abs(coding_matrix), axis=0, keepdims=True)
+        #coding_matrix /= np.max(np.abs(coding_matrix), axis=0, keepdims=True)
 
         decoded_depths = decode_from_correlations(
             coding_matrix=coding_matrix,
@@ -160,6 +148,7 @@ if __name__ == "__main__":
             name=name,
         )
 
+    all_coding_matrix = np.stack([result['coding_matrix'] for result in results_dict.values()])
     fig, axs = plt.subplots(len(results_dict), 3, figsize=(13, 4 * len(results_dict)), squeeze=False)
 
     for i, filename in enumerate(results_dict):
@@ -172,6 +161,7 @@ if __name__ == "__main__":
         axs[i, 0].imshow(np.repeat(np.transpose(coding_matrix), 100, axis=0), aspect='auto')
         axs[i, 0].set_title(name + ' Coding Matrix')
         axs[i, 1].plot(coding_matrix)
+        axs[i, 1].set_ylim(0, np.max(all_coding_matrix))
         axs[i, 1].set_title(name + ' Coding Matrix')
         if i < len(results_dict) - 2:
             axs[i, 2].set_axis_off()

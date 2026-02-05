@@ -1,5 +1,5 @@
 import pyvisa
-from utils.instrument_utils import *
+from instrument_utils import *
 import numpy as np
 import time
 import matplotlib.pyplot as plt
@@ -14,6 +14,8 @@ pm = Instrument(
     usb_port="USB0::0x1313::0x8078::P0012224::INSTR"
 )
 
+ni_daq = NIDAQ_LDC220(90)
+
 pm.write("CONF:POW")
 pm.write(f"SENS:CORR:WAV {wavelength}")   # set wavelength (nm)
 pm.write("SENS:POW:RANG:AUTO ON")
@@ -25,9 +27,9 @@ for idx, current in enumerate(current_arr):
     average_current = 0
     average_power = 0
     for i in range(num_measurements):
-        set_current(current)
+        ni_daq.set_current(current)
         time.sleep(5)
-        read_current = read_current_zero()
+        read_current = ni_daq.read_current_zero()
 
         print(f'read current: {read_current}')
 
@@ -45,7 +47,7 @@ for idx, current in enumerate(current_arr):
     power_current[0, idx] = average_current
     power_current[1, idx] = average_power
 
-set_current(0) #Shut off laser after!
+ni_daq.set_current(0) #Shut off laser after!
 
 fig, ax = plt.subplots()
 

@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.interpolate import interp1d
-from scipy.ndimage import gaussian_filter, gaussian_filter1d
+from scipy.ndimage import gaussian_filter, gaussian_filter1d, median_filter
 from felipe_utils.tof_utils_felipe import zero_norm_t
 from utils.global_constants import EPILSON, SPEED_OF_LIGHT
 from felipe_utils import tof_utils_felipe
@@ -160,6 +160,10 @@ def decode_from_correlations(
 
     return decoded_depth
 
-
+def filter_hot_pixels(depth_map: np.ndarray,
+                      hot_mask: np.ndarray) -> np.ndarray:
+    filtered = median_filter(depth_map, size=3, mode="nearest")
+    depth_map[hot_mask == 1] = filtered[hot_mask == 1]
+    return depth_map
 
 

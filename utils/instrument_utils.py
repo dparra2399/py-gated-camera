@@ -204,5 +204,6 @@ class SDG5162_GATED_PROJECT:
         self.set_waveform(type, duty, rep_rate, amplitude, edge)
         self.set_trigger(rep_rate)
 
-# ldc = NIDAQ_LDC220()
-# print(ldc.read_current())
+ldc = NIDAQ_LDC220()
+ldc.set_current(0)
+print(ldc.read_current())

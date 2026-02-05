@@ -197,16 +197,60 @@ def plot_correlation_comparison(
     axs.legend()
     plt.show()
 
-import numpy as np
+def plot_capture_comparison(depths_maps_dict, x=20, y=20, width=220, height=320,
+                            vmin=None, vmax=None, normalize_depth_maps=False,
+                            median_filter_size=3):
+    fig = plt.figure(figsize=(6, 4))
+    gs = gridspec.GridSpec(len(depths_maps_dict), 4, height_ratios=[1] * len(depths_maps_dict))
 
-def align_phase(ref, sig):
-    # cross correlation
-    corr = np.correlate(sig, ref, mode='full')
+    for i, coded_vals_path in enumerate(depths_maps_dict):
+        inner_dict = depths_maps_dict[coded_vals_path]
 
-    # lag of max correlation
-    lag = np.argmax(corr) - (len(ref) - 1)
+        depth_map = inner_dict['depth_map']
+        gt_depth_map = inner_dict['gt_depth_map']
+        name = inner_dict['capture_type']
 
-    # shift
-    shifted = np.roll(sig, -lag)
+        depth_map_plot = depth_map - np.mean(depth_map) if normalize_depth_maps else np.copy(depth_map)
 
-    return shifted, lag
+
+        patch = depth_map_plot[y: y + height, x: x + width]
+
+        # full map ---------------------------------------------------------
+        ax = fig.add_subplot(gs[i, 0])
+        im = ax.imshow(
+            median_filter(depth_map_plot, size=median_filter_size), vmin=vmin, vmax=vmax
+        )
+        fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04, label="Depth (meters)")
+        ax.set_title(name)
+        rect = patches.Rectangle((x, y), width, height, linewidth=2, edgecolor="lime", facecolor="none")
+        ax.add_patch(rect)
+
+        # close-up ---------------------------------------------------------
+        ax2 = fig.add_subplot(gs[i, 1])
+        im2 = ax2.imshow(
+            median_filter(patch, size=median_filter_size), vmin=vmin, vmax=vmax
+        )
+        fig.colorbar(im2, ax=ax2, fraction=0.046, pad=0.04, label="Depth (meters)")
+        ax2.set_title("Close-Up")
+
+        # GT / error -------------------------------------------------------
+        ax3 = fig.add_subplot(gs[i, 2])
+        im3 = ax3.imshow(
+            median_filter(gt_depth_map, size=median_filter_size), vmin=vmin, vmax=vmax
+        )
+        fig.colorbar(im3, ax=ax3, fraction=0.046, pad=0.04, label="Ground Truth")
+        ax3.set_title("Ground Truth")
+        ax3.set_xlabel(f"MAE: {inner_dict['mae'] * 1000: .3f} mm\nRMSE: {inner_dict['rmse'] * 1000: .3f} mm")
+
+        # Error map -------------------------------------------------------
+        ax4 = fig.add_subplot(gs[i, 3])
+        error_map = np.abs(depth_map - gt_depth_map)
+        im4 = ax4.imshow(error_map, vmin=0, vmax=0.5)
+        fig.colorbar(im4, ax=ax4, fraction=0.046, pad=0.04, label="Absolute Error (m)")
+        ax4.set_title("Error Map")
+
+    fig.subplots_adjust(left=0.05, right=0.98, top=0.97, bottom=0.05, wspace=0.05, hspace=0.05)
+    plt.tight_layout(pad=0.2, w_pad=0.2, h_pad=0.2)
+    plt.show()
+
+

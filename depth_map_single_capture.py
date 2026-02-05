@@ -1,9 +1,11 @@
 #Standard imports
+import os
+import numpy as np
 import time
 
 #Library imports
 from utils.global_constants import *
-from utils.file_utils import build_parser_from_config, save_capture_and_gt_data
+from utils.file_utils import build_parser_from_config, save_capture_data
 from utils.parameter_classes import  Config
 from spad_lib.spad512utils import set_up_spad512, get_gate_shifts, depth_map_capture
 from utils.instrument_utils import SDG5162_GATED_PROJECT, NIDAQ_LDC220
@@ -15,26 +17,26 @@ IM_WIDTH = 512  # image width
 BIT_DEPTH = 12
 
 # Capture parameters
-INT_TIME = 1000  # integration time
-GROUND_TRUTH_INT_TIME = 200_000
-BURST_TIME = 4800 #Maxiumum burst time is 4800 ms
+INT_TIME = 900  # integration time
+BURST_TIME = 480
 K = 3  # number of time bins
 
-GATE_SHRINKAGE = 10 #In NS
-CAPTURE_TYPE = 'coarse'
+GATE_SHRINKAGE = 20 #In NS
+CAPTURE_TYPE = 'ham'
 
 # Illumination Parameters:
 AMPLITUDE = 5.0 #in Vpp
 CURRENT = 50 #in mA
 EDGE = 6 * 1e-9 #Edge rate for pulse wave
-DUTY = 30 # In percentage
+DUTY = 20 # In percentage
 REP_RATE = 5 * 1e6 #in HZ
-ILLUM_TYPE = 'gaussian'
+ILLUM_TYPE = 'square'
 
 # Save Parameters
 SAVE_INTO_FILE = True
 SAVE_PATH = SAVE_PATH_CAPTURE
-EXP_PATH = 'exp_0'
+GROUND_TRUTH = False
+
 
 ###### Non-Editable Parameters #####
 ITERATIONS = 1
@@ -59,7 +61,6 @@ if __name__ == "__main__":
             im_width=IM_WIDTH,
             bit_depth=BIT_DEPTH,
             int_time=INT_TIME,
-            ground_truth_int_time=GROUND_TRUTH_INT_TIME,
             burst_time=BURST_TIME,
             k=K,
             gate_shrinkage=GATE_SHRINKAGE,
@@ -72,7 +73,7 @@ if __name__ == "__main__":
             illum_type=ILLUM_TYPE,
             save_into_file=SAVE_INTO_FILE,
             save_path=SAVE_PATH,
-            exp_path=EXP_PATH,
+            ground_truth=GROUND_TRUTH,
             iterations=ITERATIONS,
             overlap=OVERLAP,
             timeout=TIMEOUT,
@@ -110,19 +111,14 @@ if __name__ == "__main__":
     gate_widths, gate_starts = get_gate_shifts(cfg.capture_type, cfg.rep_rate, cfg.k)
 
     time.sleep(20)
-
     needed = {k: v for k, v in asdict(cfg).items() if k in depth_map_capture.__code__.co_varnames}
     coded_vals = depth_map_capture(SPAD1, gate_starts=gate_starts, gate_widths=gate_widths, **needed)
-
-    needed['int_time'] = cfg.ground_truth_int_time
-    gt_coded_vals = depth_map_capture(SPAD1, gate_starts=gate_starts, gate_widths=gate_widths, **needed)
 
     ldc220.set_current(0)
     sdg.turn_both_channels_off()
 
     if cfg.save_into_file:
-        save_capture_and_gt_data(save_path=cfg.save_path, cfg_dict=asdict(cfg),
-                                 coded_vals=coded_vals, gt_coded_vals=gt_coded_vals)
+        save_capture_data(save_path=cfg.save_path, cfg_dict=asdict(cfg), coded_vals=coded_vals)
 
 
 

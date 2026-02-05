@@ -5,8 +5,8 @@ import subprocess
 amps = np.arange(0.5, 5.1, 1.0)
 currs = np.arange(50, 81, 10)
 
-amps = [9.0]
-currs = [50]
+amps = [2.0]
+currs = [70]
 
 BASE = [
     "python", "correlations_single_capture.py",

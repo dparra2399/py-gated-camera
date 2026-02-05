@@ -22,14 +22,14 @@ TRIALS = 100
 N_TBINS = 1998
 SMOOTH_SIGMA = None
 SHIFT = None
-DEPTH_MARGIN = 200
+DEPTH_MARGIN = 100
 SIMULATED_CORRELATIONS = False
 
 #Capture types to test
 DEFAULT_CAPTURE_TYPES = ["ham", "coarse"]
-DEFAULT_MA = list( np.arange(50, 80, 10)) #[50, 60, 75, 100]
-DEFAULT_MV = list(np.arange(0.5, 5.1, 1.0) * 1000) # [100, 250, 500, 1000]  # whatever you used in filenames
-DEFAULT_DUTY_LIST = [20, 32]
+DEFAULT_MA = [50, 60, 70]
+DEFAULT_MV = [10000]  # whatever you used in filenames
+DEFAULT_DUTY_LIST = [20, 30]
 DEFAULT_FREQ_MHZ = 5
 DEFAULT_K = 3
 

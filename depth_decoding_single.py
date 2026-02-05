@@ -1,128 +1,126 @@
 from spad_lib.spad512utils import *
 from utils.file_utils import *
 from plot_scripts.plot_utils import *
+from utils.global_constants import *
+from utils.tof_utils import build_coding_matrix_from_correlations, get_simulated_coding_matrix, decode_depth_map, \
+    calculate_tof_domain_params, filter_hot_pixels
 
 # -----------------------------------------------------------------------------
 # CONFIG (capitalized)
 # -----------------------------------------------------------------------------
-PIXEL_PITCH = 16.38 #in uM
-FOCAL_LENGTH = 25 #in mm
-EXP = 3
-K = 8
-DATASET_TYPE = 'coarse'  # was `type`
-
-N_TBINS_DEFAULT = 1500
+EXP_PATH = "exp_0" #Only use if inside folder otherwise none
+N_TBINS = 1500
 VMIN = None
 VMAX = None
 MEDIAN_FILTER_SIZE = 5
 CORRECT_MASTER = False
 MASK_BACKGROUND_PIXELS = True
-USE_CORRELATIONS = True
+SIMULATED_CORRELATIONS = False
 USE_FULL_CORRELATIONS = False
 SIGMA_SIZE = None
 SHIFT_SIZE = 150
 CORRECT_DEPTH_DISTORTION = False
-HAM_TMP_CORRELATIONS = ''
 
 # paths
+"""
+Format:
+capture_type, k , freq_mhz , mV , mA , duty , int_time
 
-TEST_FILE = f'/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/exp{EXP}/{DATASET_TYPE}k{K}_exp{EXP}.npz'
-GT_FILE   = f'/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data/exp{EXP}/{DATASET_TYPE}k{K}_gt_exp{EXP}.npz'
-HOT_MASK_PATH = '/Users/davidparra/PycharmProjects/py-gated-camera/masks/hot_pixels.PNG'
+Example:
+ham,3,5,100,50,10
+"""
+
+DEFAULT_RUNS = [
+    "ham,3,5, 5000,50,20, 200" ,
+]
 
 EPSILON = 1e-12
 
+def parse_args():
+    p = argparse.ArgumentParser(description="Decode captured coded vals using correlations (with sweep-friendly runs)")
+
+    # repeated runs (or defaults)
+    p.add_argument("--run", action="append", type=capture_parse_run,
+                   help="capture_type,k,freq_mhz,mV,mA,duty,int_time (repeatable)")
+
+    # experiment folder selector (your EXP variable)
+    p.add_argument("--exp_path", type=str, default=str(EXP_PATH) if EXP_PATH is not None else None)
+
+    # decode / processing params (CONFIG -> CLI)
+    p.add_argument("--n_tbins", type=int, default=N_TBINS)
+
+    p.add_argument("--vmin", type=float, default=VMIN)
+    p.add_argument("--vmax", type=float, default=VMAX)
+    p.add_argument("--median_filter_size", type=int, default=MEDIAN_FILTER_SIZE)
+
+    p.add_argument("--correct_master", type=str2bool, default=CORRECT_MASTER)
+    p.add_argument("--mask_background_pixels", type=str2bool, default=MASK_BACKGROUND_PIXELS)
+
+    p.add_argument("--simulated_correlations", type=str2bool, default=SIMULATED_CORRELATIONS)
+    p.add_argument("--use_full_correlations", type=str2bool, default=USE_FULL_CORRELATIONS)
+
+    # smoothing/shift for coding matrix build
+    # keep None defaults like your config (so your function can interpret "no smoothing")
+    p.add_argument("--smooth_sigma", type=float, default=SIGMA_SIZE)
+    p.add_argument("--shift", type=int, default=SHIFT_SIZE)
+
+    p.add_argument("--correct_depth_distortion", type=str2bool, default=CORRECT_DEPTH_DISTORTION)
+
+    args = p.parse_args()
+
+    # default runs if user didn't provide any
+    if args.run is None:
+        args.run = [capture_parse_run(r) for r in DEFAULT_RUNS]
+
+    return args
 # -----------------------------------------------------------------------------
 # MAIN
 # -----------------------------------------------------------------------------
 if __name__ == '__main__':
-    hot_mask = load_hot_mask(HOT_MASK_PATH)
+    args = parse_args()
 
-    gt_depth_map = None
-    depth_map = None
-    coded_vals_save = None
-    coding_matrix_save = None
-    coded_vals = None
-    coding_matrix = None
-    mask = None
+    hot_mask = load_hot_mask(get_data_folder(HOT_MASK_PATH_WINDOWS, HOT_MASK_PATH_MAC))
+    correlation_folder = get_data_folder(READ_PATH_CORRELATIONS_MAC, READ_PATH_CORRELATIONS_WINDOWS)
+    capture_folder = get_data_folder(READ_PATH_CAPTURE_MAC, READ_PATH_CAPTURE_WINDOWS)
+    if args.exp_path is not None: capture_folder = os.path.join(capture_folder, args.exp_path)
 
-    for path in [TEST_FILE, GT_FILE]:
+    x1, y1 = (180, 40)
+    x2, y2 = (180, 160)
+    x3, y3 = (180, 330)
+    points = [(x1, y1), (x2, y2), (x3, y3)]
+    colors = ['blue', 'green', 'red', 'orange', 'purple', 'brown']
 
-        try:
-            f = np.load(path)
-        except FileNotFoundError:
-            continue
+    for i, r in enumerate(args.run, 1):
 
-        coded_vals = f["coded_vals"]
-        total_time = f["total_time"]
-        im_width = f["im_width"]
-        freq = float(f["freq"])
-        voltage = f["voltage"]
-        try:
-            size = f["size"]
-        except KeyError:
-            size = f['duty']
-        split_measurements = f["split_measurements"]
+        corr_path = os.path.join(correlation_folder, make_correlation_filename(r['capture_type'], r['k'], r['freq_mhz'],
+                                                            r['mV'], r['mA'],  r['duty']))
 
-        # TOF params -------------------------------------------------------
-        (   rep_tau,
-             rep_freq,
-             tbin_res,
-             t_domain,
-             max_depth,
-             tbin_depth_res,
-         ) = calculate_tof_domain_params(N_TBINS_DEFAULT, 1.0 / freq)
-        mhz = int(freq * 1e-6)
+        coded_vals_path = os.path.join(capture_folder, make_capture_filename(r['capture_type'], r['k'], r['freq_mhz'],
+                                             r['mV'], r['mA'],  r['duty'], r['int_time'], False))
 
-        # -----------------------------------------------------------------
-        # choose coding matrix depending on file type
-        # -----------------------------------------------------------------
-        if USE_CORRELATIONS:
-            if 'coarse' in path:
-                name_tmp = 'coarse'
-                tmp = ''
-            elif 'ham' in path:
-                name_tmp = 'ham'
-                tmp = HAM_TMP_CORRELATIONS
-            else:
-                assert False
-            corr_path = (
-                f"/Users/davidparra/PycharmProjects/py-gated-camera/correlation_functions/"
-                f"{name_tmp}k{coded_vals.shape[-1]}_{mhz}mhz_{voltage}v_{size}w_correlations{tmp}.npz"
-            )
-            correlations_total, n_tbins_corr = load_correlations_file(corr_path)
-            coding_matrix = build_coding_matrix_from_correlations(correlations_total, USE_FULL_CORRELATIONS,
-                                                                  SIGMA_SIZE, SHIFT_SIZE, N_TBINS_DEFAULT)
-        elif "coarse" in path:
-            gate_width = f["gate_width"]
+        gt_coded_vals_path = os.path.join(capture_folder, make_capture_filename(r['capture_type'], r['k'], r['freq_mhz'],
+                                             r['mV'], r['mA'],  r['duty'], r['int_time'], True))
 
-            irf = get_voltage_function(mhz, voltage, size, "pulse", N_TBINS_DEFAULT)
-            coding_matrix = get_coarse_coding_matrix(
-                gate_width * 1e3,
-                coded_vals.shape[-1],
-                0,
-                gate_width * 1e3,
-                rep_tau * 1e12,
-                N_TBINS_DEFAULT,
-                irf,
-            )
+        correlations_total = np.load(corr_path, allow_pickle=True)['correlations']
 
-        elif "ham" in path:
-            if "pulse" in path:
-                illum_type = "pulse"
-            else:
-                illum_type = "square"
-
-            coding_matrix = get_hamiltonain_correlations(
-                coded_vals.shape[-1], mhz, voltage, size, illum_type, n_tbins=N_TBINS_DEFAULT
-            )
+        if args.simulated_correlations:
+            coding_matrix = get_simulated_coding_matrix(r['capture_type'], args.n_tbins, r["k"])
         else:
-            assert False, 'Path needs to be "hamiltonian" or "coarse"'
+            coding_matrix = build_coding_matrix_from_correlations(
+                correlations_total,
+                args.use_full_correlations,
+                args.smooth_sigma,
+                args.shift,
+                args.n_tbins,
+            )
 
-        name = get_scheme_name(path, coded_vals.shape[-1])
-        print(
-            f"{name}\n\tVoltage: {voltage}\n\tSize: {size}\n\tTotal Time: {total_time}\n\tSplit Measurements: {split_measurements}"
-        )
+        capture_file = np.load(coded_vals_path, allow_pickle=True)
+        cfg = capture_file['cfg'].item()
+        coded_vals = capture_file['coded_vals']
+        im_width = cfg['im_width']
+
+        (rep_tau, rep_freq,tbin_res,
+         t_domain,max_depth,tbin_depth_res,)= calculate_tof_domain_params(args.n_tbins, cfg['rep_tau'])
 
         # -----------------------------------------------------------------
         # decode to depth map
@@ -131,99 +129,76 @@ if __name__ == '__main__':
             coded_vals,
             coding_matrix,
             im_width,
-            N_TBINS_DEFAULT,
             tbin_depth_res,
-            USE_CORRELATIONS,
-            USE_FULL_CORRELATIONS,
+            args.use_full_correlations,
         )
 
-        if CORRECT_DEPTH_DISTORTION:
-            fx, fy, cx, cy = intrinsics_from_pixel_pitch(im_width, im_width, FOCAL_LENGTH, PIXEL_PITCH)
 
-        # hot pixel fix
-        filtered = median_filter(depth_map, size=3, mode="nearest")
-        depth_map[hot_mask == 1] = filtered[hot_mask == 1]
+        depth_map = filter_hot_pixels(depth_map, hot_mask)
+
+        coded_vals_filt = np.zeros_like(coded_vals)
+        for i in range(coded_vals.shape[-1]):
+            coded_vals_filt[:, :, i] = filter_hot_pixels(coded_vals[..., i], hot_mask)
 
 
         # optional crop for master
-        if CORRECT_MASTER is False:
+        if args.correct_master is False:
             depth_map = depth_map[:, : im_width // 2]
             coded_vals = coded_vals[:, : im_width // 2]
 
-        if MASK_BACKGROUND_PIXELS:
+        if args.mask_background_pixels:
             depth_map = depth_map[20:450, :]
             mask = None
-        # assign to GT or test map
-        if path == GT_FILE:
-            gt_depth_map = np.copy(depth_map)
-            # if MASK_BACKGROUND_PIXELS:
-            #     mask = cluster_kmeans(np.copy(gt_depth_map), n_clusters=2)
-            #     mask[mask == np.nanmax(mask)] = np.nan
-            #     mask[mask == np.nanmin(mask)] = 1
 
-        else:
-            depth_map = np.copy(depth_map)
-            coded_vals_save = np.copy(coded_vals)
-            coding_matrix_save = np.copy(coding_matrix)
-
-    # apply mask to depth map if requested
-    # if MASK_BACKGROUND_PIXELS and gt_depth_map is not None:
-    #     depth_map *= mask
-    if CORRECT_MASTER is False:
-        hot_mask = hot_mask[:, : im_width // 2]
-    if coded_vals_save is None:
-        coded_vals_save = np.copy(coded_vals)
-        coding_matrix_save = np.copy(coding_matrix)
+        try:
+            coded_vals_gt = np.load(gt_coded_vals_path, allow_pickle=True)['coded_vals']
+            gt_depth_map, zncc = decode_depth_map(
+                coded_vals_gt,
+                coding_matrix,
+                im_width,
+                tbin_depth_res,
+                args.use_full_correlations,
+            )
+            gt_depth_map = filter_hot_pixels(gt_depth_map, hot_mask)
+        except FileNotFoundError:
+            print('Could not find ground truth depth map.')
+            gt_depth_map = None
 
 
-    coded_vals_filt = np.zeros_like(coded_vals_save)
-    for i in range(coded_vals_save.shape[-1]):
-        filt = median_filter(np.copy(coded_vals_save[:, :, i]), size=3, mode='nearest')
-        filt[hot_mask == 1] = filt[hot_mask == 1]
-        coded_vals_filt[:, :, i] = filt
 
 
-    # ------------------------------------------------------------------
-    # Diagnostics plots (coding vs coded at a few points)
-    # ------------------------------------------------------------------
-    # fallbacks if fewer than K points are given
-    x1, y1 = (180, 40)
-    x2, y2 = (180, 160)
-    x3, y3 = (180, 330)
-    points = [(x1, y1), (x2, y2), (x3, y3)]
-    colors = ['blue', 'green', 'red', 'orange', 'purple', 'brown']
+        # ------------------------------------------------------------------
+        # Diagnostics plots (coding vs coded at a few points)
+        # ------------------------------------------------------------------
+        plot_gated_images(
+                coded_vals_filt,
+                depth_map,
+                gt_depth_map,
+                vmin=VMIN,
+                vmax=VMAX,
+                median_filter_size=MEDIAN_FILTER_SIZE,
+        )
 
+        plot_sample_points(
+                coded_vals,
+                coding_matrix,
+                points,
+                depth_map,
+                tbin_depth_res,
+                vmin=args.vmin,
+                vmax=args.vmax,
+                median_filter_size=args.median_filter_size,
+        )
 
-    plot_gated_images(
-            coded_vals_filt,
-            depth_map,
-            gt_depth_map,
-            vmin=VMIN,
-            vmax=VMAX,
-            median_filter_size=MEDIAN_FILTER_SIZE,
-    )
+        plot_sample_points_simple(
+                coded_vals,
+                coding_matrix,
+                points,
+                depth_map,
+                tbin_depth_res,
+                args.use_full_correlations,
+                colors,
+        )
 
-    plot_sample_points(
-            coded_vals_save,
-            coding_matrix_save,
-            points,
-            depth_map,
-            tbin_depth_res,
-            vmin=VMIN,
-            vmax=VMAX,
-            median_filter_size=MEDIAN_FILTER_SIZE,
-    )
-
-    plot_sample_points_simple(
-            coded_vals_save,
-            coding_matrix_save,
-            points,
-            depth_map,
-            tbin_depth_res,
-            USE_FULL_CORRELATIONS,
-            colors,
-    )
-
-    print(f'min depth map: {np.min(depth_map)}, max depth map: {np.max(depth_map)}')
 
 

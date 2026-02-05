@@ -1,5 +1,5 @@
 import os
-
+import re
 import numpy as np
 from PIL import Image
 from dataclasses import fields, asdict, is_dataclass
@@ -30,15 +30,36 @@ def filter_npz_files(npz_files, k_list):
     return filtered
 
 
+def filter_capture_files(npz_files):
+    filtered = []
+    for f in npz_files:
+        base_first = os.path.basename(f)
+        keep = "gt" not in base_first
+        if keep:
+            filtered.append(f)
+    return filtered
+
+
+def save_capture_and_gt_data(save_path, cfg_dict, coded_vals, gt_coded_vals):
+    save_path = os.path.join(save_path, cfg_dict['exp_path']) \
+            if cfg_dict['exp_path'] is not None else make_next_exp_folder(save_path)
+
+    cfg_dict['ground_truth'] = False
+    save_capture_data(save_path=save_path, cfg_dict=cfg_dict, coded_vals=coded_vals)
+    cfg_dict['ground_truth'] = True
+    cfg_dict['int_time'] = cfg_dict['ground_truth_int_time']
+    save_capture_data(save_path=save_path, cfg_dict=cfg_dict, coded_vals=gt_coded_vals)
+
 
 def save_capture_data(save_path, cfg_dict, coded_vals):
 
     save_name = make_capture_filename(cfg_dict['capture_type'],cfg_dict['k'], cfg_dict['rep_rate'] * 1e-6,
-                              cfg_dict['amplitude'] * 1000, cfg_dict['current'],cfg_dict['duty'])
+                              cfg_dict['amplitude'] * 1000, cfg_dict['current'],cfg_dict['duty'],
+                              cfg_dict['int_time'], cfg_dict['ground_truth'])
 
     os.makedirs(save_path, exist_ok=True)
     out_file = os.path.join(save_path, save_name)
-    np.savez(out_file, correlations=coded_vals, cfg=cfg_dict)
+    np.savez(out_file, coded_vals=coded_vals, cfg=cfg_dict)
     print(f"✅ Saved Capture data to {out_file}.npz")
 
 def save_correlation_data(save_path, cfg_dict, correlations):
@@ -64,8 +85,11 @@ def make_filename(capture_type, k, freq_mhz, mV, mA, duty):
 def make_correlation_filename(capture_type, k, freq_mhz, mV, mA, duty):
     return make_filename(capture_type, k, freq_mhz, mV, mA, duty) + '_correlations.npz'
 
-def make_capture_filename(capture_type, k, freq_mhz, mV, mA, duty):
-    return make_filename(capture_type, k, freq_mhz, mV, mA, duty) + '_capture.npz'
+def make_capture_filename(capture_type, k, freq_mhz, mV, mA, duty, int_time, ground_truth):
+    ground_truth_tag = '_gt' if ground_truth else f'_{int_time}ms'
+    return (make_filename(capture_type, k, freq_mhz, mV, mA, duty) +
+            ground_truth_tag +
+            '_capture.npz')
 
 def str2bool(v):
     if isinstance(v, bool):
@@ -94,3 +118,57 @@ def build_parser_from_config(config_cls, *, bool_parser=str2bool) -> argparse.Ar
         parser.add_argument(f"--{f.name}", type=arg_type, default=None)
 
     return parser
+
+
+def corr_parse_run(s: str):
+    cap, k, f, mv, ma, duty = s.split(",")
+    return dict(
+        capture_type=cap,
+        k=int(k),
+        freq_mhz=float(f),
+        mV=float(mv),
+        mA=float(ma),
+        duty=float(duty),
+    )
+
+def capture_parse_run(s: str):
+    cap, k, f, mv, ma, duty, int_time = s.split(",")
+    return dict(
+        capture_type=cap,
+        k=int(k),
+        freq_mhz=float(f),
+        mV=float(mv),
+        mA=float(ma),
+        duty=float(duty),
+        int_time=int(int_time),
+    )
+
+
+def make_next_exp_folder(base_dir, prefix="exp"):
+    """
+    Creates:
+        exp_0, exp_1, exp_2, ...
+
+    Returns the newly created folder path.
+    """
+    os.makedirs(base_dir, exist_ok=True)
+
+    existing = [
+        d for d in os.listdir(base_dir)
+        if os.path.isdir(os.path.join(base_dir, d))
+    ]
+
+    pattern = re.compile(rf"{prefix}_(\d+)$")
+
+    nums = []
+    for d in existing:
+        m = pattern.match(d)
+        if m:
+            nums.append(int(m.group(1)))
+
+    next_idx = 0 if len(nums) == 0 else max(nums) + 1
+
+    new_path = os.path.join(base_dir, f"{prefix}_{next_idx}")
+    os.makedirs(new_path)
+
+    return new_path
