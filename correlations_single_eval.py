@@ -16,11 +16,11 @@ from utils.tof_utils import (
 # =============================
 # Defaults
 # =============================
-PHOTON_COUNT = 200
-SBR = 0.1
-TRIALS = 500
-N_TBINS = 1000
-SIMULATED_CORRELATIONS = False
+PHOTON_COUNT = 1000
+SBR =0.1
+TRIALS = 100
+N_TBINS = 999
+SIMULATED_CORRELATIONS = True
 SMOOTH_SIGMA = None
 SHIFT = None
 DEPTH_MARGIN = 100
@@ -33,8 +33,8 @@ ham,3,5,100,50,10
 """
 
 DEFAULT_RUNS = [
-    "ham,3,5, 2000,70,20",
-    "coarse,3,5, 2000,70,30",
+    "ham,3,5, 3000,50,20",
+    "coarse,3,5, 2400,50,30",
 ]
 
 
@@ -99,21 +99,18 @@ if __name__ == "__main__":
             f"{r['duty']}%  -->  {filename}"
         )
 
-        file = np.load(path, allow_pickle=True)
-        cfg = file["cfg"].item()
-        correlations_total = file["correlations"]
 
-        name = cfg.get("capture_type", r["capture_type"])
 
-        # derive rep_tau safely
-        rep_tau = cfg.get("rep_tau", None)
-        if rep_tau is None and "rep_rate" in cfg:
-            rep_tau = 1.0 / float(cfg["rep_rate"])
+        name = r["capture_type"]
+
 
         # coding matrix
         if args.simulated_correlations:
-            coding_matrix = get_simulated_coding_matrix(name, args.n_tbins, cfg["k"])
+            coding_matrix = get_simulated_coding_matrix(name, args.n_tbins, r["k"])
         else:
+            file = np.load(path, allow_pickle=True)
+            cfg = file["cfg"].item()
+            correlations_total = file["correlations"]
             coding_matrix = build_coding_matrix_from_correlations(
                 correlations_total,
                 False,
@@ -121,11 +118,15 @@ if __name__ == "__main__":
                 args.shift,
                 args.n_tbins,
             )
-            if name == 'ham':
-                coding_matrix[..., 0] = np.roll(coding_matrix[..., 0], 10)
+            #if name == 'ham':
+            #    coding_matrix[..., 0] = np.roll(coding_matrix[..., 0], 10)
 
 
         #coding_matrix /= np.max(np.abs(coding_matrix), axis=0, keepdims=True)
+        mins = coding_matrix.min(axis=0, keepdims=True)
+        maxs = coding_matrix.max(axis=0, keepdims=True)
+
+        coding_matrix = (coding_matrix - mins) / (maxs - mins)
 
         decoded_depths = decode_from_correlations(
             coding_matrix=coding_matrix,
@@ -161,7 +162,7 @@ if __name__ == "__main__":
         axs[i, 0].imshow(np.repeat(np.transpose(coding_matrix), 100, axis=0), aspect='auto')
         axs[i, 0].set_title(name + ' Coding Matrix')
         axs[i, 1].plot(coding_matrix)
-        axs[i, 1].set_ylim(0, np.max(all_coding_matrix))
+        #axs[i, 1].set_ylim(0, np.max(all_coding_matrix))
         axs[i, 1].set_title(name + ' Coding Matrix')
         if i < len(results_dict) - 2:
             axs[i, 2].set_axis_off()
@@ -194,14 +195,14 @@ if __name__ == "__main__":
     plt.show()
 
     correlations_p =  [dic['coding_matrix'] for dic in results_dict.values()]
-    for idx, corr in enumerate(correlations_p):
-        name = names[idx]
-        if name == 'coarse':
-            corr = np.roll(corr, 300, axis=0)
-            plt.plot(corr, color='r')
-        else:
-            plt.plot(corr, color='b')
-    plt.show()
+    # for idx, corr in enumerate(correlations_p):
+    #     name = names[idx]
+    #     if name == 'coarse':
+    #         corr = np.roll(corr, 300, axis=0)
+    #         plt.plot(corr, color='r')
+    #     else:
+    #         plt.plot(corr, color='b')
+    # plt.show()
 
     fig = plt.figure(figsize=(9, 7))
     ax = fig.add_subplot(111, projection="3d")
@@ -235,14 +236,14 @@ if __name__ == "__main__":
 
     plt.legend(fontsize=8)
     plt.show()
-
-    fig, axs = plt.subplots(len(results_dict), 1, figsize=(9, len(results_dict)))
-    for idx, dictionary in enumerate(results_dict.values()):
-        decoded_depths = dictionary['decoded_depths']
-        errors = np.mean(np.abs(depths - decoded_depths), axis=0)
-        axs[idx].bar(np.arange(0, depths.shape[-1]), errors)
-        axs[idx].set_ylim(0, 100)
-    plt.show()
+    #
+    # fig, axs = plt.subplots(len(results_dict), 1, figsize=(9, len(results_dict)))
+    # for idx, dictionary in enumerate(results_dict.values()):
+    #     decoded_depths = dictionary['decoded_depths']
+    #     errors = np.mean(np.abs(depths - decoded_depths), axis=0)
+    #     axs[idx].bar(np.arange(0, depths.shape[-1]), errors)
+    #     axs[idx].set_ylim(0, 100)
+    # plt.show()
 
 
 

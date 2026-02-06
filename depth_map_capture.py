@@ -20,11 +20,12 @@ GROUND_TRUTH_INT_TIME = 200_000
 BURST_TIME = 4800 #Maxiumum burst time is 4800 ms
 K = 3  # number of time bins
 
-GATE_SHRINKAGE = 10 #In NS
+GATE_SHRINKAGE = 1 #In NS
 CAPTURE_TYPE = 'coarse'
 
 # Illumination Parameters:
-AMPLITUDE = 5.0 #in Vpp
+HIGH_LEVEL_AMPLITUDE = 2.4 #in Vpp
+LOW_LEVEL_AMPLITUDE = -3.0
 CURRENT = 50 #in mA
 EDGE = 6 * 1e-9 #Edge rate for pulse wave
 DUTY = 30 # In percentage
@@ -64,7 +65,8 @@ if __name__ == "__main__":
             k=K,
             gate_shrinkage=GATE_SHRINKAGE,
             capture_type=CAPTURE_TYPE,
-            amplitude=AMPLITUDE,
+            high_level_amplitude=HIGH_LEVEL_AMPLITUDE,
+            low_level_amplitude=LOW_LEVEL_AMPLITUDE,
             current=CURRENT,
             edge=EDGE,
             duty=DUTY,
@@ -102,7 +104,8 @@ if __name__ == "__main__":
     ldc220 = NIDAQ_LDC220(max_amps=90)
     ldc220.set_current(0)
 
-    sdg.set_waveform_and_trigger(cfg.illum_type, cfg.duty, cfg.rep_rate, cfg.amplitude, cfg.edge)
+    sdg.set_waveform_and_trigger(cfg.illum_type, cfg.duty, cfg.rep_rate,
+                                 cfg.high_level_amplitude, cfg.low_level_amplitude, cfg.edge)
     sdg.turn_both_channels_on()
 
     ldc220.set_current(cfg.current)

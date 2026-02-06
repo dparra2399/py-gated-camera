@@ -183,16 +183,19 @@ def plot_correlation_comparison(
         measured_coding_matrix: np.ndarray,
         coding_matrix: np.ndarray,
 ):
+    mins = measured_coding_matrix.min(axis=0, keepdims=True)
+    maxs = measured_coding_matrix.max(axis=0, keepdims=True)
 
-    zero_mean_coding_matrix = coding_matrix - np.mean(coding_matrix, axis=0, keepdims=True)
-    zero_mean_coding_matrix /=  np.max(np.abs(zero_mean_coding_matrix), axis=0, keepdims=True)
-    zero_mean_correlations = measured_coding_matrix - np.mean(measured_coding_matrix, axis=0, keepdims=True)
-    zero_mean_correlations /= np.max(np.abs(zero_mean_correlations), axis=0, keepdims=True)
+    measured_coding_matrix = (measured_coding_matrix - mins) / (maxs - mins)
 
+    mins = coding_matrix.min(axis=0, keepdims=True)
+    maxs = coding_matrix.max(axis=0, keepdims=True)
+
+    coding_matrix = (coding_matrix - mins) / (maxs - mins)
 
     fig, axs = plt.subplots(1, 1, figsize=(8, 4))
-    axs.plot(zero_mean_correlations, label='Measured')
-    axs.plot(zero_mean_coding_matrix, linestyle='dashed', label='Ideal')
+    axs.plot(measured_coding_matrix, label='Measured')
+    axs.plot(coding_matrix, linestyle='dashed', label='Ideal')
     axs.set_title('Measured vs. Ideal Gate Profiles (Correlations)')
     axs.legend()
     plt.show()

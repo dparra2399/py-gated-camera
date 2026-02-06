@@ -16,7 +16,8 @@ class Config:
     capture_type: Optional[str] = None
 
     # Illumination
-    amplitude: Optional[float] = None
+    high_level_amplitude: Optional[float] = None
+    low_level_amplitude: Optional[float] = None
     current: Optional[float] = None
     edge: Optional[float] = None
     duty: Optional[int] = None

@@ -54,7 +54,7 @@ def save_capture_and_gt_data(save_path, cfg_dict, coded_vals, gt_coded_vals):
 def save_capture_data(save_path, cfg_dict, coded_vals):
 
     save_name = make_capture_filename(cfg_dict['capture_type'],cfg_dict['k'], cfg_dict['rep_rate'] * 1e-6,
-                              cfg_dict['amplitude'] * 1000, cfg_dict['current'],cfg_dict['duty'],
+                              cfg_dict['high_level_amplitude'] * 1000, cfg_dict['current'],cfg_dict['duty'],
                               cfg_dict['int_time'], cfg_dict['ground_truth'])
 
     os.makedirs(save_path, exist_ok=True)
@@ -65,7 +65,7 @@ def save_capture_data(save_path, cfg_dict, coded_vals):
 def save_correlation_data(save_path, cfg_dict, correlations):
 
     save_name = make_correlation_filename(cfg_dict['capture_type'],cfg_dict['k'], cfg_dict['rep_rate'] * 1e-6,
-                              cfg_dict['amplitude'] * 1000, cfg_dict['current'],cfg_dict['duty'])
+                              cfg_dict['high_level_amplitude'] * 1000, cfg_dict['current'],cfg_dict['duty'])
 
     os.makedirs(save_path, exist_ok=True)
     out_file = os.path.join(save_path, save_name)

@@ -17,13 +17,13 @@ import numpy as np
 
 
 
-#filename =  'coarsek3_5mhz_3000mV_60mA_32duty_correlations.npz'
+filename =  'coarsek3_5mhz_2400mV_50mA_30duty_correlations.npz'
 
-filename =  'hamk4_5mhz_9000mV_50mA_20duty_correlations.npz'
+#filename =  'hamk3_5mhz_3000mV_50mA_20duty_correlations.npz'
 
 SMOOTH_SIGMA = None
 N_TBINS_DEFAULT = 1000
-SHIFT = -1 # -4
+SHIFT = -10 # -4
 
 if __name__ == "__main__":
     folder = get_data_folder(READ_PATH_CORRELATIONS_MAC, READ_PATH_CORRELATIONS_WINDOWS)
@@ -45,12 +45,9 @@ if __name__ == "__main__":
 
     coding_matrix = get_simulated_coding_matrix(cfg['capture_type'], N_TBINS_DEFAULT, cfg["k"])
 
+
     point_list = [(10, 10), (200, 200), (50, 200)]
 
-    # irf = get_voltage_function(mhz, voltage, size, 'pulse', n_tbins)
-    # plt.plot(irf)
-    # plt.show()
-    #
     # plot_correlation_functions(
     #         point_list,
     #         correlations,

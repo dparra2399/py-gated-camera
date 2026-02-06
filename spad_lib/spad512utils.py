@@ -212,7 +212,7 @@ def correlation_capture(spad1, gate_starts, gate_widths, k, gate_shrinkage,
                                    overlap=overlap, pileup=pileup, im_width=im_width, timeout=timeout)
 
         correlations[:, :, i, :] = counts
-    #correlations = np.flip(correlations, axis=-1)
+    correlations = np.flip(correlations, axis=-1)
 
     print('-------------------------------------------------------')
     print(f'Ending correlation measurements')

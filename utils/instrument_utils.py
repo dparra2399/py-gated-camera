@@ -133,11 +133,12 @@ class SDG5162_GATED_PROJECT:
         index = qry[qry_index - 1][1:]
         return index
 
-    def set_gaussian(self, duty, rep_rate, amplitude, edge=None):
+    def set_gaussian(self, duty, rep_rate, high_level, low_level, edge=None):
         #print(self.sdg.query("STL?"))
         idx = self.find_gauss_index(duty)
         self.sdg.write(f"C1:ARWV INDEX,{idx}")
-        self.sdg.write(f"C1:BSWV AMP,{amplitude}")
+        self.sdg.write(f"C1:BSWV HLEV,{high_level}")
+        self.sdg.write(f"C1:BSWV LLEV,{low_level}")
         self.sdg.write(f"C1:BSWV FRQ,{rep_rate}")
         self.sdg.write("C1:OUTP PLRT,INVT")
 
@@ -149,16 +150,18 @@ class SDG5162_GATED_PROJECT:
         self.sdg.write("C2:BSWV FALL,6E-9")
         self.sdg.write(f"C2:BSWV FRQ,{rep_rate}")
 
-    def set_square(self, duty, rep_rate, amplitude, edge):
+    def set_square(self, duty, rep_rate, high_level, low_level, edge):
         self.sdg.write(f"C1:BSWV WVTP,SQUARE")
-        self.sdg.write(f"C1:BSWV AMP,{amplitude}")
+        self.sdg.write(f"C1:BSWV HLEV,{high_level}")
+        self.sdg.write(f"C1:BSWV LLEV,{low_level}")
         self.sdg.write(f"C1:BSWV DUTY,{duty}")
         self.sdg.write(f"C1:BSWV FRQ,{rep_rate}")
         self.sdg.write("C1:OUTP PLRT,INVT")
 
-    def set_pulse(self, duty, rep_rate, amplitude, edge):
+    def set_pulse(self, duty, rep_rate, high_level, low_level, edge):
         self.sdg.write(f"C1:BSWV WVTP,PULSE")
-        self.sdg.write(f"C1:BSWV AMP,{amplitude}")
+        self.sdg.write(f"C1:BSWV HLEV,{high_level}")
+        self.sdg.write(f"C1:BSWV LLEV,{low_level}")
         self.sdg.write(f"C1:BSWV DUTY,{duty}")
         self.sdg.write(f"C1:BSWV RISE,{edge}")
         self.sdg.write(f"C1:BSWV FALL,{edge}")
@@ -193,17 +196,14 @@ class SDG5162_GATED_PROJECT:
                 d[k] = v
         return d
 
-    def set_waveform(self, type,  duty, rep_rate, amplitude, edge):
+    def set_waveform(self, type,  duty, rep_rate,high_level_amplitude, low_level_amplitude,  edge):
         try:
             func = getattr(self, f"set_{type}")
         except AttributeError:
             raise ValueError(f"Unsupported illumination: {type}")
-        func(duty, rep_rate, amplitude, edge)
+        func(duty, rep_rate, high_level_amplitude, low_level_amplitude, edge)
 
-    def set_waveform_and_trigger(self, type, duty, rep_rate, amplitude, edge):
-        self.set_waveform(type, duty, rep_rate, amplitude, edge)
+    def set_waveform_and_trigger(self, type, duty, rep_rate, high_level_amplitude, low_level_amplitude, edge):
+        self.set_waveform(type, duty, rep_rate, high_level_amplitude, low_level_amplitude, edge)
         self.set_trigger(rep_rate)
 
-ldc = NIDAQ_LDC220()
-ldc.set_current(0)
-print(ldc.read_current())

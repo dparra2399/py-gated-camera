@@ -50,14 +50,12 @@ def get_simulated_coding_matrix(type, n_tbins, k):
     if type=='ham':
         func = getattr(CodingFunctionsFelipe, f"GetHamK{k}")
         (modfs, demodfs) = func(N=n_tbins)
-        irf = gaussian_pulse(np.arange(n_tbins), 0, 40, circ_shifted=True)
+        irf = gaussian_pulse(np.arange(n_tbins), 0, 1, circ_shifted=True)
         modfs = np.fft.ifft(np.fft.fft(irf[..., np.newaxis], axis=0).conj() * np.fft.fft(modfs, axis=0), axis=0).real
         coding_matrix = np.fft.ifft(np.fft.fft(modfs, axis=0).conj() * np.fft.fft(demodfs, axis=0), axis=0).real
-        coding_matrix = np.fft.ifft(np.fft.fft(irf[..., np.newaxis], axis=0).conj() * np.fft.fft(coding_matrix, axis=0),
-                                    axis=0).real
     elif type=='coarse':
         coding_matrix = np.kron(np.eye(k), np.ones((1, n_tbins //k)))
-        irf = gaussian_pulse(np.arange(coding_matrix.shape[-1]), 0, n_tbins // (k + 2), circ_shifted=True)
+        irf = gaussian_pulse(np.arange(coding_matrix.shape[-1]), 0, n_tbins // (k + 3), circ_shifted=True)
         coding_matrix = np.fft.ifft(
             np.fft.fft(irf[..., np.newaxis], axis=0).conj() * np.fft.fft(np.transpose(coding_matrix), axis=0),
             axis=0).real
@@ -91,7 +89,7 @@ def build_coding_matrix_from_correlations(
         np.sum(np.sum(correlations_total[20:-20, 20:correlations_total.shape[1]//2-20, :], axis=0), axis=0)
     )  # (n_tbins,K)
 
-    coding_matrix[:, 2] = np.roll(coding_matrix[:, 2], shift=1, axis=-1)
+    coding_matrix[:, 2] = np.roll(coding_matrix[:, 2], shift=2, axis=-1)
     if shift_size is not None:
         coding_matrix = np.roll(coding_matrix, shift=shift_size, axis=0)
     if sigma_size is not None:
@@ -145,14 +143,17 @@ def decode_from_correlations(
 
     clean_coded_vals = coding_matrix[depths, :]
 
-    clean_coded_vals = (clean_coded_vals / np.sum(clean_coded_vals, axis=-1, keepdims=True)) * photon_count
-    clean_coded_vals = clean_coded_vals + ((photon_count / sbr) / coding_matrix.shape[-2])
+    scaled_coded_vals = np.zeros_like(clean_coded_vals)
 
-    coded_vals = rng.poisson(clean_coded_vals, size=(trials, clean_coded_vals.shape[0], clean_coded_vals.shape[1]))
+    for i in range(scaled_coded_vals.shape[0]):
+        tmp = (clean_coded_vals[i, :] / np.sum(clean_coded_vals[i, :])) * photon_count
+        scaled_coded_vals[i, :] = tmp + ((photon_count / sbr) / coding_matrix.shape[-2])
 
-    norm_coding_matrix = tof_utils_felipe.zero_norm_t(coding_matrix)
+    coded_vals = rng.poisson(scaled_coded_vals, size=(trials, scaled_coded_vals.shape[0], scaled_coded_vals.shape[1]))
 
-    norm_coded_vals = tof_utils_felipe.zero_norm_t(coded_vals)
+    norm_coding_matrix = zero_norm_t(coding_matrix, axis=-1)
+
+    norm_coded_vals = zero_norm_t(coded_vals, axis=-1)
 
     zncc = np.matmul(norm_coding_matrix, norm_coded_vals[..., np.newaxis]).squeeze(-1)
 

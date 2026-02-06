@@ -2,11 +2,10 @@
 import numpy as np
 import subprocess
 
-amps = np.arange(0.5, 5.1, 1.0)
-currs = np.arange(50, 81, 10)
 
-amps = [2.0]
-currs = [70]
+high_level_amps = [3.0]
+low_level_amps = [-3.0]
+currs = [50]
 
 BASE = [
     "python", "correlations_single_capture.py",
@@ -24,22 +23,24 @@ BASE = [
 
 run_id = 0
 for typ in ["coarse", "ham"]:
-    for amp in amps:
-        for cur in currs:
-            illum_typ = 'square' if typ == 'ham' else 'gaussian'
-            gate_shrinkage = '20' if typ == 'ham' else '10'
-            duty = '20' if typ == 'ham' else '30'
-            cmd = BASE + [
-                "--capture_type", typ,
-                "--gate_shrinkage", gate_shrinkage,
-                "--duty", duty,
-                "--illum_type", illum_typ,
-                "--amplitude", str(amp),
-                "--current", str(cur),
-            ]
-            run_id += 1
-            print("==============================================================")
-            print(f"[{run_id:03d}] type={typ:6s}  amp={amp:4.1f}  current={cur:3d}")
-            print("==============================================================")
+    for high_lvl in high_level_amps:
+        for low_lvl in low_level_amps:
+            for cur in currs:
+                illum_typ = 'square' if typ == 'ham' else 'gaussian'
+                gate_shrinkage = '20' if typ == 'ham' else '1'
+                duty = '20' if typ == 'ham' else '30'
+                cmd = BASE + [
+                    "--capture_type", typ,
+                    "--gate_shrinkage", gate_shrinkage,
+                    "--duty", duty,
+                    "--illum_type", illum_typ,
+                    "--high_level_amplitude", str(high_lvl),
+                    "--low_level_amplitude", str(low_lvl),
+                    "--current", str(cur),
+                ]
+                run_id += 1
+                print("==============================================================")
+                print(f"[{run_id:03d}] type={typ:6s}  amp={high_lvl:4.1f}  current={cur:3d}")
+                print("==============================================================")
 
-            subprocess.run(cmd)
+                subprocess.run(cmd)

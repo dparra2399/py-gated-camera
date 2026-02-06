@@ -20,7 +20,7 @@ MASK_BACKGROUND_PIXELS = True
 SIMULATED_CORRELATIONS = False
 USE_FULL_CORRELATIONS = False
 SIGMA_SIZE = None
-SHIFT_SIZE = 150
+SHIFT_SIZE = 500
 CORRECT_DEPTH_DISTORTION = False
 
 # -----------------------------------------------------------------------------
@@ -82,7 +82,7 @@ if __name__ == '__main__':
         coded_vals = capture_file['coded_vals']
         im_width = params['im_width']
         mA = params['current']
-        mV = params['amplitude'] * 1000
+        mV = params['high_level_amplitude'] * 1000
         capture_type = params['capture_type']
         k = params['k']
         freq = params['rep_rate']
