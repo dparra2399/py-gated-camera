@@ -6,8 +6,8 @@ from felipe_utils.tof_utils_felipe import zero_norm_t
 import matplotlib.pyplot as plt
 
 k = 3
-n_tbins = 999
-trials = 100
+n_tbins = 999 * 30
+trials = 1
 photon_count = 1000
 sbr = 0.1
 rep_rate = 5 * 1e6
@@ -18,7 +18,7 @@ rng = np.random.default_rng()
 (rep_tau, rep_freq, tbin_res,
  t_domain, max_depth, tbin_depth_res,) = calculate_tof_domain_params(n_tbins, rep_tau)
 
-depth_sample = 0.5
+depth_sample = 0.01
 depths = np.arange(3.0, max_depth-3.0, depth_sample)
 
 

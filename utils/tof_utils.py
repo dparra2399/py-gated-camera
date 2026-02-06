@@ -50,6 +50,8 @@ def get_simulated_coding_matrix(type, n_tbins, k):
     if type=='ham':
         func = getattr(CodingFunctionsFelipe, f"GetHamK{k}")
         (modfs, demodfs) = func(N=n_tbins)
+        #Dt = demodfs.sum(axis=1)
+        #print(Dt.min(), Dt.max(), Dt.mean(), Dt.std())
         irf = gaussian_pulse(np.arange(n_tbins), 0, 1, circ_shifted=True)
         modfs = np.fft.ifft(np.fft.fft(irf[..., np.newaxis], axis=0).conj() * np.fft.fft(modfs, axis=0), axis=0).real
         coding_matrix = np.fft.ifft(np.fft.fft(modfs, axis=0).conj() * np.fft.fft(demodfs, axis=0), axis=0).real
@@ -137,19 +139,27 @@ def decode_from_correlations(
     depths: np.ndarray,
     photon_count: int,
     sbr: float,
-    trials: int
+    trials: int,
+    rep_rate: int=None,
 ):
     rng = np.random.default_rng()
 
+    tbin_depth_res = None
+    if rep_rate is not None:
+        (rep_tau, rep_freq, tbin_res,
+         t_domain, max_depth, tbin_depth_res,) = calculate_tof_domain_params(coding_matrix.shape[0], 1. / rep_rate)
+        depths = (depths // tbin_depth_res).astype(int)
+
     clean_coded_vals = coding_matrix[depths, :]
 
-    scaled_coded_vals = np.zeros_like(clean_coded_vals)
+    # global scale so typical total matches photon_count (choose one convention)
+    alpha = photon_count / (clean_coded_vals.sum(axis=1).mean() + 1e-12)  # (1, K)
+    clean_coded_vals *= alpha
 
-    for i in range(scaled_coded_vals.shape[0]):
-        tmp = (clean_coded_vals[i, :] / np.sum(clean_coded_vals[i, :])) * photon_count
-        scaled_coded_vals[i, :] = tmp + ((photon_count / sbr) / coding_matrix.shape[-2])
+    # background (if you want it per channel, include duty cycle)
+    clean_coded_vals = clean_coded_vals + (photon_count / sbr) / coding_matrix.shape[0]
 
-    coded_vals = rng.poisson(scaled_coded_vals, size=(trials, scaled_coded_vals.shape[0], scaled_coded_vals.shape[1]))
+    coded_vals = rng.poisson(clean_coded_vals, size=(trials, clean_coded_vals.shape[0], clean_coded_vals.shape[1]))
 
     norm_coding_matrix = zero_norm_t(coding_matrix, axis=-1)
 
@@ -159,6 +169,7 @@ def decode_from_correlations(
 
     decoded_depth = np.argmax(zncc, axis=-1)
 
+    if tbin_depth_res is not None: decoded_depth = decoded_depth.astype(float) * tbin_depth_res
     return decoded_depth
 
 def filter_hot_pixels(depth_map: np.ndarray,

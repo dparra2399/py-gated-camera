@@ -10,20 +10,22 @@ from utils.file_utils import get_data_folder, make_correlation_filename, corr_pa
 from utils.tof_utils import (
     build_coding_matrix_from_correlations,
     decode_from_correlations,
-    get_simulated_coding_matrix,
+    get_simulated_coding_matrix, calculate_tof_domain_params,
 )
 
 # =============================
 # Defaults
 # =============================
 PHOTON_COUNT = 1000
-SBR =0.1
+SBR = 0.1
 TRIALS = 100
-N_TBINS = 999
+N_TBINS = 999 * 2
 SIMULATED_CORRELATIONS = True
 SMOOTH_SIGMA = None
 SHIFT = None
-DEPTH_MARGIN = 100
+DEPTH_MARGIN = 3.0
+REP_RATE = 5 * 1e6
+DEPTH_SAMPLE = 0.5
 """
 Format:
 capture_type,k,freq_mhz,mV,mA,duty
@@ -55,6 +57,8 @@ def parse_args():
     p.add_argument("--sbr", type=float, default=SBR)
     p.add_argument("--trials", type=int, default=TRIALS)
     p.add_argument("--n_tbins", type=int, default=N_TBINS)
+    p.add_argument("--rep_rate", type=int, default=REP_RATE)
+    p.add_argument("--depth_sample", type=int, default=DEPTH_SAMPLE)
     p.add_argument("--smooth_sigma", type=float, default=SMOOTH_SIGMA)
     p.add_argument("--shift", type=int, default=SHIFT)
     p.add_argument("--depth_margin", type=int, default=DEPTH_MARGIN)
@@ -75,7 +79,12 @@ def parse_args():
 if __name__ == "__main__":
     args = parse_args()
 
-    depths = np.arange(args.depth_margin, args.n_tbins - args.depth_margin, 1)
+    if args.rep_rate is not None:
+        (rep_tau, rep_freq, tbin_res,
+         t_domain, max_depth, tbin_depth_res,) = calculate_tof_domain_params(args.n_tbins, 1. / args.rep_rate)
+        depths = np.arange(args.depth_margin, max_depth - args.depth_margin, args.depth_sample)
+    else:
+        depths = np.arange(args.depth_margin, args.n_tbins - args.depth_margin, 1)
     folder = get_data_folder(READ_PATH_CORRELATIONS_MAC, READ_PATH_CORRELATIONS_WINDOWS)
 
     results_dict = {}
@@ -121,12 +130,14 @@ if __name__ == "__main__":
             #if name == 'ham':
             #    coding_matrix[..., 0] = np.roll(coding_matrix[..., 0], 10)
 
-
         #coding_matrix /= np.max(np.abs(coding_matrix), axis=0, keepdims=True)
         mins = coding_matrix.min(axis=0, keepdims=True)
         maxs = coding_matrix.max(axis=0, keepdims=True)
 
         coding_matrix = (coding_matrix - mins) / (maxs - mins)
+
+        # row_sums = coding_matrix.sum(axis=1)  # sum over K
+        # print(row_sums.min(), row_sums.max(), row_sums.std())
 
         decoded_depths = decode_from_correlations(
             coding_matrix=coding_matrix,
@@ -134,10 +145,12 @@ if __name__ == "__main__":
             photon_count=args.photon_count,
             sbr=args.sbr,
             trials=args.trials,
+            rep_rate=args.rep_rate,
         )
 
-        rmse = float(np.sqrt(np.mean((decoded_depths - depths) ** 2)))
-        mae = float(np.mean(np.abs(decoded_depths - depths)))
+        depth_res = 1000 if args.rep_rate is not None else 1
+        rmse = float(np.sqrt(np.mean((decoded_depths - depths) ** 2))) * depth_res
+        mae = float(np.mean(np.abs(decoded_depths - depths))) * depth_res
 
         print(f"      → MAE={mae:.3f} | RMSE={rmse:.3f}")
 
