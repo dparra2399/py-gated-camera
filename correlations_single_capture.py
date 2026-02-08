@@ -22,12 +22,12 @@ INT_TIME = 200  # integration time
 BURST_TIME = 480
 K = 3  # number of time bins
 GATE_STEP_SIZE = 2500 #Steps in picoseconds
-GATE_SHRINKAGE = 0 #In NS
+GATE_SHRINKAGE = 10 #In NS
 CAPTURE_TYPE = 'coarse'
 
 # Illumination Parameters:
-HIGH_LEVEL_AMPLITUDE = 2.4 #in Vpp
-LOW_LEVEL_AMPLITUDE = -3.0
+HIGH_LEVEL_AMPLITUDE = 4.0 #in Vpp
+LOW_LEVEL_AMPLITUDE = -4.0
 CURRENT = 50 #in mA
 EDGE = 6 * 1e-9 #Edge rate for pulse wave
 DUTY = 30 # In percentage
@@ -107,7 +107,7 @@ if __name__ == "__main__":
     ldc220.set_current(0)
 
     sdg.set_waveform_and_trigger(cfg.illum_type, cfg.duty, cfg.rep_rate,
-                                 cfg.high_level_amplitude, cfg.low_level_amplitude, cfg.edge)
+                                 cfg.high_level_amplitude, cfg.low_level_amplitude, 0, cfg.edge)
     sdg.turn_both_channels_on()
 
     ldc220.set_current(cfg.current)

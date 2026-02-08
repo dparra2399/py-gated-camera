@@ -3,8 +3,8 @@ import numpy as np
 import subprocess
 
 
-high_level_amps = [3.0]
-low_level_amps = [-3.0]
+high_level_amps = [4.0]
+low_level_amps = [-4.0]
 currs = [50]
 
 BASE = [
@@ -27,7 +27,7 @@ for typ in ["coarse", "ham"]:
         for low_lvl in low_level_amps:
             for cur in currs:
                 illum_typ = 'square' if typ == 'ham' else 'gaussian'
-                gate_shrinkage = '20' if typ == 'ham' else '1'
+                gate_shrinkage = '20' if typ == 'ham' else '10'
                 duty = '20' if typ == 'ham' else '30'
                 cmd = BASE + [
                     "--capture_type", typ,

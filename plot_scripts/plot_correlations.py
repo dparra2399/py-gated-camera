@@ -17,13 +17,13 @@ import numpy as np
 
 
 
-filename =  'coarsek3_5mhz_2400mV_50mA_30duty_correlations.npz'
+filename =  'coarsek3_5mhz_4000mV_50mA_30duty_correlations.npz'
 
-#filename =  'hamk3_5mhz_3000mV_50mA_20duty_correlations.npz'
+#filename =  'hamk3_5mhz_4000mV_50mA_20duty_correlations.npz'
 
 SMOOTH_SIGMA = None
 N_TBINS_DEFAULT = 1000
-SHIFT = -10 # -4
+SHIFT = 1 # -4
 
 if __name__ == "__main__":
     folder = get_data_folder(READ_PATH_CORRELATIONS_MAC, READ_PATH_CORRELATIONS_WINDOWS)

@@ -11,10 +11,8 @@ def get_data_folder(data_folder_mac, data_folder_linux) -> str:
         return data_folder_mac
     return data_folder_linux
 
-def load_hot_mask(path: str, threshold: int = 5000) -> np.ndarray:
-    hot_mask = np.array(Image.open(path))
-    hot_mask[hot_mask < threshold] = 0
-    hot_mask[hot_mask > 0] = 1
+def load_hot_mask(path: str) -> np.ndarray:
+    hot_mask = np.load(path)
     return hot_mask
 
 def filter_npz_files(npz_files, k_list):
@@ -46,13 +44,13 @@ def save_capture_and_gt_data(save_path, cfg_dict, coded_vals, gt_coded_vals):
 
     cfg_dict['ground_truth'] = False
     save_capture_data(save_path=save_path, cfg_dict=cfg_dict, coded_vals=coded_vals)
-    cfg_dict['ground_truth'] = True
-    cfg_dict['int_time'] = cfg_dict['ground_truth_int_time']
-    save_capture_data(save_path=save_path, cfg_dict=cfg_dict, coded_vals=gt_coded_vals)
+    if gt_coded_vals is not None:
+        cfg_dict['ground_truth'] = True
+        cfg_dict['int_time'] = cfg_dict['ground_truth_int_time']
+        save_capture_data(save_path=save_path, cfg_dict=cfg_dict, coded_vals=gt_coded_vals)
 
 
 def save_capture_data(save_path, cfg_dict, coded_vals):
-
     save_name = make_capture_filename(cfg_dict['capture_type'],cfg_dict['k'], cfg_dict['rep_rate'] * 1e-6,
                               cfg_dict['high_level_amplitude'] * 1000, cfg_dict['current'],cfg_dict['duty'],
                               cfg_dict['int_time'], cfg_dict['ground_truth'])

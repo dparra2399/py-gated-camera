@@ -20,7 +20,7 @@ PHOTON_COUNT = 1000
 SBR = 0.1
 TRIALS = 100
 N_TBINS = 999 * 2
-SIMULATED_CORRELATIONS = True
+SIMULATED_CORRELATIONS = False
 SMOOTH_SIGMA = None
 SHIFT = None
 DEPTH_MARGIN = 3.0
@@ -35,8 +35,8 @@ ham,3,5,100,50,10
 """
 
 DEFAULT_RUNS = [
-    "ham,3,5, 3000,50,20",
-    "coarse,3,5, 2400,50,30",
+    "ham,3,5, 4000,50,20",
+    "coarse,3,5, 4000,50,30",
 ]
 
 

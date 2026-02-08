@@ -19,6 +19,7 @@ class Config:
     high_level_amplitude: Optional[float] = None
     low_level_amplitude: Optional[float] = None
     current: Optional[float] = None
+    phase: Optional[float] = None
     edge: Optional[float] = None
     duty: Optional[int] = None
     rep_rate: Optional[float] = None
@@ -30,7 +31,7 @@ class Config:
     # Save
     save_into_file: Optional[bool] = None
     save_path: Optional[str] = None
-    exp_path: Optional[int] = None #Groups into folder
+    exp_path: Optional[str] = None #Groups into folder
 
 
     #Capture only parameters

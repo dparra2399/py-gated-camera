@@ -28,12 +28,14 @@ HIGH_LEVEL_AMPLITUDE = 2.4 #in Vpp
 LOW_LEVEL_AMPLITUDE = -3.0
 CURRENT = 50 #in mA
 EDGE = 6 * 1e-9 #Edge rate for pulse wave
+PHASE = 20
 DUTY = 30 # In percentage
 REP_RATE = 5 * 1e6 #in HZ
 ILLUM_TYPE = 'gaussian'
 
 # Save Parameters
 SAVE_INTO_FILE = True
+GROUND_TRUTH = True
 SAVE_PATH = SAVE_PATH_CAPTURE
 EXP_PATH = 'exp_0'
 
@@ -69,10 +71,12 @@ if __name__ == "__main__":
             low_level_amplitude=LOW_LEVEL_AMPLITUDE,
             current=CURRENT,
             edge=EDGE,
+            phase=PHASE,
             duty=DUTY,
             rep_rate=REP_RATE,
             illum_type=ILLUM_TYPE,
             save_into_file=SAVE_INTO_FILE,
+            ground_truth=GROUND_TRUTH,
             save_path=SAVE_PATH,
             exp_path=EXP_PATH,
             iterations=ITERATIONS,
@@ -101,11 +105,11 @@ if __name__ == "__main__":
         usb_port="USB0::0xF4ED::0xEE3A::SDG050D2150058::INSTR"
     )
 
-    ldc220 = NIDAQ_LDC220(max_amps=90)
+    ldc220 = NIDAQ_LDC220(max_amps=100)
     ldc220.set_current(0)
 
     sdg.set_waveform_and_trigger(cfg.illum_type, cfg.duty, cfg.rep_rate,
-                                 cfg.high_level_amplitude, cfg.low_level_amplitude, cfg.edge)
+                                 cfg.high_level_amplitude, cfg.low_level_amplitude, cfg.phase, cfg.edge)
     sdg.turn_both_channels_on()
 
     ldc220.set_current(cfg.current)
@@ -117,16 +121,16 @@ if __name__ == "__main__":
     needed = {k: v for k, v in asdict(cfg).items() if k in depth_map_capture.__code__.co_varnames}
     coded_vals = depth_map_capture(SPAD1, gate_starts=gate_starts, gate_widths=gate_widths, **needed)
 
-    needed['int_time'] = cfg.ground_truth_int_time
-    gt_coded_vals = depth_map_capture(SPAD1, gate_starts=gate_starts, gate_widths=gate_widths, **needed)
+    gt_coded_vals = None
+    if cfg.ground_truth:
+        needed['int_time'] = cfg.ground_truth_int_time
+        gt_coded_vals = depth_map_capture(SPAD1, gate_starts=gate_starts, gate_widths=gate_widths, **needed)
 
     ldc220.set_current(0)
     sdg.turn_both_channels_off()
 
     if cfg.save_into_file:
         save_capture_and_gt_data(save_path=cfg.save_path, cfg_dict=asdict(cfg),
-                                 coded_vals=coded_vals, gt_coded_vals=gt_coded_vals)
-
-
+                                     coded_vals=coded_vals, gt_coded_vals=gt_coded_vals)
 
 

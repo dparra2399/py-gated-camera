@@ -9,11 +9,11 @@ from utils.parameter_classes import DecodeConfig
 # -----------------------------------------------------------------------------
 # CONFIG (capitalized)
 # -----------------------------------------------------------------------------
-EXP_PATH = 'exp_0' #Only use if inside folder otherwise none
+EXP_PATH = 'exp_2'
 N_TBINS = 1500
-VMIN = None
-VMAX = None
-MEDIAN_FILTER_SIZE = 3
+VMIN = 5
+VMAX = 10
+MEDIAN_FILTER_SIZE = 1
 CORRECT_MASTER = False
 PLOT_DEPTH_MAPS = True
 MASK_BACKGROUND_PIXELS = True
@@ -101,7 +101,7 @@ if __name__ == '__main__':
         correlations_total = np.load(corr_path, allow_pickle=True)['correlations']
 
         if cfg.simulated_correlations:
-            coding_matrix = get_simulated_coding_matrix(capture_type, args.n_tbins, k)
+            coding_matrix = get_simulated_coding_matrix(capture_type, cfg.n_tbins, k)
         else:
             coding_matrix = build_coding_matrix_from_correlations(
                 correlations_total,
@@ -157,8 +157,8 @@ if __name__ == '__main__':
             coded_vals = coded_vals[:, : im_width // 2]
 
         if cfg.mask_background_pixels:
-            depth_map = depth_map[20:450, :]
-            gt_depth_map = gt_depth_map[20:450, :]
+            depth_map = depth_map[40:450, :]
+            gt_depth_map = gt_depth_map[40:450, :]
             mask = None
 
         mae = np.nanmean(np.abs(depth_map - gt_depth_map))

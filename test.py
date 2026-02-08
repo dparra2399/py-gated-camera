@@ -6,7 +6,7 @@ from felipe_utils.tof_utils_felipe import zero_norm_t
 import matplotlib.pyplot as plt
 
 k = 3
-n_tbins = 999 * 30
+n_tbins = 999
 trials = 1
 photon_count = 1000
 sbr = 0.1
