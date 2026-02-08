@@ -19,13 +19,13 @@ from utils.tof_utils import (
 PHOTON_COUNT = 1000
 SBR = 0.1
 TRIALS = 100
-N_TBINS = 999 * 2
+N_TBINS = 999
 SIMULATED_CORRELATIONS = False
 SMOOTH_SIGMA = None
 SHIFT = None
 DEPTH_MARGIN = 3.0
 REP_RATE = 5 * 1e6
-DEPTH_SAMPLE = 0.5
+DEPTH_SAMPLE = 0.01
 """
 Format:
 capture_type,k,freq_mhz,mV,mA,duty

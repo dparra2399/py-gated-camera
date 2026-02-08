@@ -57,7 +57,7 @@ def get_simulated_coding_matrix(type, n_tbins, k):
         coding_matrix = np.fft.ifft(np.fft.fft(modfs, axis=0).conj() * np.fft.fft(demodfs, axis=0), axis=0).real
     elif type=='coarse':
         coding_matrix = np.kron(np.eye(k), np.ones((1, n_tbins //k)))
-        irf = gaussian_pulse(np.arange(coding_matrix.shape[-1]), 0, n_tbins // (k + 3), circ_shifted=True)
+        irf = gaussian_pulse(np.arange(coding_matrix.shape[-1]), 0, n_tbins // (k + 4), circ_shifted=True)
         coding_matrix = np.fft.ifft(
             np.fft.fft(irf[..., np.newaxis], axis=0).conj() * np.fft.fft(np.transpose(coding_matrix), axis=0),
             axis=0).real
@@ -153,8 +153,11 @@ def decode_from_correlations(
     clean_coded_vals = coding_matrix[depths, :]
 
     # global scale so typical total matches photon_count (choose one convention)
-    alpha = photon_count / (clean_coded_vals.sum(axis=1).mean() + 1e-12)  # (1, K)
-    clean_coded_vals *= alpha
+    #alpha = photon_count / (clean_coded_vals.sum(axis=1).mean() + 1e-12)  # (1, K)
+    #clean_coded_vals *= alpha
+    clean_coded_vals = (clean_coded_vals / np.sum(clean_coded_vals, axis=-1, keepdims=True))
+    clean_coded_vals *= photon_count
+
 
     # background (if you want it per channel, include duty cycle)
     clean_coded_vals = clean_coded_vals + (photon_count / sbr) / coding_matrix.shape[0]
