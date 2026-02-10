@@ -182,6 +182,7 @@ def plot_correlation_functions(
 def plot_correlation_comparison(
         measured_coding_matrix: np.ndarray,
         coding_matrix: np.ndarray,
+        shift: int = None,
 ):
     mins = measured_coding_matrix.min(axis=0, keepdims=True)
     maxs = measured_coding_matrix.max(axis=0, keepdims=True)
@@ -192,6 +193,10 @@ def plot_correlation_comparison(
     maxs = coding_matrix.max(axis=0, keepdims=True)
 
     coding_matrix = (coding_matrix - mins) / (maxs - mins)
+
+    if shift is not None:
+        for i in range(coding_matrix.shape[-1]):
+            coding_matrix[:, i] = np.roll(coding_matrix[:, i], shift)
 
     fig, axs = plt.subplots(1, 1, figsize=(8, 4))
     axs.plot(measured_coding_matrix, label='Measured')
@@ -257,3 +262,50 @@ def plot_capture_comparison(depths_maps_dict, x=20, y=20, width=220, height=320,
     plt.show()
 
 
+
+def global_align_coding_matrices(
+    coding_matrix,                 # (n_tbins, K)
+    measured_coding_matrix,        # (m_n_tbins, K) usually m_n_tbins == n_tbins
+    use_zeropad=False,
+):
+    C = np.asarray(coding_matrix)
+    M = np.asarray(measured_coding_matrix)
+
+    if C.ndim != 2 or M.ndim != 2:
+        raise ValueError("Both inputs must be 2D arrays: (n_tbins, K).")
+    if C.shape[1] != M.shape[1]:
+        raise ValueError(f"K mismatch: {C.shape[1]} vs {M.shape[1]}")
+
+    n, K = C.shape
+    m = M.shape[0]
+
+    # Use common length for correlation (if lengths differ)
+    L = min(n, m)
+    C0 = C[:L].astype(np.float64, copy=False)
+    M0 = M[:L].astype(np.float64, copy=False)
+
+    # Optional: remove DC per column so correlation keys on shape, not offset
+    C0 = C0 - C0.mean(axis=0, keepdims=True)
+    M0 = M0 - M0.mean(axis=0, keepdims=True)
+
+    # Aggregate cross-correlation across K
+    total_corr = None
+    for k in range(K):
+        corr_k = np.correlate(M0[:, k], C0[:, k], mode="full")  # length 2L-1
+        total_corr = corr_k if total_corr is None else (total_corr + corr_k)
+
+    lag = int(np.argmax(total_corr) - (L - 1))  # positive => M leads C
+
+    # Apply shift to measured matrix (global, across all K)
+    if use_zeropad:
+        shifted = np.zeros_like(M)
+        if lag > 0:
+            shifted[:-lag, :] = M[lag:, :]
+        elif lag < 0:
+            shifted[-lag:, :] = M[:lag, :]
+        else:
+            shifted = M.copy()
+    else:
+        shifted = np.roll(M, -lag, axis=0)
+
+    return shifted, lag

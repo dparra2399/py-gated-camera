@@ -88,10 +88,10 @@ def build_coding_matrix_from_correlations(
 
     # legacy path: spatial-sum correlations
     coding_matrix = np.transpose(
-        np.sum(np.sum(correlations_total[20:-20, 20:correlations_total.shape[1]//2-20, :], axis=0), axis=0)
+        np.sum(np.sum(correlations_total[100:-20, 20:correlations_total.shape[1]//2-20, :], axis=0), axis=0)
     )  # (n_tbins,K)
 
-    coding_matrix[:, 2] = np.roll(coding_matrix[:, 2], shift=2, axis=-1)
+    #coding_matrix[:, 2] = np.roll(coding_matrix[:, 2], shift=2, axis=-1)
     if shift_size is not None:
         coding_matrix = np.roll(coding_matrix, shift=shift_size, axis=0)
     if sigma_size is not None:

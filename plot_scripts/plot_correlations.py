@@ -2,11 +2,6 @@ import os
 import sys
 sys.path.append('..')
 sys.path.append('.')
-import glob
-from felipe_utils.research_utils.signalproc_ops import gaussian_pulse
-from felipe_utils.CodingFunctionsFelipe import *
-
-
 
 
 from plot_scripts.plot_utils import plot_correlation_functions, plot_correlation_comparison
@@ -23,7 +18,8 @@ filename =  'coarsek3_5mhz_4000mV_50mA_30duty_correlations.npz'
 
 SMOOTH_SIGMA = None
 N_TBINS_DEFAULT = 1000
-SHIFT = 1 # -4
+SHIFT = None #-8 # -4
+OTHER_SHIFT = 100
 
 if __name__ == "__main__":
     folder = get_data_folder(READ_PATH_CORRELATIONS_MAC, READ_PATH_CORRELATIONS_WINDOWS)
@@ -60,4 +56,5 @@ if __name__ == "__main__":
     plot_correlation_comparison(
             measured_coding_matrix,
             coding_matrix,
+            OTHER_SHIFT
     )
