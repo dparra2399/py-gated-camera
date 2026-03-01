@@ -1,39 +1,25 @@
-from spad_lib.spad512utils import *
 from utils.file_utils import *
-from plot_scripts.plot_utils import *
+from plot_scripts.plot_utils import plot_single_pixel_dist, plot_single_pixel_corr, plot_single_pixel_depth_pairs
 from utils.global_constants import *
-from utils.tof_utils import build_coding_matrix_from_correlations, get_simulated_coding_matrix, decode_depth_map, \
-    calculate_tof_domain_params, filter_hot_pixels
+from utils.tof_utils import build_coding_matrix_from_correlations, get_simulated_coding_matrix, \
+    calculate_tof_domain_params, decode_single_pixel_experiment
 from utils.parameter_classes import DecodeConfig
 
 # -----------------------------------------------------------------------------
 # CONFIG (capitalized)
 # -----------------------------------------------------------------------------
-EXP_PATH = os.path.join('exp_24')
+EXP_PATH = os.path.join('exp_3')
 N_TBINS = 1500
 
 #PLotting utils for visualization
-PLOT_DEPTH_MAPS = True
-VMINS = None #[0.0, 0.0] * 1#None if no min depth value just choose smallest
-VMAXS = None #[0.1, 0.1] * 1#none if no max depth value just choose largest
-MEDIAN_FILTER_SIZE = 5
-
-#Masking or normalizing depth maps
-NORMALIZE_DEPTH_MAPS = False
-MASK_BACKGROUND_PIXELS = True
+PLOT_SINGLE_PIXEL = True
 
 #Which correlation functions to use
-SIMULATED_CORRELATIONS = True
-USE_FULL_CORRELATIONS = False
+SIMULATED_CORRELATIONS = False
 
 #Smoothing or shifting the correlation functions
 SIGMA_SIZE = None #None if no smoothing
 SHIFT_SIZE = None #None if no shifting
-
-#Corrections to depth map
-CORRECT_DEPTH_DISTORTION = False
-CORRECT_MASTER = True
-
 
 # -----------------------------------------------------------------------------
 # MAIN
@@ -46,22 +32,12 @@ if __name__ == '__main__':
 
             n_tbins=N_TBINS,
 
-            vmins=VMINS,
-            vmaxs=VMAXS,
-            median_filter_size=MEDIAN_FILTER_SIZE,
-
-            correct_master=CORRECT_MASTER,
-            plot_depth_maps=PLOT_DEPTH_MAPS,
-            mask_background_pixels=MASK_BACKGROUND_PIXELS,
-            normalize_depth_maps=NORMALIZE_DEPTH_MAPS,
+            plot_single_pixel=PLOT_SINGLE_PIXEL,
 
             simulated_correlations=SIMULATED_CORRELATIONS,
-            use_full_correlations=USE_FULL_CORRELATIONS,
 
             smooth_sigma=SIGMA_SIZE,
             shift=SHIFT_SIZE,
-
-            correct_depth_distortion=CORRECT_DEPTH_DISTORTION,
 
         )
 
@@ -76,16 +52,15 @@ if __name__ == '__main__':
     args = parser.parse_args()
     cfg = apply_decode_defaults(DecodeConfig(**vars(args)))
 
-    hot_mask = load_hot_mask(get_data_folder(HOT_MASK_PATH_WINDOWS, HOT_MASK_PATH_MAC))
     correlation_folder = get_data_folder(READ_PATH_CORRELATIONS_MAC, READ_PATH_CORRELATIONS_WINDOWS)
-    capture_folder = get_data_folder(READ_PATH_CAPTURE_MAC, READ_PATH_CAPTURE_WINDOWS)
+    capture_folder = get_data_folder(READ_PATH_SINGLE_PIXEL_MAC, READ_PATH_SINGLE_PIXEL_WINDOWS)
     assert cfg.exp_path is not None, 'Must define exp_num to find folder'
     capture_folder = os.path.join(capture_folder, cfg.exp_path)
 
     capture_paths = os.listdir(capture_folder)
     capture_paths = filter_capture_files(capture_paths)
 
-    depth_map_dict = {}
+    depths_dict = {}
 
     for i, coded_vals_name in enumerate(capture_paths):
         coded_vals_path = os.path.join(capture_folder, coded_vals_name)
@@ -117,7 +92,7 @@ if __name__ == '__main__':
         else:
             coding_matrix = build_coding_matrix_from_correlations(
                 correlations_total,
-                cfg.use_full_correlations,
+                False,
                 cfg.smooth_sigma,
                 cfg.shift,
                 cfg.n_tbins,
@@ -130,59 +105,44 @@ if __name__ == '__main__':
         # -----------------------------------------------------------------
         # decode to depth map
         # -----------------------------------------------------------------
-        depth_map, zncc = decode_depth_map(
+        depths, zncc = decode_single_pixel_experiment(
             coded_vals,
             coding_matrix,
-            im_width,
             tbin_depth_res,
-            cfg.use_full_correlations,
         )
 
-
-        depth_map = filter_hot_pixels(depth_map, hot_mask)
-
-        coded_vals_filt = np.zeros_like(coded_vals)
-        for i in range(coded_vals.shape[-1]):
-            coded_vals_filt[:, :, i] = filter_hot_pixels(coded_vals[..., i], hot_mask)
 
 
 
         try:
             coded_vals_gt = np.load(gt_coded_vals_path, allow_pickle=True)['coded_vals']
-            gt_depth_map, zncc = decode_depth_map(
+            gt_depths, zncc = decode_single_pixel_experiment(
                 coded_vals_gt,
                 coding_matrix,
-                im_width,
                 tbin_depth_res,
-                args.use_full_correlations,
             )
-            gt_depth_map = filter_hot_pixels(gt_depth_map, hot_mask)
         except FileNotFoundError:
             print('GT Depth Map not found, Using Captured Depth Map Instead')
-            gt_depth_map = np.copy(depth_map)
+            gt_depths = np.copy(depths)
 
 
-        # optional crop for master
-        if cfg.correct_master is False:
-            depth_map = depth_map[:, : im_width // 2]
-            gt_depth_map = gt_depth_map[:, : im_width // 2]
-            coded_vals = coded_vals[:, : im_width // 2]
 
-        if cfg.mask_background_pixels:
-            depth_map = depth_map[40:450, :]
-            gt_depth_map = gt_depth_map[40:450, :]
-            mask = None
-
-        mae = np.nanmean(np.abs(depth_map - gt_depth_map))
-        rmse = np.sqrt(np.nanmean((depth_map - gt_depth_map) ** 2))
+        mae = np.nanmean(np.abs(depths - gt_depths))
+        rmse = np.sqrt(np.nanmean((depths - gt_depths) ** 2))
 
         cfg_dict = asdict(cfg)
-        cfg_dict.update({'depth_map': depth_map, 'gt_depth_map': gt_depth_map,
-                         'rmse': rmse, 'mae': mae})
+        cfg_dict.update({'depths': depths, 'gt_depths': gt_depths,
+                         'rmse': rmse, 'mae': mae, 'coding_matrix': coding_matrix,
+                         'tbin_res': tbin_res, 'tbin_depth_res': tbin_depth_res,
+                         'phase_shifts' : params['phase_shifts']})
         cfg_dict.update(params)
-        depth_map_dict[coded_vals_path] = cfg_dict
+        depths_dict[coded_vals_path] = cfg_dict
 
-    if cfg.plot_depth_maps:
-        plot_capture_comparison(depth_map_dict, vmins=cfg.vmins, vmaxs=cfg.vmaxs,
-                                normalize_depth_maps=cfg.normalize_depth_maps,
-                                median_filter_size=cfg.median_filter_size)
+    if cfg.plot_single_pixel:
+        plot_single_pixel_dist(depths_dict)
+
+        plot_single_pixel_depth_pairs(depths_dict)
+
+
+
+        plot_single_pixel_corr(depths_dict)

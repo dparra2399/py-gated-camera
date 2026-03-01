@@ -10,32 +10,30 @@ BASE = [
     "--im_width", "512",
     "--burst_time", "4800",
     "--bit_depth", "12",
-    "--int_time", "1000",
-    "--ground_truth_int_time", "500000",
-    "--ground_truth", "1",
+    "--int_time", "3000",
+    "--ground_truth_int_time", "1000000",
+    "--ground_truth", "0",
     "--rep_rate", "5000000",
     "--save_into_file", "1",
     "--iterations", "1",
+    "--current", "50"
 ]
 
 # sweeps
 capture_types = ["coarse", "ham"]
-high_level_amps = [4.0]
-low_level_amps  = [-4.0]
-currs = [50]
-phases = [45, 90, 135, 180]   # <-- set whatever you want (degrees or whatever your script expects)
+phases = [180]   # <-- set whatever you want (degrees or whatever your script expects)
 
-run_id = 3
+run_id = 13
 
 # OUTER LOOP = things that define a "run folder"
-for phase, high_lvl, low_lvl, cur in product(phases, high_level_amps, low_level_amps, currs):
+for phase in phases:
 
-    print("=" * 70)
-    print(f"[{run_id:03d}] phase={phase}  high={high_lvl:4.1f}  low={low_lvl:5.1f}  cur={cur:3d}")
-    print("=" * 70)
 
     # INNER LOOP = capture types share the SAME run_id folder
     for typ in capture_types:
+
+        high_level_amp=  "4.0" if typ == "ham" else "3.4"
+        low_level_amps = "-4.0"
         illum_typ = "square" if typ == "ham" else "gaussian"
         gate_shrinkage = "20" if typ == "ham" else "10"
         duty = "20" if typ == "ham" else "30"
@@ -46,12 +44,10 @@ for phase, high_lvl, low_lvl, cur in product(phases, high_level_amps, low_level_
             "--gate_shrinkage", str(gate_shrinkage),
             "--duty", str(duty),
             "--illum_type", illum_typ,
-            "--high_level_amplitude", str(high_lvl),
-            "--low_level_amplitude", str(low_lvl),
-            "--current", str(cur),
+            "--high_level_amplitude", str(high_level_amp),
+            "--low_level_amplitude", str(low_level_amps),
 
-            # IMPORTANT: if exp_path is typed as int in argparse, pass just the int
-            "--exp_path", str(run_id),
+            "--exp_path", f"exp_{run_id}",
         ]
 
         print(f"  -> running capture_type={typ}")

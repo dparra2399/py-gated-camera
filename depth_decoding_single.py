@@ -8,19 +8,28 @@ from utils.tof_utils import build_coding_matrix_from_correlations, get_simulated
 # -----------------------------------------------------------------------------
 # CONFIG (capitalized)
 # -----------------------------------------------------------------------------
-EXP_PATH = "exp_0" #Only use if inside folder otherwise none
+EXP_PATH = 'exp_2'
 N_TBINS = 1500
-VMIN = None
-VMAX = None
+
+#PLotting utils for visualization
 MEDIAN_FILTER_SIZE = 5
-CORRECT_MASTER = False
+VMIN = None #None if no min depth value just choose smallest
+VMAX = None #none if no max depth value just choose largest
+
+#Masking or normalizing depth maps
 MASK_BACKGROUND_PIXELS = True
+
+#Which correlation functions to use
 SIMULATED_CORRELATIONS = False
 USE_FULL_CORRELATIONS = False
-SIGMA_SIZE = None
-SHIFT_SIZE = 150
-CORRECT_DEPTH_DISTORTION = False
 
+#Smoothing or shifting the correlation functions
+SIGMA_SIZE = None #None if no smoothing
+SHIFT_SIZE = None #None if no shifting
+
+#Corrections to depth map
+CORRECT_DEPTH_DISTORTION = False
+CORRECT_MASTER = False
 # paths
 """
 Format:
@@ -31,7 +40,7 @@ ham,3,5,100,50,10
 """
 
 DEFAULT_RUNS = [
-    "ham,3,5, 5000,50,20, 200" ,
+    "ham,3,5, 4000,50,20, 1000" ,
 ]
 
 EPSILON = 1e-12
@@ -170,14 +179,17 @@ if __name__ == '__main__':
         # ------------------------------------------------------------------
         # Diagnostics plots (coding vs coded at a few points)
         # ------------------------------------------------------------------
+
         plot_gated_images(
                 coded_vals_filt,
                 depth_map,
                 gt_depth_map,
-                vmin=VMIN,
-                vmax=VMAX,
-                median_filter_size=MEDIAN_FILTER_SIZE,
+                vmin=args.vmin,
+                vmax=args.vmax,
+                median_filter_size=args.median_filter_size,
         )
+
+
 
         plot_sample_points(
                 coded_vals,

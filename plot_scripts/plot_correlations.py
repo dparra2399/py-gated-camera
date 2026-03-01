@@ -12,14 +12,14 @@ import numpy as np
 
 
 
-filename =  'coarsek3_5mhz_4000mV_50mA_30duty_correlations.npz'
+#filename =  'coarsek3_5mhz_4000mV_50mA_30duty_correlations.npz'
 
-#filename =  'hamk3_5mhz_4000mV_50mA_20duty_correlations.npz'
+filename =  'hamk3_5mhz_4000mV_50mA_20duty_correlations.npz'
 
 SMOOTH_SIGMA = None
 N_TBINS_DEFAULT = 1000
 SHIFT = None #-8 # -4
-OTHER_SHIFT = 100
+OTHER_SHIFT = -30
 
 if __name__ == "__main__":
     folder = get_data_folder(READ_PATH_CORRELATIONS_MAC, READ_PATH_CORRELATIONS_WINDOWS)
@@ -44,14 +44,12 @@ if __name__ == "__main__":
 
     point_list = [(10, 10), (200, 200), (50, 200)]
 
-    # plot_correlation_functions(
-    #         point_list,
-    #         correlations,
-    #         coding_matrix,
-    #         SMOOTH_SIGMA,
-    #         SMOOTH_CORRELATIONS,
-    #         N_TBINS_DEFAULT,
-    # )
+    plot_correlation_functions(
+            point_list,
+            correlations_total,
+            N_TBINS_DEFAULT,
+            SMOOTH_SIGMA
+    )
 
     plot_correlation_comparison(
             measured_coding_matrix,

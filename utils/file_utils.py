@@ -141,6 +141,11 @@ def capture_parse_run(s: str):
         int_time=int(int_time),
     )
 
+def capture_phase_shifts(s: str):
+    phase_shifts = s.split(",")
+    phase_shifts = [int(s) for s in phase_shifts]
+    return phase_shifts
+
 
 def make_next_exp_folder(base_dir, prefix="exp"):
     """

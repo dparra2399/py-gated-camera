@@ -38,6 +38,9 @@ class Config:
     ground_truth: Optional[bool] = None #only used for captures
     ground_truth_int_time: Optional[int] = None #only used for dual capture
 
+    #Singe-pixel only parameters
+    phase_shifts: Optional[str] = None
+
     # Parameters from previous parameters
     gate_steps: Optional[int] = None
     rep_tau: Optional[float] = None
@@ -61,13 +64,14 @@ class DecodeConfig:
     n_tbins: Optional[int] = None
 
     # Plot limits
-    vmin: Optional[float] = None
-    vmax: Optional[float] = None
+    vmins: Optional[float] = None
+    vmaxs: Optional[float] = None
     median_filter_size: Optional[int] = None
 
     # Processing toggles
     correct_master: Optional[bool] = None
     plot_depth_maps: Optional[bool] = None
+    plot_single_pixel: Optional[bool] = None
     mask_background_pixels: Optional[bool] = None
 
     simulated_correlations: Optional[bool] = None

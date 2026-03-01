@@ -1,15 +1,12 @@
 #Standard imports
-import os
-import numpy as np
 import time
 
 #Library imports
 from utils.global_constants import *
-from utils.file_utils import build_parser_from_config, save_correlation_data
+from utils.file_utils import build_parser_from_config, save_capture_and_gt_data
 from utils.parameter_classes import  Config
-from spad_lib.spad512utils import set_up_spad512, get_gate_shifts, correlation_capture
+from spad_lib.spad512utils import set_up_spad512, get_gate_shifts, depth_map_capture
 from utils.instrument_utils import SDG5162_GATED_PROJECT, NIDAQ_LDC220
-from plot_scripts.plot_utils import plot_correlation_functions
 from dataclasses import asdict
 ##### Editable parameters (defaults; can be overridden via CLI)  #####
 
@@ -18,29 +15,22 @@ IM_WIDTH = 512  # image width
 BIT_DEPTH = 12
 
 # Capture parameters
-INT_TIME = 2500  # integration time
-BURST_TIME = 4800
+INT_TIME = 3000  # integration time
+BURST_TIME = 4800 #Maxiumum burst time is 4800 ms
 K = 3  # number of time bins
-GATE_STEP_SIZE = 2500 #Steps in picoseconds
-GATE_SHRINKAGE = 10 #In NS
-CAPTURE_TYPE = 'coarse'
+
+GATE_SHRINKAGE = 25 #In NS
+CAPTURE_TYPE = 'ham'
 
 # Illumination Parameters:
-HIGH_LEVEL_AMPLITUDE = 3.4 #in Vpp
+HIGH_LEVEL_AMPLITUDE = 4.0 #in Vpp
 LOW_LEVEL_AMPLITUDE = -4.0
 CURRENT = 50 #in mA
 EDGE = 6 * 1e-9 #Edge rate for pulse wave
-DUTY = 30 # In percentage
+PHASE = 180
+DUTY = 20 # In percentage
 REP_RATE = 5 * 1e6 #in HZ
-ILLUM_TYPE = 'gaussian'
-
-#Plot Parameters
-PLOT_CORRELATIONS = True
-
-# Save Parameters
-SAVE_INTO_FILE = True
-SAVE_PATH = SAVE_PATH_CORRELATIONS
-
+ILLUM_TYPE = 'square'
 
 ###### Non-Editable Parameters #####
 ITERATIONS = 1
@@ -48,6 +38,8 @@ OVERLAP = 0
 TIMEOUT = 0
 PILEUP = 0
 GATE_STEP_ARBITRARY = 0
+GATE_STEP_SIZE = 0
+GATE_STEPS = 1
 GATE_DIRECTION = 1
 GATE_TRIG = 0
 
@@ -71,17 +63,15 @@ if __name__ == "__main__":
             low_level_amplitude=LOW_LEVEL_AMPLITUDE,
             current=CURRENT,
             edge=EDGE,
+            phase=PHASE,
             duty=DUTY,
             rep_rate=REP_RATE,
             illum_type=ILLUM_TYPE,
-            plot_correlations=PLOT_CORRELATIONS,
-            save_into_file=SAVE_INTO_FILE,
-            save_path=SAVE_PATH,
             iterations=ITERATIONS,
             overlap=OVERLAP,
             timeout=TIMEOUT,
             pileup=PILEUP,
-            gate_steps= int(((1 / REP_RATE)*1e12) // GATE_STEP_SIZE),
+            gate_steps=GATE_STEPS,
             gate_step_arbitrary=GATE_STEP_ARBITRARY,
             gate_step_size=GATE_STEP_SIZE,
             gate_direction=GATE_DIRECTION,
@@ -103,34 +93,34 @@ if __name__ == "__main__":
         usb_port="USB0::0xF4ED::0xEE3A::SDG050D2150058::INSTR"
     )
 
-    ldc220 = NIDAQ_LDC220(max_amps=90)
+    ldc220 = NIDAQ_LDC220(max_amps=100)
     ldc220.set_current(0)
 
     sdg.set_waveform_and_trigger(cfg.illum_type, cfg.duty, cfg.rep_rate,
-                                 cfg.high_level_amplitude, cfg.low_level_amplitude, 0, cfg.edge)
+                                 cfg.high_level_amplitude, cfg.low_level_amplitude, cfg.phase, cfg.edge)
     sdg.turn_both_channels_on()
 
     ldc220.set_current(cfg.current)
 
     gate_widths, gate_starts = get_gate_shifts(cfg.capture_type, cfg.rep_rate, cfg.k)
 
-    time.sleep(20)
-    needed = {k: v for k, v in asdict(cfg).items() if k in correlation_capture.__code__.co_varnames}
-    correlations = correlation_capture(SPAD1, gate_starts=gate_starts, gate_widths=gate_widths, **needed)
+    time.sleep(30)
+
+    needed = {k: v for k, v in asdict(cfg).items() if k in depth_map_capture.__code__.co_varnames}
+    coded_vals = depth_map_capture(SPAD1, gate_starts=gate_starts, gate_widths=gate_widths, **needed)
 
     ldc220.set_current(0)
     sdg.turn_both_channels_off()
 
-    if cfg.plot_correlations:
-        point_list = [(10, 10), (200, 200), (50, 200)]
-        plot_correlation_functions(
-            point_list,
-            correlations
-        )
+    rep_rate = cfg.rep_rate
+    int_time_s = cfg.int_time * 1e-3  # <-- if ms
+    N = rep_rate * int_time_s
 
-    if cfg.save_into_file:
-        save_correlation_data(save_path=cfg.save_path, cfg_dict=asdict(cfg), correlations=correlations)
+    import numpy
+    estimated_flux = -numpy.log1p(-coded_vals / N)
 
-
-
+    print("N =", N)
+    print("max C/N =", (coded_vals.max() / N))
+    print("any C>N?", numpy.any(coded_vals > N))
+    print('done')
 

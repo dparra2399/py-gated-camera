@@ -9,6 +9,7 @@ from felipe_utils.tof_utils_felipe import zero_norm_t, norm_t
 from scipy.interpolate import interp1d
 
 
+
 def plot_gated_images(
         coded_vals_save: np.ndarray,
         depth_map: np.ndarray,
@@ -194,6 +195,9 @@ def plot_correlation_comparison(
 
     coding_matrix = (coding_matrix - mins) / (maxs - mins)
 
+    #measured_coding_matrix = zero_norm_t(measured_coding_matrix, axis=-1)
+    #coding_matrix = zero_norm_t(coding_matrix, axis=-1)
+
     if shift is not None:
         for i in range(coding_matrix.shape[-1]):
             coding_matrix[:, i] = np.roll(coding_matrix[:, i], shift)
@@ -206,19 +210,40 @@ def plot_correlation_comparison(
     plt.show()
 
 def plot_capture_comparison(depths_maps_dict, x=20, y=20, width=220, height=320,
-                            vmin=None, vmax=None, normalize_depth_maps=False,
+                            vmins=None, vmaxs=None, normalize_depth_maps=False,
                             median_filter_size=3):
+
+
     fig = plt.figure(figsize=(6, 4))
     gs = gridspec.GridSpec(len(depths_maps_dict), 4, height_ratios=[1] * len(depths_maps_dict))
 
     for i, coded_vals_path in enumerate(depths_maps_dict):
+        if type(vmins) == list:
+            assert len(vmins) == len(depths_maps_dict)
+            vmin = vmins[i]
+        elif vmins is not None:
+            vmin = vmins
+        else:
+            vmin = None
+
+        if type(vmaxs) == list:
+            assert len(vmaxs) == len(depths_maps_dict)
+            vmax = vmaxs[i]
+        elif vmaxs is not None:
+            vmax = vmaxs
+        else:
+            vmax = None
+
+
         inner_dict = depths_maps_dict[coded_vals_path]
 
         depth_map = inner_dict['depth_map']
         gt_depth_map = inner_dict['gt_depth_map']
         name = inner_dict['capture_type']
 
+
         depth_map_plot = depth_map - np.mean(depth_map) if normalize_depth_maps else np.copy(depth_map)
+        gt_depth_map_plot = gt_depth_map - np.mean(gt_depth_map) if normalize_depth_maps else np.copy(gt_depth_map)
 
 
         patch = depth_map_plot[y: y + height, x: x + width]
@@ -244,7 +269,7 @@ def plot_capture_comparison(depths_maps_dict, x=20, y=20, width=220, height=320,
         # GT / error -------------------------------------------------------
         ax3 = fig.add_subplot(gs[i, 2])
         im3 = ax3.imshow(
-            median_filter(gt_depth_map, size=median_filter_size), vmin=vmin, vmax=vmax
+            median_filter(gt_depth_map_plot, size=median_filter_size), vmin=vmin, vmax=vmax
         )
         fig.colorbar(im3, ax=ax3, fraction=0.046, pad=0.04, label="Ground Truth")
         ax3.set_title("Ground Truth")
@@ -253,59 +278,165 @@ def plot_capture_comparison(depths_maps_dict, x=20, y=20, width=220, height=320,
         # Error map -------------------------------------------------------
         ax4 = fig.add_subplot(gs[i, 3])
         error_map = np.abs(depth_map - gt_depth_map)
-        im4 = ax4.imshow(error_map, vmin=0, vmax=0.5)
+        im4 = ax4.imshow(error_map, vmin=0, vmax=0.1)
         fig.colorbar(im4, ax=ax4, fraction=0.046, pad=0.04, label="Absolute Error (m)")
         ax4.set_title("Error Map")
 
-    fig.subplots_adjust(left=0.05, right=0.98, top=0.97, bottom=0.05, wspace=0.05, hspace=0.05)
-    plt.tight_layout(pad=0.2, w_pad=0.2, h_pad=0.2)
+    fig.subplots_adjust(wspace=0.05, hspace=0.05)
+    #plt.tight_layout(pad=0.1, w_pad=0.1, h_pad=0.1)
     plt.show()
 
+def plot_single_pixel_dist(depths_dict):
+    fig, ax = plt.subplots(figsize=(7, 4))
+
+    colors = ['green', 'red', 'orange', 'blue', 'purple', 'pink']
+
+    keys = list(depths_dict.keys())
+    n_methods = len(keys)
+
+    # assume all share same depths
+    first = depths_dict[keys[0]]
+    gt_depths = first['gt_depths']
+
+    x = np.arange(len(gt_depths))
+
+    width = 0.8 / n_methods  # squish bars together
+
+    all_errors = [
+        np.abs(inner['depths'] - inner['gt_depths'])
+        for inner in depths_dict.values()
+    ]
+    ymax = min(np.max(all_errors)+1, 5+1)
+
+    for i, key in enumerate(keys):
+        inner = depths_dict[key]
+
+        error = np.abs(inner['depths'] - inner['gt_depths'])
+
+        offset = (i - (n_methods - 1) / 2) * width
+
+        label = (
+            f"{inner['capture_type']} | "
+            f"MAE={inner['mae'] * 1000:.2f}mm "
+            f"RMSE={inner['rmse'] * 1000:.2f}mm"
+        )
+
+        bars = ax.bar(
+            x + offset,
+            error,
+            width=width,
+            color=colors[i % len(colors)],
+            label=label
+        )
+
+        # add depth labels above each bar
+        for xi, yi, d in zip(x + offset, error, inner['gt_depths']):
+            ax.text(
+                xi,
+                yi + (0.02 * ymax),  # small offset above bar
+                f"{d:.2f}",
+                ha='center',
+                va='bottom',
+                rotation=0,
+                fontsize=8
+            )
+
+    ax.set_ylim(0, ymax)
+    ax.set_xticks(np.arange(len(first['phase_shifts'])))
+    ax.set_xticklabels(first['phase_shifts'])
+
+    ax.set_xlabel('Phase Shifts')
+    ax.set_ylabel('Absolute Error (m)')
+    ax.set_title('Single Pixel Absolute Error Comparison')
+
+    ax.legend()
+
+    plt.tight_layout()
+    plt.show()
+
+def plot_single_pixel_corr(depths_dict):
+    fig, ax = plt.subplots(len(depths_dict), 1, figsize=(7, 4))
+
+    for i, inner_dict in enumerate(depths_dict.values()):
+
+        coding_matrix = inner_dict['coding_matrix']
+
+        tbin_depth_res = inner_dict['tbin_depth_res']
+
+        depths = inner_dict['depths']
+        gt_depths = inner_dict['gt_depths']
+
+        depths_plot = (depths / tbin_depth_res).astype(int)
+        gt_depths_plot = (gt_depths / tbin_depth_res).astype(int)
+
+        ax[i].plot(coding_matrix)
+
+        for j in range(depths_plot.shape[-1]):
+            if j == 0:
+                ax[i].axvline(gt_depths_plot[j], linestyle='--', color='blue', label='Ground Truth')
+                ax[i].axvline(depths_plot[j],color='red',  label='Estimated')
+            else:
+                ax[i].axvline(gt_depths_plot[j], linestyle='--', color='blue')
+                ax[i].axvline(depths_plot[j],color='red')
+
+            ymax = ax[i].get_ylim()[1]
+
+            if np.abs(depths[j] - gt_depths[j]) < 4:
+                ax[i].plot([gt_depths_plot[j], depths_plot[j]],
+                           [0.95 * ymax, 0.95 * ymax],
+                           color='black',
+                           linewidth=2)
+        ax[i].legend()
+        ax[i].set_title(f"{inner_dict['capture_type']}")
 
 
-def global_align_coding_matrices(
-    coding_matrix,                 # (n_tbins, K)
-    measured_coding_matrix,        # (m_n_tbins, K) usually m_n_tbins == n_tbins
-    use_zeropad=False,
-):
-    C = np.asarray(coding_matrix)
-    M = np.asarray(measured_coding_matrix)
+    plt.show()
 
-    if C.ndim != 2 or M.ndim != 2:
-        raise ValueError("Both inputs must be 2D arrays: (n_tbins, K).")
-    if C.shape[1] != M.shape[1]:
-        raise ValueError(f"K mismatch: {C.shape[1]} vs {M.shape[1]}")
+def plot_single_pixel_depth_pairs(depths_dict):
+    keys = list(depths_dict.keys())
+    n = len(keys)
 
-    n, K = C.shape
-    m = M.shape[0]
+    fig, ax = plt.subplots(n, 1, figsize=(7, 3.2 * n), squeeze=False)
 
-    # Use common length for correlation (if lengths differ)
-    L = min(n, m)
-    C0 = C[:L].astype(np.float64, copy=False)
-    M0 = M[:L].astype(np.float64, copy=False)
+    for i, key in enumerate(keys):
+        inner = depths_dict[key]
 
-    # Optional: remove DC per column so correlation keys on shape, not offset
-    C0 = C0 - C0.mean(axis=0, keepdims=True)
-    M0 = M0 - M0.mean(axis=0, keepdims=True)
+        gt = np.asarray(inner['gt_depths'])   # (N,)
+        est = np.asarray(inner['depths'])     # (N,)
+        phase_shifts = inner['phase_shifts']  # (N,) labels
 
-    # Aggregate cross-correlation across K
-    total_corr = None
-    for k in range(K):
-        corr_k = np.correlate(M0[:, k], C0[:, k], mode="full")  # length 2L-1
-        total_corr = corr_k if total_corr is None else (total_corr + corr_k)
+        x = np.arange(len(gt))
+        width = 0.35  # two bars next to each other
 
-    lag = int(np.argmax(total_corr) - (L - 1))  # positive => M leads C
+        # (optional) set y limits per subplot, or compute global if you want
+        ymax = max(gt.max(), est.max()) + 0.05 * max(gt.max(), est.max(), 1e-12)
 
-    # Apply shift to measured matrix (global, across all K)
-    if use_zeropad:
-        shifted = np.zeros_like(M)
-        if lag > 0:
-            shifted[:-lag, :] = M[lag:, :]
-        elif lag < 0:
-            shifted[-lag:, :] = M[:lag, :]
-        else:
-            shifted = M.copy()
-    else:
-        shifted = np.roll(M, -lag, axis=0)
+        a = ax[i, 0]
+        bars_gt = a.bar(x - width/2, gt, width=width, label="GT")
+        bars_est = a.bar(x + width/2, est, width=width, label="Estimated")
 
-    return shifted, lag
+        # labels on bars (depth values)
+        for b in bars_gt:
+            y = b.get_height()
+            a.text(b.get_x() + b.get_width()/2, y + 0.02 * ymax, f"{y:.2f}",
+                   ha="center", va="bottom", fontsize=8)
+
+        for b in bars_est:
+            y = b.get_height()
+            a.text(b.get_x() + b.get_width()/2, y + 0.02 * ymax, f"{y:.2f}",
+                   ha="center", va="bottom", fontsize=8)
+
+        a.set_ylim(0, ymax)
+        a.set_xticks(x)
+        a.set_xticklabels(phase_shifts)
+        a.set_xlabel("Phase Shifts")
+        a.set_ylabel("Depth (m)")
+
+        title = inner.get("capture_type", str(key))
+        a.set_title(title)
+
+        a.legend()
+
+    plt.tight_layout()
+    plt.show()
+

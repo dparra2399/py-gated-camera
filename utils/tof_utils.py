@@ -88,7 +88,7 @@ def build_coding_matrix_from_correlations(
 
     # legacy path: spatial-sum correlations
     coding_matrix = np.transpose(
-        np.sum(np.sum(correlations_total[100:-20, 20:correlations_total.shape[1]//2-20, :], axis=0), axis=0)
+        np.mean(np.mean(correlations_total[200:-200, 100:correlations_total.shape[1]//2-100, :], axis=0), axis=0)
     )  # (n_tbins,K)
 
     #coding_matrix[:, 2] = np.roll(coding_matrix[:, 2], shift=2, axis=-1)
@@ -133,6 +133,22 @@ def decode_depth_map(
     depths = np.argmax(zncc, axis=-1)
     depth_map = depths.reshape((im_width, im_width)) * tbin_depth_res
     return depth_map, zncc
+
+def decode_single_pixel_experiment(
+    coded_vals: np.ndarray,
+    coding_matrix: np.ndarray,
+    tbin_depth_res: float,
+):
+    # normalize per-pixel coded vals → (N,K)
+    norm_coded_vals = zero_norm_t(coded_vals, axis=-1)
+
+    norm_coding_matrix = zero_norm_t(coding_matrix, axis=-1)
+
+    zncc = np.matmul(norm_coding_matrix, norm_coded_vals[..., np.newaxis]).squeeze(-1)
+
+    depths = np.argmax(zncc, axis=-1) * tbin_depth_res
+
+    return depths, zncc
 
 def decode_from_correlations(
     coding_matrix: np.ndarray,
