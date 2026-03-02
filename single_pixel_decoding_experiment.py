@@ -8,7 +8,7 @@ from utils.parameter_classes import DecodeConfig
 # -----------------------------------------------------------------------------
 # CONFIG (capitalized)
 # -----------------------------------------------------------------------------
-EXP_PATH = os.path.join('exp_3')
+EXP_PATH = os.path.join('exp_8')
 N_TBINS = 1500
 
 #PLotting utils for visualization
@@ -124,7 +124,17 @@ if __name__ == '__main__':
         except FileNotFoundError:
             print('GT Depth Map not found, Using Captured Depth Map Instead')
             gt_depths = np.copy(depths)
+            coded_vals_gt = None
 
+
+        print(f'capture type: {capture_type}')
+        print(f'depth: {gt_depths[0]:.3f}')
+        print(f'counts: {coded_vals[0, :]}')
+        print(f'total counts: {np.sum(coded_vals[0, :]):.3f}')
+        if coded_vals_gt is not None:
+            print(f'ground truth counts: {coded_vals_gt[0, :]}')
+            print(f'ground truth total counts: {np.sum(coded_vals_gt[0, :]):.3f}')
+        print('----------------------------------')
 
 
         mae = np.nanmean(np.abs(depths - gt_depths))

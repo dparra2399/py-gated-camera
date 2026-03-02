@@ -22,17 +22,17 @@ INT_TIME = 2500  # integration time
 BURST_TIME = 4800
 K = 3  # number of time bins
 GATE_STEP_SIZE = 2500 #Steps in picoseconds
-GATE_SHRINKAGE = 10 #In NS
-CAPTURE_TYPE = 'coarse'
+GATE_SHRINKAGE = 25 #In NS
+CAPTURE_TYPE = 'ham'
 
 # Illumination Parameters:
-HIGH_LEVEL_AMPLITUDE = 3.4 #in Vpp
-LOW_LEVEL_AMPLITUDE = -4.0
+HIGH_LEVEL_AMPLITUDE = 5.0 #in Vpp
+LOW_LEVEL_AMPLITUDE = -5.0
 CURRENT = 50 #in mA
 EDGE = 6 * 1e-9 #Edge rate for pulse wave
-DUTY = 30 # In percentage
+DUTY = 20 # In percentage
 REP_RATE = 5 * 1e6 #in HZ
-ILLUM_TYPE = 'gaussian'
+ILLUM_TYPE = 'square'
 
 #Plot Parameters
 PLOT_CORRELATIONS = True

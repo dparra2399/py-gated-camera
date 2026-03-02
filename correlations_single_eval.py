@@ -17,10 +17,10 @@ from utils.tof_utils import (
 # Defaults
 # =============================
 PHOTON_COUNT = 1000
-SBR = 1.0
+SBR = 2.0
 TRIALS = 100
 N_TBINS = 999
-SIMULATED_CORRELATIONS = True
+SIMULATED_CORRELATIONS = False
 SMOOTH_SIGMA = None
 SHIFT = None
 DEPTH_MARGIN = 3.0
@@ -86,6 +86,7 @@ if __name__ == "__main__":
     else:
         depths = np.arange(args.depth_margin, args.n_tbins - args.depth_margin, 1)
     folder = get_data_folder(READ_PATH_CORRELATIONS_MAC, READ_PATH_CORRELATIONS_WINDOWS)
+    #folder = os.path.join(folder, "feb10th_2026")
 
     results_dict = {}
 
@@ -139,7 +140,7 @@ if __name__ == "__main__":
         # row_sums = coding_matrix.sum(axis=1)  # sum over K
         # print(row_sums.min(), row_sums.max(), row_sums.std())
 
-        photon_count = args.photon_count * 1.3 if r['capture_type'] == 'ham' else args.photon_count
+        photon_count = args.photon_count * 1.5 if r['capture_type'] == 'ham' else args.photon_count
         decoded_depths = decode_from_correlations(
             coding_matrix=coding_matrix,
             depths=depths,

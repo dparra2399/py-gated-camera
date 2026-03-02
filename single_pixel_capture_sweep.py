@@ -12,7 +12,7 @@ BASE = [
     "--burst_time", "4800",
     "--bit_depth", "12",
     "--int_time", "100",
-    "--ground_truth_int_time", "2500",
+    "--ground_truth_int_time", "10_000",
     "--ground_truth", "1",
     "--rep_rate", "5000000",
     "--save_into_file", "1",
@@ -22,19 +22,19 @@ BASE = [
 
 # sweeps
 capture_types = ["coarse", "ham"]
-phase_shifts = np.arange(60, 300, 20).tolist()  # <-- set whatever you want (degrees or whatever your script expects)
+phase_shifts = np.arange(60, 300, 30).tolist()  # <-- set whatever you want (degrees or whatever your script expects)
 
 print(phase_shifts)
 
-run_id = 3
+run_id = 8
 
 # INNER LOOP = capture types share the SAME run_id folder
 for typ in capture_types:
 
-    high_level_amp=  "4.0" if typ == "ham" else "3.4"
-    low_level_amps = "-4.0"
+    high_level_amp=  "5.0" if typ == "ham" else "4.4"
+    low_level_amps = "-5.0"
     illum_typ = "square" if typ == "ham" else "gaussian"
-    gate_shrinkage = "25" if typ == "ham" else "10"
+    gate_shrinkage = "25" #"25" if typ == "ham" else "10"
     duty = "20" if typ == "ham" else "30"
 
     cmd = BASE + [
