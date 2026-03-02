@@ -161,9 +161,11 @@ def decode_from_correlations(
     rng = np.random.default_rng()
 
     tbin_depth_res = None
+    print_depths = None
     if rep_rate is not None:
         (rep_tau, rep_freq, tbin_res,
          t_domain, max_depth, tbin_depth_res,) = calculate_tof_domain_params(coding_matrix.shape[0], 1. / rep_rate)
+        print_depths = depths.copy()
         depths = (depths // tbin_depth_res).astype(int)
 
     clean_coded_vals = coding_matrix[depths, :]
@@ -176,9 +178,18 @@ def decode_from_correlations(
 
 
     # background (if you want it per channel, include duty cycle)
-    clean_coded_vals = clean_coded_vals + (photon_count / sbr) / coding_matrix.shape[0]
+    clean_coded_vals = clean_coded_vals + ((photon_count / sbr) / coding_matrix.shape[-1])
 
-    coded_vals = rng.poisson(clean_coded_vals, size=(trials, clean_coded_vals.shape[0], clean_coded_vals.shape[1]))
+    #coded_vals = rng.poisson(clean_coded_vals, size=(trials, clean_coded_vals.shape[0], clean_coded_vals.shape[1]))
+    #gauss_sigma = 10.0  # in "counts" units; tune this
+    gauss_sigma = np.sqrt(clean_coded_vals)  # example
+    coded_vals = clean_coded_vals + rng.normal(0.0, gauss_sigma, size=(trials, *clean_coded_vals.shape))
+
+    if print_depths is not None:
+        print(f'depth: {print_depths[0]}')
+        print(f'counts: {clean_coded_vals[0]}')
+        print(f'total counts: {np.sum(clean_coded_vals[0])}')
+
 
     norm_coding_matrix = zero_norm_t(coding_matrix, axis=-1)
 

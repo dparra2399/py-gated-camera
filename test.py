@@ -37,6 +37,12 @@ for i in range(depths.shape[0]):
         total_modfs[i, :, j] = np.roll(clean_modf, int(depths[i] / tbin_depth_res))
         ham_cv[i, j] = np.inner(total_modfs[i, :, j], demodfs[:, j])
 
+
+print(f'depth: {depths[0]}')
+print(f'counts: {ham_cv[0]}')
+print(f'total counts: {np.sum(ham_cv[0])}')
+
+
 ham_noisy_cv = rng.poisson(ham_cv, size=(trials, ham_cv.shape[0], ham_cv.shape[1]))
 
 ham_norm_cm= zero_norm_t(ham_cm, axis=-1)
@@ -51,7 +57,7 @@ ham_rmse = float(np.sqrt(np.mean((ham_decoded_depth - depths) ** 2)))
 ham_mae = float(np.mean(np.abs(ham_decoded_depth - depths)))
 
 coarse_cm = np.kron(np.eye(k), np.ones((1, n_tbins // k)))
-illum = gaussian_pulse(np.arange(coarse_cm.shape[-1]), 0, n_tbins // (k + 4), circ_shifted=True)
+illum = gaussian_pulse(np.arange(coarse_cm.shape[-1]), 0, n_tbins // (k + 4 ), circ_shifted=True)
 coarse_cm = np.fft.ifft(
     np.fft.fft(illum[..., np.newaxis], axis=0).conj() * np.fft.fft(np.transpose(coarse_cm), axis=0),
     axis=0).real
@@ -64,6 +70,12 @@ for i in range(depths.shape[0]):
         clean_illum = tmp + ((photon_count / sbr) / n_tbins)
         total_illums[i, :, j] = np.roll(clean_illum, int(depths[i] / tbin_depth_res))
         coarse_cv[i, j] = np.inner(total_illums[i, :, j], coarse_cm[:, j])
+
+
+print(f'depth: {depths[0]}')
+print(f'counts: {coarse_cv[0]}')
+print(f'total counts: {np.sum(coarse_cv[0])}')
+
 
 coarse_noisy_cv = rng.poisson(coarse_cv, size=(trials, coarse_cv.shape[0], coarse_cv.shape[1]))
 

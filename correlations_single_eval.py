@@ -17,10 +17,10 @@ from utils.tof_utils import (
 # Defaults
 # =============================
 PHOTON_COUNT = 1000
-SBR = 0.1
+SBR = 1.0
 TRIALS = 100
 N_TBINS = 999
-SIMULATED_CORRELATIONS = False
+SIMULATED_CORRELATIONS = True
 SMOOTH_SIGMA = None
 SHIFT = None
 DEPTH_MARGIN = 3.0
@@ -139,10 +139,11 @@ if __name__ == "__main__":
         # row_sums = coding_matrix.sum(axis=1)  # sum over K
         # print(row_sums.min(), row_sums.max(), row_sums.std())
 
+        photon_count = args.photon_count * 1.3 if r['capture_type'] == 'ham' else args.photon_count
         decoded_depths = decode_from_correlations(
             coding_matrix=coding_matrix,
             depths=depths,
-            photon_count=args.photon_count,
+            photon_count=photon_count,
             sbr=args.sbr,
             trials=args.trials,
             rep_rate=args.rep_rate,
