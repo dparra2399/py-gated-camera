@@ -53,14 +53,28 @@ def get_simulated_coding_matrix(type, n_tbins, k):
         #Dt = demodfs.sum(axis=1)
         #print(Dt.min(), Dt.max(), Dt.mean(), Dt.std())
         irf = gaussian_pulse(np.arange(n_tbins), 0, 1, circ_shifted=True)
-        modfs = np.fft.ifft(np.fft.fft(irf[..., np.newaxis], axis=0).conj() * np.fft.fft(modfs, axis=0), axis=0).real
         coding_matrix = np.fft.ifft(np.fft.fft(modfs, axis=0).conj() * np.fft.fft(demodfs, axis=0), axis=0).real
+
+        coding_matrix = np.fft.ifft(
+            np.fft.fft(irf[..., np.newaxis], axis=0).conj() * np.fft.fft(coding_matrix, axis=0),
+            axis=0).real
+
     elif type=='coarse':
         coding_matrix = np.kron(np.eye(k), np.ones((1, n_tbins //k)))
         irf = gaussian_pulse(np.arange(coding_matrix.shape[-1]), 0, n_tbins // (k + 4), circ_shifted=True)
+        #
+        # import matplotlib.pyplot as plt
+        # coding_matrix_plot = np.transpose(coding_matrix / np.sum(coding_matrix, axis=-1, keepdims=True))
+        # irf_plot = irf / np.sum(irf, axis=-1, keepdims=True)
+        # plt.plot(coding_matrix_plot)
+        # plt.plot(np.roll(irf_plot, shift=n_tbins // 2))
+        # plt.show()
+
         coding_matrix = np.fft.ifft(
             np.fft.fft(irf[..., np.newaxis], axis=0).conj() * np.fft.fft(np.transpose(coding_matrix), axis=0),
             axis=0).real
+
+
     else:
         assert False
     return coding_matrix
@@ -106,10 +120,10 @@ def build_coding_matrix_from_correlations(
             fill_value='extrapolate'
         )
         coding_matrix = f(np.linspace(0, 1, n_tbins))
-    mins = coding_matrix.min(axis=0, keepdims=True)
-    maxs = coding_matrix.max(axis=0, keepdims=True)
+    #mins = coding_matrix.min(axis=0, keepdims=True)
+    #maxs = coding_matrix.max(axis=0, keepdims=True)
 
-    coding_matrix = (coding_matrix - mins) / (maxs - mins)
+    #coding_matrix = (coding_matrix - mins) / (maxs - mins)
     return coding_matrix
 
 
@@ -185,7 +199,7 @@ def decode_from_correlations(
     clean_coded_vals = clean_coded_vals + ((photon_count / sbr) / coding_matrix.shape[-1])
 
     coded_vals = rng.poisson(clean_coded_vals, size=(trials, clean_coded_vals.shape[0], clean_coded_vals.shape[1]))
-    #gauss_sigma = 10.0  # in "counts" units; tune this
+    #gauss_sigma = 20.0  # in "counts" units; tune this
     #gauss_sigma = np.sqrt(clean_coded_vals)  # example
     #coded_vals = clean_coded_vals + rng.normal(0.0, gauss_sigma, size=(trials, *clean_coded_vals.shape))
 
@@ -198,6 +212,10 @@ def decode_from_correlations(
     norm_coding_matrix = zero_norm_t(coding_matrix, axis=-1)
 
     norm_coded_vals = zero_norm_t(coded_vals, axis=-1)
+
+    #import matplotlib.pyplot as plt
+    #plt.plot(coding_matrix)
+    #plt.show()
 
     zncc = np.matmul(norm_coding_matrix, norm_coded_vals[..., np.newaxis]).squeeze(-1)
 
@@ -213,3 +231,97 @@ def filter_hot_pixels(depth_map: np.ndarray,
     return depth_map
 
 
+# =========================
+# Helper functions
+# =========================
+def get_ham_code(k, n_tbins):
+    func = getattr(CodingFunctionsFelipe, f"GetHamK{k}")
+    modfs, demodfs = func(N=n_tbins)
+
+    irf = gaussian_pulse(np.arange(n_tbins), 0, 1, circ_shifted=True)
+
+    modfs = np.fft.ifft(
+        np.fft.fft(irf[..., np.newaxis], axis=0).conj()
+        * np.fft.fft(modfs, axis=0),
+        axis=0,
+    ).real
+
+    coding_matrix = np.fft.ifft(
+        np.fft.fft(modfs, axis=0).conj()
+        * np.fft.fft(demodfs, axis=0),
+        axis=0,
+    ).real
+
+    return modfs, demodfs, coding_matrix
+
+
+def get_coarse_code(k, n_tbins):
+    coding_matrix = np.kron(np.eye(k), np.ones((1, n_tbins // k)))
+
+    illum = gaussian_pulse(
+        np.arange(coding_matrix.shape[-1]),
+        0,
+        n_tbins // (k + 4),
+        circ_shifted=True,
+    )
+
+    filtered_coding_matrix = np.fft.ifft(
+        np.fft.fft(illum[..., np.newaxis], axis=0).conj()
+        * np.fft.fft(coding_matrix.T, axis=0),
+        axis=0,
+    ).real
+
+    return illum, np.transpose(coding_matrix), filtered_coding_matrix
+
+
+def simulate_counts(waveform, demodfs, depths, photon_count, sbr, tbin_depth_res, n_tbins, k):
+    shifted_waveforms = np.zeros((depths.shape[0], n_tbins, k))
+    coded_values = np.zeros((depths.shape[0], k))
+
+    for i, depth in enumerate(depths):
+        shift = int(depth / tbin_depth_res)
+
+        for j in range(k):
+            tmp = (waveform[:, j] / np.sum(waveform[:, j])) * photon_count
+            clean_waveform = tmp + ((photon_count / sbr) / n_tbins)
+
+            shifted_waveforms[i, :, j] = np.roll(clean_waveform, shift)
+            coded_values[i, j] = np.inner(shifted_waveforms[i, :, j], demodfs[:, j])
+
+    return shifted_waveforms, coded_values
+
+
+def simulate_counts_shared_illum(illum, coding_matrix, depths, photon_count, sbr, tbin_depth_res, n_tbins, k):
+    shifted_illums = np.zeros((depths.shape[0], n_tbins, k))
+    coded_values = np.zeros((depths.shape[0], k))
+
+    tmp = (illum / np.sum(illum, keepdims=True)) * photon_count
+    clean_illum = tmp + ((photon_count / sbr) / n_tbins)
+
+    for i, depth in enumerate(depths):
+        shift = int(depth / tbin_depth_res)
+
+        for j in range(k):
+            shifted_illums[i, :, j] = np.roll(clean_illum, shift)
+            coded_values[i, j] = np.inner(shifted_illums[i, :, j], coding_matrix[:, j])
+
+    return shifted_illums, coded_values
+
+
+def decode_simulation_depths(coding_matrix, coded_values, depths, trials, tbin_depth_res):
+    rng = np.random.default_rng()
+    noisy_coded_values = rng.poisson(
+        coded_values,
+        size=(trials, coded_values.shape[0], coded_values.shape[1]),
+    )
+
+    norm_cm = zero_norm_t(coding_matrix, axis=-1)
+    norm_cv = zero_norm_t(noisy_coded_values, axis=-1)
+
+    zncc = np.matmul(norm_cm, norm_cv[..., np.newaxis]).squeeze(-1)
+    decoded_depths = np.argmax(zncc, axis=-1) * tbin_depth_res
+
+    rmse = float(np.sqrt(np.mean((decoded_depths - depths) ** 2)))
+    mae = float(np.mean(np.abs(decoded_depths - depths)))
+
+    return decoded_depths, rmse, mae

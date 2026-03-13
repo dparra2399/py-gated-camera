@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import matplotlib.patches as patches
+from matplotlib.pyplot import legend
 from scipy.ndimage import gaussian_filter, median_filter, gaussian_filter1d
 from felipe_utils.tof_utils_felipe import zero_norm_t, norm_t
 from scipy.interpolate import interp1d
@@ -440,3 +441,124 @@ def plot_single_pixel_depth_pairs(depths_dict):
     plt.tight_layout()
     plt.show()
 
+def plot_results_summary(results):
+    fig, axs = plt.subplots(len(results), 3, figsize=(13, 4 * len(results)), squeeze=False)
+
+    for i, r in enumerate(results):
+        cm = r["coding_matrix"]
+        name = r["name"]
+        rmse = r["rmse"]
+        mae = r["mae"]
+
+        # ---- heatmap ----
+        axs[i, 0].imshow(np.repeat(cm.T, 100, axis=0), aspect="auto")
+        axs[i, 0].set_title(f"{name} Coding Matrix")
+
+        # ---- line plot ----
+        axs[i, 1].plot(cm)
+        axs[i, 1].set_title(f"{name} Coding Matrix")
+
+        # ---- RMSE bar ----
+        axs[-2, 2].bar([i], rmse)
+        axs[-2, 2].text(i, rmse, f"{rmse:.2f}", ha="center", va="bottom")
+        axs[-2, 2].set_title("RMSE (Lower is better)")
+        axs[-2, 2].set_ylabel("RMSE (mm)")
+
+        # ---- MAE bar ----
+        axs[-1, 2].bar([i], mae)
+        axs[-1, 2].text(i, mae, f"{mae:.2f}", ha="center", va="bottom")
+        axs[-1, 2].set_title("MAE (Lower is better)")
+        axs[-1, 2].set_ylabel("MAE (mm)")
+
+    names = [r["name"] for r in results]
+    axs[-1, 2].set_xticks(np.arange(len(names)))
+    axs[-1, 2].set_xticklabels(names)
+
+    plt.subplots_adjust(wspace=0.5, hspace=0.4)
+    plt.show()
+
+def plot_correlations_one_plot(results):
+    correlations_p =  [dic['coding_matrix'] for dic in results]
+    for idx, corr in enumerate(correlations_p):
+        name = results[idx]['name']
+        if name == 'coarse':
+            corr = np.roll(corr, 300, axis=0)
+            plt.plot(corr, color='r')
+        else:
+            plt.plot(corr, color='b')
+    plt.show()
+
+def plot_coding_curve(results):
+    correlations_p =  [dic['coding_matrix'] for dic in results]
+    fig = plt.figure(figsize=(9, 7))
+    ax = fig.add_subplot(111, projection="3d")
+
+    cmap = plt.get_cmap("tab10")
+    type_colors = {}  # map capture type -> color
+    for idx, corr in enumerate(correlations_p):  # (n_tbins, 3)
+        name = results[idx]['name']
+
+        mins = corr.min(axis=0, keepdims=True)
+        maxs = corr.max(axis=0, keepdims=True)
+
+        corr = (corr - mins) / (maxs - mins)
+
+        if name not in type_colors:
+            type_colors[name] = cmap(len(type_colors))
+
+        color = type_colors[name]
+
+        diffs = np.diff(corr, axis=0)
+        distance = np.linalg.norm(diffs, axis=1).sum()
+
+        ax.plot(
+            corr[:, 0], corr[:, 1], corr[:, 2],
+            color=color,
+            label=f"{name} ({distance:.2f})"
+        )
+
+        ax.text(corr[0, 0], corr[0, 1], corr[0, 2], f"{distance:.2f}", color=color)
+
+        print(f"{name} correlation distance: {distance:.3f}")
+
+    ax.set_xlabel("X")
+    ax.set_ylabel("Y")
+    ax.set_zlabel("Z")
+
+    plt.legend(fontsize=8)
+    plt.show()
+
+def plot_coding_error(results):
+    correlations_p =  [dic['coding_matrix'] for dic in results]
+    fig, axs = plt.subplots(1, 1, figsize=(9, 7))
+
+    cmap = plt.get_cmap("tab10")
+    type_colors = {}  # map capture type -> color
+    for idx, corr in enumerate(correlations_p):  # (n_tbins, 3)
+        name = results[idx]['name']
+
+        mins = corr.min(axis=0, keepdims=True)
+        maxs = corr.max(axis=0, keepdims=True)
+
+        coding_curve = (corr - mins) / (maxs - mins)
+
+        if name not in type_colors:
+            type_colors[name] = cmap(len(type_colors))
+
+        color = type_colors[name]
+
+        diffs = np.diff(coding_curve, axis=0)
+        distance = np.linalg.norm(diffs, axis=1).sum()
+
+        errors = []
+        for i in range(corr.shape[0]):
+            errors.append(np.sum(np.sqrt(corr[i, :])) / distance)
+
+        axs.plot(errors, color=color, label=name)
+        axs.set_xlabel("Depth")
+        axs.set_ylabel("Upper Bound Error")
+        axs.set_title("Upper Bound Error for {}".format(name))
+
+
+    plt.legend(fontsize=8)
+    plt.show()
