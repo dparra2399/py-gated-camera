@@ -9,30 +9,30 @@ from utils.parameter_classes import DecodeConfig
 # -----------------------------------------------------------------------------
 # CONFIG (capitalized)
 # -----------------------------------------------------------------------------
-EXP_PATH = os.path.join('exp_24')
+EXP_PATH = os.path.join('exp_0')
 N_TBINS = 1500
 
 #PLotting utils for visualization
 PLOT_DEPTH_MAPS = True
-VMINS = None #[0.0, 0.0] * 1#None if no min depth value just choose smallest
-VMAXS = None #[0.1, 0.1] * 1#none if no max depth value just choose largest
-MEDIAN_FILTER_SIZE = 5
+VMINS =  [11.0, 12.7] * 1#None if no min depth value just choose smallest
+VMAXS =  [13.0, 13.0] * 1#none if no max depth value just choose largest
+MEDIAN_FILTER_SIZE = 11
 
 #Masking or normalizing depth maps
 NORMALIZE_DEPTH_MAPS = False
 MASK_BACKGROUND_PIXELS = True
 
 #Which correlation functions to use
-SIMULATED_CORRELATIONS = True
+SIMULATED_CORRELATIONS = False
 USE_FULL_CORRELATIONS = False
 
 #Smoothing or shifting the correlation functions
 SIGMA_SIZE = None #None if no smoothing
-SHIFT_SIZE = None #None if no shifting
+SHIFT_SIZE = 150 #None if no shifting
 
 #Corrections to depth map
 CORRECT_DEPTH_DISTORTION = False
-CORRECT_MASTER = True
+CORRECT_MASTER = False
 
 
 # -----------------------------------------------------------------------------
@@ -123,6 +123,10 @@ if __name__ == '__main__':
                 cfg.n_tbins,
             )
 
+        # mn = coding_matrix.min()
+        # mx = coding_matrix.max()
+        # coding_matrix = (coding_matrix - mn) / (mx - mn)
+
 
         (rep_tau, rep_freq,tbin_res,
          t_domain,max_depth,tbin_depth_res,)= calculate_tof_domain_params(cfg.n_tbins, rep_tau)
@@ -169,8 +173,8 @@ if __name__ == '__main__':
             coded_vals = coded_vals[:, : im_width // 2]
 
         if cfg.mask_background_pixels:
-            depth_map = depth_map[40:450, :]
-            gt_depth_map = gt_depth_map[40:450, :]
+            depth_map = depth_map[60:450, :]
+            gt_depth_map = gt_depth_map[60:450, :]
             mask = None
 
         mae = np.nanmean(np.abs(depth_map - gt_depth_map))

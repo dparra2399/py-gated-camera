@@ -216,14 +216,14 @@ sdg = SDG5162_GATED_PROJECT(
     usb_port="USB0::0xF4ED::0xEE3A::SDG050D2150058::INSTR"
 )
 
-# sdg.turn_both_channels_off()
+sdg.turn_both_channels_off()
 #
-# ni_daq = NIDAQ_LDC220(zero_set=0, max_amps=111)
-# ni_daq.set_current(0)
-# print(ni_daq.read_current())
-#
-# ni_daq.set_current(0)
-# print(ni_daq.read_current())
+ni_daq = NIDAQ_LDC220(zero_set=0, max_amps=111)
+ni_daq.set_current(0)
+print(ni_daq.read_current())
+
+#ni_daq.set_current(50)
+#print(ni_daq.read_current())
 #
 # sdg.set_pulse(duty=20, rep_rate=5*1e6, high_level=4, low_level=-4, phase=0, edge=6 * 1e-9)
 # #sdg.set_phase_shift(phase=45)

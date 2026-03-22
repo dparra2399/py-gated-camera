@@ -8,12 +8,13 @@ class Config:
     bit_depth: Optional[int] = None
 
     # Capture
-    int_time: Optional[int] = None
+    int_time: Optional[float] = None
     burst_time: Optional[int] = None
     k: Optional[int] = None
     gate_step_size: Optional[int] = None
     gate_shrinkage: Optional[int] = None
     capture_type: Optional[str] = None
+    trials: Optional[int] = None
 
     # Illumination
     high_level_amplitude: Optional[float] = None
@@ -36,7 +37,7 @@ class Config:
 
     #Capture only parameters
     ground_truth: Optional[bool] = None #only used for captures
-    ground_truth_int_time: Optional[int] = None #only used for dual capture
+    ground_truth_int_time: Optional[float] = None #only used for dual capture
 
     #Singe-pixel only parameters
     phase_shifts: Optional[str] = None

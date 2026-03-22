@@ -52,7 +52,7 @@ def get_simulated_coding_matrix(type, n_tbins, k):
         (modfs, demodfs) = func(N=n_tbins)
         #Dt = demodfs.sum(axis=1)
         #print(Dt.min(), Dt.max(), Dt.mean(), Dt.std())
-        irf = gaussian_pulse(np.arange(n_tbins), 0, 1, circ_shifted=True)
+        irf = gaussian_pulse(np.arange(n_tbins), 0, 50, circ_shifted=True)
         coding_matrix = np.fft.ifft(np.fft.fft(modfs, axis=0).conj() * np.fft.fft(demodfs, axis=0), axis=0).real
 
         coding_matrix = np.fft.ifft(
@@ -102,7 +102,10 @@ def build_coding_matrix_from_correlations(
 
     # legacy path: spatial-sum correlations
     coding_matrix = np.transpose(
-        np.mean(np.mean(correlations_total[200:-200, 100:correlations_total.shape[1]//2-100, :], axis=0), axis=0)
+        #np.mean(np.mean(correlations_total[200:-200, 100:correlations_total.shape[1]//2-100, :], axis=0), axis=0)
+        #np.mean(np.mean(correlations_total[280:300, 140:150, :], axis=0), axis=0)
+        np.mean(np.mean(correlations_total[280:300, 140:150, :], axis=0), axis=0)
+
     )  # (n_tbins,K)
 
     #coding_matrix[:, 2] = np.roll(coding_matrix[:, 2], shift=2, axis=-1)
@@ -120,10 +123,10 @@ def build_coding_matrix_from_correlations(
             fill_value='extrapolate'
         )
         coding_matrix = f(np.linspace(0, 1, n_tbins))
-    #mins = coding_matrix.min(axis=0, keepdims=True)
-    #maxs = coding_matrix.max(axis=0, keepdims=True)
-
-    #coding_matrix = (coding_matrix - mins) / (maxs - mins)
+    # mins = coding_matrix.min(axis=0, keepdims=True)
+    # maxs = coding_matrix.max(axis=0, keepdims=True)
+    #
+    # coding_matrix = (coding_matrix - mins) / (maxs - mins)
     return coding_matrix
 
 
@@ -158,7 +161,10 @@ def decode_single_pixel_experiment(
     tbin_depth_res: float,
 ):
     # normalize per-pixel coded vals → (N,K)
-    norm_coded_vals = zero_norm_t(coded_vals, axis=-1)
+
+    avg_coded_vals = np.mean(np.mean(coded_vals[..., 280:300, 140:150, :], axis=-2), axis=-2)
+
+    norm_coded_vals = zero_norm_t(avg_coded_vals, axis=-1)
 
     norm_coding_matrix = zero_norm_t(coding_matrix, axis=-1)
 
@@ -198,10 +204,10 @@ def decode_from_correlations(
     # background (if you want it per channel, include duty cycle)
     clean_coded_vals = clean_coded_vals + ((photon_count / sbr) / coding_matrix.shape[-1])
 
-    coded_vals = rng.poisson(clean_coded_vals, size=(trials, clean_coded_vals.shape[0], clean_coded_vals.shape[1]))
+    #coded_vals = rng.poisson(clean_coded_vals, size=(trials, clean_coded_vals.shape[0], clean_coded_vals.shape[1]))
     #gauss_sigma = 20.0  # in "counts" units; tune this
-    #gauss_sigma = np.sqrt(clean_coded_vals)  # example
-    #coded_vals = clean_coded_vals + rng.normal(0.0, gauss_sigma, size=(trials, *clean_coded_vals.shape))
+    gauss_sigma = np.sqrt(clean_coded_vals)  # example
+    coded_vals = clean_coded_vals + rng.normal(0.0, gauss_sigma, size=(trials, *clean_coded_vals.shape))
 
     if print_depths is not None:
         print(f'depth: {print_depths[0]}')

@@ -29,7 +29,7 @@ CURRENT = 50 #in mA
 EDGE = 6 * 1e-9 #Edge rate for pulse wave
 PHASE = 180
 DUTY = 20 # In percentage
-REP_RATE = 5 * 1e6 #in HZ
+REP_RATE = 10 * 1e6 #in HZ
 ILLUM_TYPE = 'square'
 
 ###### Non-Editable Parameters #####

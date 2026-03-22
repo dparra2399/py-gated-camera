@@ -8,8 +8,8 @@ from utils.parameter_classes import DecodeConfig
 # -----------------------------------------------------------------------------
 # CONFIG (capitalized)
 # -----------------------------------------------------------------------------
-EXP_PATH = os.path.join('exp_8')
-N_TBINS = 1500
+EXP_PATH = os.path.join('exp_6')
+N_TBINS = None # 1500
 
 #PLotting utils for visualization
 PLOT_SINGLE_PIXEL = True
@@ -18,7 +18,7 @@ PLOT_SINGLE_PIXEL = True
 SIMULATED_CORRELATIONS = False
 
 #Smoothing or shifting the correlation functions
-SIGMA_SIZE = None #None if no smoothing
+SIGMA_SIZE = 1 #None if no smoothing
 SHIFT_SIZE = None #None if no shifting
 
 # -----------------------------------------------------------------------------
@@ -56,6 +56,8 @@ if __name__ == '__main__':
     capture_folder = get_data_folder(READ_PATH_SINGLE_PIXEL_MAC, READ_PATH_SINGLE_PIXEL_WINDOWS)
     assert cfg.exp_path is not None, 'Must define exp_num to find folder'
     capture_folder = os.path.join(capture_folder, cfg.exp_path)
+
+
 
     capture_paths = os.listdir(capture_folder)
     capture_paths = filter_capture_files(capture_paths)
@@ -97,10 +99,16 @@ if __name__ == '__main__':
                 cfg.shift,
                 cfg.n_tbins,
             )
+        #coded_vals = coded_vals[2:-2, :]
+
+        # mn = coding_matrix.min()
+        # mx = coding_matrix.max()
+        # coding_matrix = (coding_matrix - mn) / (mx - mn)
 
 
+        n_tbins = cfg.n_tbins if cfg.n_tbins is not None else coding_matrix.shape[0]
         (rep_tau, rep_freq,tbin_res,
-         t_domain,max_depth,tbin_depth_res,)= calculate_tof_domain_params(cfg.n_tbins, rep_tau)
+         t_domain,max_depth,tbin_depth_res,)= calculate_tof_domain_params(n_tbins, rep_tau)
 
         # -----------------------------------------------------------------
         # decode to depth map
@@ -116,6 +124,8 @@ if __name__ == '__main__':
 
         try:
             coded_vals_gt = np.load(gt_coded_vals_path, allow_pickle=True)['coded_vals']
+            #coded_vals_gt = coded_vals_gt[2:-2, :]
+
             gt_depths, zncc = decode_single_pixel_experiment(
                 coded_vals_gt,
                 coding_matrix,
@@ -127,12 +137,13 @@ if __name__ == '__main__':
             coded_vals_gt = None
 
 
+
         print(f'capture type: {capture_type}')
         print(f'depth: {gt_depths[0]:.3f}')
-        print(f'counts: {coded_vals[0, :]}')
+        #print(f'counts: {coded_vals[0, :]}')
         print(f'total counts: {np.sum(coded_vals[0, :]):.3f}')
         if coded_vals_gt is not None:
-            print(f'ground truth counts: {coded_vals_gt[0, :]}')
+            #print(f'ground truth counts: {coded_vals_gt[0, :]}')
             print(f'ground truth total counts: {np.sum(coded_vals_gt[0, :]):.3f}')
         print('----------------------------------')
 
@@ -140,19 +151,23 @@ if __name__ == '__main__':
         mae = np.nanmean(np.abs(depths - gt_depths))
         rmse = np.sqrt(np.nanmean((depths - gt_depths) ** 2))
 
+        print("mae:", mae)
+        print("rmse:", rmse)
+
         cfg_dict = asdict(cfg)
         cfg_dict.update({'depths': depths, 'gt_depths': gt_depths,
                          'rmse': rmse, 'mae': mae, 'coding_matrix': coding_matrix,
                          'tbin_res': tbin_res, 'tbin_depth_res': tbin_depth_res,
                          'phase_shifts' : params['phase_shifts']})
         cfg_dict.update(params)
+        #cfg_dict['phase_shifts'] = params['phase_shifts'][2:-2]
         depths_dict[coded_vals_path] = cfg_dict
 
-    if cfg.plot_single_pixel:
-        plot_single_pixel_dist(depths_dict)
-
-        plot_single_pixel_depth_pairs(depths_dict)
-
-
-
-        plot_single_pixel_corr(depths_dict)
+    # if cfg.plot_single_pixel:
+    #     plot_single_pixel_dist(depths_dict)
+    #
+    #    #plot_single_pixel_depth_pairs(depths_dict)
+    #
+    #
+    #
+    #     plot_single_pixel_corr(depths_dict)

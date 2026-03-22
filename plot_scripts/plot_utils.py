@@ -144,7 +144,8 @@ def plot_correlation_functions(
         n_tbins = None,
         smooth_sigma: float = None,
 ):
-    average_correlation = np.transpose(np.mean(np.mean(correlations[20:-20, 20:correlations.shape[1]//2, :], axis=0), axis=0))
+    #average_correlation = np.transpose(np.mean(np.mean(correlations[20:-20, 20:correlations.shape[1]//2, :], axis=0), axis=0))
+    average_correlation = np.transpose(np.mean(np.mean(correlations[280:300, 140:150, :], axis=0), axis=0))
     if smooth_sigma is not None:
         average_correlation = gaussian_filter1d(average_correlation, sigma=smooth_sigma, axis=0)
 
@@ -283,7 +284,7 @@ def plot_capture_comparison(depths_maps_dict, x=20, y=20, width=220, height=320,
         fig.colorbar(im4, ax=ax4, fraction=0.046, pad=0.04, label="Absolute Error (m)")
         ax4.set_title("Error Map")
 
-    fig.subplots_adjust(wspace=0.05, hspace=0.05)
+    fig.subplots_adjust(wspace=0.2, hspace=0.2)
     #plt.tight_layout(pad=0.1, w_pad=0.1, h_pad=0.1)
     plt.show()
 
@@ -404,7 +405,7 @@ def plot_single_pixel_depth_pairs(depths_dict):
 
         gt = np.asarray(inner['gt_depths'])   # (N,)
         est = np.asarray(inner['depths'])     # (N,)
-        phase_shifts = inner['phase_shifts']  # (N,) labels
+        phase_shifts = inner['phase_shifts'][2:]  # (N,) labels
 
         x = np.arange(len(gt))
         width = 0.35  # two bars next to each other
@@ -498,8 +499,8 @@ def plot_coding_curve(results):
     for idx, corr in enumerate(correlations_p):  # (n_tbins, 3)
         name = results[idx]['name']
 
-        mins = corr.min(axis=0, keepdims=True)
-        maxs = corr.max(axis=0, keepdims=True)
+        mins = corr.min()
+        maxs = corr.max()
 
         corr = (corr - mins) / (maxs - mins)
 
@@ -561,4 +562,25 @@ def plot_coding_error(results):
 
 
     plt.legend(fontsize=8)
+    plt.show()
+
+
+def plot_depth_error_distribution(results):
+    n_results = len(results)
+    fig, axes = plt.subplots(n_results, 1, figsize=(10, 4 * n_results), sharex=True)
+
+    if n_results == 1:
+        axes = [axes]
+
+    for ax, r in zip(axes, results):
+        mean_errors = np.mean(np.abs(r["decoded_depths"] - r["depths"][None, :]), axis=0)
+        #bar_width = r["depths"][1] - r["depths"][0]
+
+        ax.bar(r["depths"], mean_errors, width=1.0)
+        ax.axhline(0, linestyle="--", linewidth=1)
+        ax.set_ylabel("Mean Abs. Error")
+        ax.set_title(r["name"])
+
+    axes[-1].set_xlabel("Depth")
+    plt.tight_layout()
     plt.show()

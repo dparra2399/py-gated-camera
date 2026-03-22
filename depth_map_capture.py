@@ -15,12 +15,12 @@ IM_WIDTH = 512  # image width
 BIT_DEPTH = 12
 
 # Capture parameters
-INT_TIME = 10_000  # integration time
-GROUND_TRUTH_INT_TIME = 10_000
+INT_TIME = 10  # integration time
+GROUND_TRUTH_INT_TIME = 800_000
 BURST_TIME = 4800 #Maxiumum burst time is 4800 ms
 K = 3  # number of time bins
 
-GATE_SHRINKAGE = 20 #In NS
+GATE_SHRINKAGE = 0 #In NS
 CAPTURE_TYPE = 'ham'
 
 # Illumination Parameters:
@@ -28,16 +28,16 @@ HIGH_LEVEL_AMPLITUDE = 4.0 #in Vpp
 LOW_LEVEL_AMPLITUDE = -4.0
 CURRENT = 50 #in mA
 EDGE = 6 * 1e-9 #Edge rate for pulse wave
-PHASE = 180
+PHASE = 0
 DUTY = 20 # In percentage
-REP_RATE = 5 * 1e6 #in HZ
+REP_RATE = 10 * 1e6 #in HZ
 ILLUM_TYPE = 'square'
 
 # Save Parameters
 SAVE_INTO_FILE = True
-GROUND_TRUTH = False
+GROUND_TRUTH = True
 SAVE_PATH = SAVE_PATH_CAPTURE
-EXP_PATH = None
+EXP_PATH = "exp_0"
 
 ###### Non-Editable Parameters #####
 ITERATIONS = 1
@@ -116,7 +116,7 @@ if __name__ == "__main__":
 
     gate_widths, gate_starts = get_gate_shifts(cfg.capture_type, cfg.rep_rate, cfg.k)
 
-    time.sleep(30)
+    time.sleep(14)
 
     needed = {k: v for k, v in asdict(cfg).items() if k in depth_map_capture.__code__.co_varnames}
     coded_vals = depth_map_capture(SPAD1, gate_starts=gate_starts, gate_widths=gate_widths, **needed)

@@ -13,9 +13,9 @@ BASE = [
     "--im_width", "512",
     "--burst_time", "480",
     "--bit_depth", "12",
-    "--int_time", "200",
-    "--gate_step_size", "2500",
-    "--rep_rate", "5000000",
+    "--int_time", "1",
+    "--gate_step_size", "1250",
+    "--rep_rate", "10000000",
     "--plot_correlations", "false",
     "--save_into_file", "true",
     "--timeout", "0"
@@ -27,7 +27,7 @@ for typ in ["coarse", "ham"]:
         for low_lvl in low_level_amps:
             for cur in currs:
                 illum_typ = 'square' if typ == 'ham' else 'gaussian'
-                gate_shrinkage = '20' if typ == 'ham' else '10'
+                gate_shrinkage = '0' #'20' if typ == 'ham' else '10'
                 duty = '20' if typ == 'ham' else '30'
                 cmd = BASE + [
                     "--capture_type", typ,

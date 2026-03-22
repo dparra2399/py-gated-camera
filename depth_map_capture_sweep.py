@@ -10,9 +10,9 @@ BASE = [
     "--im_width", "512",
     "--burst_time", "4800",
     "--bit_depth", "12",
-    "--int_time", "3000",
-    "--ground_truth_int_time", "1000000",
-    "--ground_truth", "0",
+    "--int_time", "5000",
+    "--ground_truth_int_time", "200000",
+    "--ground_truth", "1",
     "--rep_rate", "5000000",
     "--save_into_file", "1",
     "--iterations", "1",
@@ -21,9 +21,9 @@ BASE = [
 
 # sweeps
 capture_types = ["coarse", "ham"]
-phases = [180]   # <-- set whatever you want (degrees or whatever your script expects)
+phases = [0]   # <-- set whatever you want (degrees or whatever your script expects)
 
-run_id = 13
+run_id = 1
 
 # OUTER LOOP = things that define a "run folder"
 for phase in phases:
@@ -35,7 +35,7 @@ for phase in phases:
         high_level_amp=  "4.0" if typ == "ham" else "3.4"
         low_level_amps = "-4.0"
         illum_typ = "square" if typ == "ham" else "gaussian"
-        gate_shrinkage = "20" if typ == "ham" else "10"
+        gate_shrinkage = "0" #20" if typ == "ham" else "10"
         duty = "20" if typ == "ham" else "30"
 
         cmd = BASE + [

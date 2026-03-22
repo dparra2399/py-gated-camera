@@ -4,7 +4,8 @@ import argparse
 import numpy as np
 import matplotlib.pyplot as plt
 
-from plot_scripts.plot_utils import plot_coding_curve, plot_coding_error, plot_correlations_one_plot
+from plot_scripts.plot_utils import plot_coding_curve, plot_coding_error, plot_correlations_one_plot, \
+    plot_results_summary, plot_depth_error_distribution
 from utils.global_constants import *
 from utils.file_utils import get_data_folder, make_correlation_filename, corr_parse_run
 from utils.tof_utils import (
@@ -16,16 +17,16 @@ from utils.tof_utils import (
 # =============================
 # Defaults
 # =============================
-PHOTON_COUNT = 200
-SBR = 5.0
-TRIALS = 100
+PHOTON_COUNT = 1000
+SBR = 0.1
+TRIALS = 1
 N_TBINS = 999
 SIMULATED_CORRELATIONS = False
-SMOOTH_SIGMA = None
+SMOOTH_SIGMA = 1
 SHIFT = None
 DEPTH_MARGIN = 3.0
 REP_RATE = 5 * 1e6
-DEPTH_SAMPLE = 0.01
+DEPTH_SAMPLE = 1 #0.01
 """
 Format:
 capture_type,k,freq_mhz,mV,mA,duty
@@ -35,8 +36,10 @@ ham,3,5,100,50,10
 """
 
 DEFAULT_RUNS = [
-    "ham,3,5, 4000,50,20",
-    "coarse,3,5, 3400,50,30",
+    "ham,3,10, 4000,50,20",
+    "coarse,3,10, 3400,50,30",
+    #"ham,3,5, 4000,50,20",
+    #"coarse,3,5, 3400,50,30",
 ]
 
 
@@ -141,10 +144,14 @@ if __name__ == "__main__":
         #
         # coding_matrix = (coding_matrix - mins) / (maxs - mins)
 
+        #mn = coding_matrix.min()
+        #mx = coding_matrix.max()
+        #coding_matrix = (coding_matrix - mn) / (mx - mn)
+
         # row_sums = coding_matrix.sum(axis=1)  # sum over K
         # print(row_sums.min(), row_sums.max(), row_sums.std())
 
-        photon_count = args.photon_count * 1.3 if r['capture_type'] == 'ham' else args.photon_count
+        photon_count = args.photon_count * 1.5 if r['capture_type'] == 'ham' else args.photon_count
         decoded_depths = decode_from_correlations(
             coding_matrix=coding_matrix,
             depths=depths,
@@ -169,11 +176,13 @@ if __name__ == "__main__":
             depths=depths,
         ))
 
+    plot_results_summary(results)
 
-    #plot_results_summary(results)
+    #plot_correlations_one_plot(results)
 
-    plot_correlations_one_plot(results)
-    plot_coding_error(results)
+    #plot_depth_error_distribution(results)
+
+    #plot_coding_error(results)
 
     #plot_coding_curve(results)
 

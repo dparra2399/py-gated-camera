@@ -15,10 +15,12 @@ IM_WIDTH = 512  # image width
 BIT_DEPTH = 12
 
 # Capture parameters
-INT_TIME = 100  # integration time
-GROUND_TRUTH_INT_TIME = 2000
+INT_TIME = 1  # integration time
+GROUND_TRUTH_INT_TIME = 40
 BURST_TIME = 4800 #Maxiumum burst time is 4800 ms
 K = 3  # number of time bins
+TRIALS = 2
+
 
 GATE_SHRINKAGE = 1 #In NS
 CAPTURE_TYPE = 'ham'
@@ -36,7 +38,7 @@ ILLUM_TYPE = 'square'
 PHASE_SHIFTS = ",".join(str(item) for item in [30,90,45])
 
 # Save Parameters
-SAVE_INTO_FILE = False
+SAVE_INTO_FILE = True
 GROUND_TRUTH = True
 SAVE_PATH = SAVE_PATH_SINGLE_PIXEL
 EXP_PATH = None
@@ -67,6 +69,7 @@ if __name__ == "__main__":
             ground_truth_int_time=GROUND_TRUTH_INT_TIME,
             burst_time=BURST_TIME,
             k=K,
+            trials=TRIALS,
             gate_shrinkage=GATE_SHRINKAGE,
             capture_type=CAPTURE_TYPE,
             high_level_amplitude=HIGH_LEVEL_AMPLITUDE,
@@ -136,16 +139,27 @@ if __name__ == "__main__":
 
         time.sleep(5)
 
-        coded_vals = depth_map_capture(SPAD1, gate_starts=gate_starts, gate_widths=gate_widths,
-                          int_time=cfg.int_time, **needed)
-        coded_vals_range.append(np.mean(np.mean(coded_vals[20:-20, 20:coded_vals.shape[1]//2-20, :], axis=0), axis=0))
+        trial_runs = []
+        for trials in range(cfg.trials):
+            coded_vals = depth_map_capture(SPAD1, gate_starts=gate_starts, gate_widths=gate_widths,
+                              int_time=cfg.int_time, **needed)
+            trial_runs.append(coded_vals)
+
+        coded_vals_range.append(np.stack(trial_runs))
+        # coded_vals_range.append(
+        #     #np.mean(np.mean(coded_vals[20:-20, 20:coded_vals.shape[1]//2-20, :], axis=0), axis=0)
+        #     np.mean(np.mean(coded_vals[280:300, 140:150, :], axis=0), axis=0)
+        # )
         if cfg.ground_truth:
             gt_coded_vals = depth_map_capture(SPAD1, gate_starts=gate_starts, gate_widths=gate_widths,
                                                          int_time=cfg.ground_truth_int_time, **needed)
-            gt_coded_vals_range.append(np.mean(np.mean(gt_coded_vals[20:-20, 20:gt_coded_vals.shape[1]//2-20, :], axis=0), axis=0))
+            gt_coded_vals_range.append(gt_coded_vals)
+            # gt_coded_vals_range.append(
+            #     #np.mean(np.mean(gt_coded_vals[20:-20, 20:gt_coded_vals.shape[1]//2-20, :], axis=0), axis=0)
+            #     np.mean(np.mean(gt_coded_vals[280:300, 140:150, :], axis=0), axis=0)
+            # )
 
-    single_pixel_coded_vals = np.stack(coded_vals_range)
-
+    single_pixel_coded_vals = np.swapaxes(np.stack(coded_vals_range), 1, 0)
     gt_single_pixel_coded_vals = np.stack(gt_coded_vals_range) if gt_coded_vals_range is not None else None
 
     ldc220.set_current(0)
