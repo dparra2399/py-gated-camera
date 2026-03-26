@@ -18,10 +18,9 @@ from utils.tof_utils import (
 # Defaults
 # =============================
 PHOTON_COUNT = 1000
-SBR = 0.1
+SBR = 1.0
 TRIALS = 1
 N_TBINS = 999
-SIMULATED_CORRELATIONS = False
 SMOOTH_SIGMA = 1
 SHIFT = None
 DEPTH_MARGIN = 3.0
@@ -29,15 +28,16 @@ REP_RATE = 5 * 1e6
 DEPTH_SAMPLE = 1 #0.01
 """
 Format:
-capture_type,k,freq_mhz,mV,mA,duty
+capture_type,k,freq_mhz,mV,mA,duty,simulated_correlations
 
 Example:
-ham,3,5,100,50,10
+ham,3,5,100,50,10,False
 """
 
 DEFAULT_RUNS = [
-    "ham,3,10, 4000,50,20",
-    "coarse,3,10, 3400,50,30",
+    "ham,3,10,4000,50,20,False",
+    "ham,3,10,4000,50,20,True",
+    #"coarse,3,10,3400,50,30,False",
     #"ham,3,5, 4000,50,20",
     #"coarse,3,5, 3400,50,30",
 ]
@@ -65,7 +65,7 @@ def parse_args():
     p.add_argument("--smooth_sigma", type=float, default=SMOOTH_SIGMA)
     p.add_argument("--shift", type=int, default=SHIFT)
     p.add_argument("--depth_margin", type=int, default=DEPTH_MARGIN)
-    p.add_argument("--simulated_correlations", action="store_true", default=SIMULATED_CORRELATIONS)
+    #p.add_argument("--simulated_correlations", action="store_true", default=SIMULATED_CORRELATIONS)
 
     args = p.parse_args()
 
@@ -118,7 +118,7 @@ if __name__ == "__main__":
 
 
         # coding matrix
-        if args.simulated_correlations:
+        if r["simulated_correlations"]:
             coding_matrix = get_simulated_coding_matrix(name, args.n_tbins, r["k"])
         else:
             file = np.load(path, allow_pickle=True)
@@ -151,7 +151,7 @@ if __name__ == "__main__":
         # row_sums = coding_matrix.sum(axis=1)  # sum over K
         # print(row_sums.min(), row_sums.max(), row_sums.std())
 
-        photon_count = args.photon_count * 1.5 if r['capture_type'] == 'ham' else args.photon_count
+        photon_count = args.photon_count * 1.3 if r['capture_type'] == 'ham' else args.photon_count
         decoded_depths = decode_from_correlations(
             coding_matrix=coding_matrix,
             depths=depths,
@@ -178,13 +178,13 @@ if __name__ == "__main__":
 
     plot_results_summary(results)
 
-    #plot_correlations_one_plot(results)
+    plot_correlations_one_plot(results)
 
-    #plot_depth_error_distribution(results)
+    plot_depth_error_distribution(results)
 
-    #plot_coding_error(results)
+    plot_coding_error(results)
 
-    #plot_coding_curve(results)
+    plot_coding_curve(results)
 
 
 

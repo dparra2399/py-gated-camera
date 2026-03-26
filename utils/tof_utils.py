@@ -52,7 +52,7 @@ def get_simulated_coding_matrix(type, n_tbins, k):
         (modfs, demodfs) = func(N=n_tbins)
         #Dt = demodfs.sum(axis=1)
         #print(Dt.min(), Dt.max(), Dt.mean(), Dt.std())
-        irf = gaussian_pulse(np.arange(n_tbins), 0, 50, circ_shifted=True)
+        irf = gaussian_pulse(np.arange(n_tbins), 0, 1, circ_shifted=True)
         coding_matrix = np.fft.ifft(np.fft.fft(modfs, axis=0).conj() * np.fft.fft(demodfs, axis=0), axis=0).real
 
         coding_matrix = np.fft.ifft(
@@ -104,7 +104,7 @@ def build_coding_matrix_from_correlations(
     coding_matrix = np.transpose(
         #np.mean(np.mean(correlations_total[200:-200, 100:correlations_total.shape[1]//2-100, :], axis=0), axis=0)
         #np.mean(np.mean(correlations_total[280:300, 140:150, :], axis=0), axis=0)
-        np.mean(np.mean(correlations_total[280:300, 140:150, :], axis=0), axis=0)
+        np.sum(np.sum(correlations_total[280:300, 140:150, ...], axis=0), axis=0)
 
     )  # (n_tbins,K)
 
@@ -159,10 +159,24 @@ def decode_single_pixel_experiment(
     coded_vals: np.ndarray,
     coding_matrix: np.ndarray,
     tbin_depth_res: float,
+    y_pixels: list,
+    x_pixels: list,
+    skip_pixels: int,
 ):
     # normalize per-pixel coded vals → (N,K)
+    # if coded_vals.ndim == 4:
+    #     avg_coded_vals = np.sum(np.sum(
+    #         coded_vals[..., y_pixels[0]:y_pixels[1]:skip_pixels, x_pixels[0]:x_pixels[1]:skip_pixels, :],
+    #         axis=-2), axis=-2)
+    # else:
+    #     avg_coded_vals = np.sum(np.sum(
+    #         coded_vals[::skip_pixels, :, y_pixels[0]:y_pixels[1]:skip_pixels, x_pixels[0]:x_pixels[1]:skip_pixels, :],
+    #         axis=-2), axis=-2)
+    avg_coded_vals = np.sum(np.sum(
+                    coded_vals[..., y_pixels[0]:y_pixels[1]:skip_pixels, x_pixels[0]:x_pixels[1]:skip_pixels, :],
+                    axis=-2), axis=-2)
 
-    avg_coded_vals = np.mean(np.mean(coded_vals[..., 280:300, 140:150, :], axis=-2), axis=-2)
+
 
     norm_coded_vals = zero_norm_t(avg_coded_vals, axis=-1)
 

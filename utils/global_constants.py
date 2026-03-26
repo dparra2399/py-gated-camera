@@ -4,7 +4,7 @@ SAVE_PATH_SINGLE_PIXEL = 'C:\\Users\\compops\\Desktop\\David_Folder\\gated_singl
 SAVE_PATH_CORRELATIONS = "C:\\Users\\compops\\Desktop\\David_Folder\\gated_correlations"
 
 READ_PATH_CORRELATIONS_WINDOWS = f'C:\\Users\\compops\\Desktop\\David_Folder\\gated_correlations'
-READ_PATH_CORRELATIONS_MAC = f'/Users/davidparra/PycharmProjects/py-gated-camera/correlation_functions/'
+READ_PATH_CORRELATIONS_MAC = f'/Users/davidparra/PycharmProjects/py-gated-camera/data/correlation_functions'
 
 READ_PATH_VOLTAGE_FUNCTIONS_WINDOWS = "/depreciated/voltage_functions"
 READ_PATH_VOLTAGE_FUNCTIONS_MAC = "/Users/davidparra/PycharmProjects/py-gated-camera/voltage_functions"
@@ -13,7 +13,7 @@ READ_PATH_CAPTURE_WINDOWS = "C:\\Users\\compops\\Desktop\\David_Folder\\gated_ca
 READ_PATH_CAPTURE_MAC = "/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data"
 
 READ_PATH_SINGLE_PIXEL_WINDOWS = "C:\\Users\\compops\\Desktop\\David_Folder\\gated_single_pixel"
-READ_PATH_SINGLE_PIXEL_MAC = "/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_single_pixel"
+READ_PATH_SINGLE_PIXEL_MAC = "/Users/davidparra/PycharmProjects/py-gated-camera/data/single_pixel"
 
 HOT_MASK_PATH_WINDOWS = 'C:\\Users\\compops\\PycharmProjects\\py-gated-camera\\masks\\hot_mask1.npy'
 HOT_MASK_PATH_MAC = '/Users/davidparra/PycharmProjects/py-gated-camera/masks/hot_mask1.npy'

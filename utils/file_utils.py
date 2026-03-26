@@ -119,7 +119,7 @@ def build_parser_from_config(config_cls, *, bool_parser=str2bool) -> argparse.Ar
 
 
 def corr_parse_run(s: str):
-    cap, k, f, mv, ma, duty = s.split(",")
+    cap, k, f, mv, ma, duty, simulated_correlations = s.split(",")
     return dict(
         capture_type=cap,
         k=int(k),
@@ -127,6 +127,7 @@ def corr_parse_run(s: str):
         mV=float(mv),
         mA=float(ma),
         duty=float(duty),
+        simulated_correlations=str2bool(simulated_correlations),
     )
 
 def capture_parse_run(s: str):

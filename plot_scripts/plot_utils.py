@@ -305,15 +305,15 @@ def plot_single_pixel_dist(depths_dict):
     width = 0.8 / n_methods  # squish bars together
 
     all_errors = [
-        np.abs(inner['depths'] - inner['gt_depths'])
+        np.mean(np.abs(inner['depths'] - inner['gt_depths']), axis=0)
         for inner in depths_dict.values()
     ]
-    ymax = min(np.max(all_errors)+1, 5+1)
+    ymax = np.max(all_errors)+1
 
     for i, key in enumerate(keys):
         inner = depths_dict[key]
 
-        error = np.abs(inner['depths'] - inner['gt_depths'])
+        error = np.mean(np.abs(inner['depths'] - inner['gt_depths']), axis=0)
 
         offset = (i - (n_methods - 1) / 2) * width
 
@@ -356,41 +356,46 @@ def plot_single_pixel_dist(depths_dict):
     plt.tight_layout()
     plt.show()
 
+
 def plot_single_pixel_corr(depths_dict):
-    fig, ax = plt.subplots(len(depths_dict), 1, figsize=(7, 4))
+    fig, ax = plt.subplots(len(depths_dict), 1, figsize=(7, 4 * len(depths_dict)))
+
+    if len(depths_dict) == 1:
+        ax = [ax]
 
     for i, inner_dict in enumerate(depths_dict.values()):
-
         coding_matrix = inner_dict['coding_matrix']
-
         tbin_depth_res = inner_dict['tbin_depth_res']
-
         depths = inner_dict['depths']
         gt_depths = inner_dict['gt_depths']
 
-        depths_plot = (depths / tbin_depth_res).astype(int)
+        mean_depths = np.mean(depths, axis=0)
+
+        depths_plot = (mean_depths / tbin_depth_res).astype(int)
         gt_depths_plot = (gt_depths / tbin_depth_res).astype(int)
 
         ax[i].plot(coding_matrix)
 
-        for j in range(depths_plot.shape[-1]):
+        ymax = ax[i].get_ylim()[1]
+
+        for j in range(gt_depths_plot.shape[0]):
             if j == 0:
                 ax[i].axvline(gt_depths_plot[j], linestyle='--', color='blue', label='Ground Truth')
-                ax[i].axvline(depths_plot[j],color='red',  label='Estimated')
+                ax[i].axvline(depths_plot[j], color='red', label='Estimated')
             else:
                 ax[i].axvline(gt_depths_plot[j], linestyle='--', color='blue')
-                ax[i].axvline(depths_plot[j],color='red')
+                ax[i].axvline(depths_plot[j], color='red')
 
-            ymax = ax[i].get_ylim()[1]
+            if np.abs(mean_depths[j] - gt_depths[j]) < 4:
+                ax[i].plot(
+                    [gt_depths_plot[j], depths_plot[j]],
+                    [0.95 * ymax, 0.95 * ymax],
+                    color='black',
+                    linewidth=2
+                )
 
-            if np.abs(depths[j] - gt_depths[j]) < 4:
-                ax[i].plot([gt_depths_plot[j], depths_plot[j]],
-                           [0.95 * ymax, 0.95 * ymax],
-                           color='black',
-                           linewidth=2)
         ax[i].legend()
         ax[i].set_title(f"{inner_dict['capture_type']}")
-
 
     plt.show()
 
@@ -404,8 +409,8 @@ def plot_single_pixel_depth_pairs(depths_dict):
         inner = depths_dict[key]
 
         gt = np.asarray(inner['gt_depths'])   # (N,)
-        est = np.asarray(inner['depths'])     # (N,)
-        phase_shifts = inner['phase_shifts'][2:]  # (N,) labels
+        est = np.mean(np.asarray(inner['depths']), axis=0)    # (N,)
+        phase_shifts = inner['phase_shifts']  # (N,) labels
 
         x = np.arange(len(gt))
         width = 0.35  # two bars next to each other
@@ -538,10 +543,11 @@ def plot_coding_error(results):
     for idx, corr in enumerate(correlations_p):  # (n_tbins, 3)
         name = results[idx]['name']
 
-        mins = corr.min(axis=0, keepdims=True)
-        maxs = corr.max(axis=0, keepdims=True)
-
-        coding_curve = (corr - mins) / (maxs - mins)
+        # mins = corr.min(axis=0, keepdims=True)
+        # maxs = corr.max(axis=0, keepdims=True)
+        #
+        # coding_curve = (corr - mins) / (maxs - mins)
+        coding_curve = corr.copy()
 
         if name not in type_colors:
             type_colors[name] = cmap(len(type_colors))

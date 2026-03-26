@@ -13,8 +13,8 @@ from utils.tof_utils import calculate_tof_domain_params
 K = 3
 N_TBINS = 999
 TRIALS = 100
-PHOTON_COUNT = 1000
-SBR = 5.0
+PHOTON_COUNT = 100
+SBR = 10.0
 
 REP_RATE = 5e6
 REP_TAU = float(1 / REP_RATE)
@@ -105,6 +105,8 @@ coarse_decoded_depth, coarse_rmse, coarse_mae = decode_simulation_depths(
     tbin_depth_res=tbin_depth_res,
 )
 
+print(ham_cv.shape)
+print(np.mean(ham_cv / coarse_cv, axis=0))
 
 # =========================
 # Summary
@@ -132,7 +134,7 @@ results = [
 
     },
 ]
+plot_correlations_one_plot(results)
 plot_coding_error(results)
-#plot_correlations_one_plot(results)
 #plot_results_summary(results)
 #plot_coding_curve(results)

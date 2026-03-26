@@ -1,14 +1,19 @@
+import pprint
+
+from matplotlib import pyplot as plt
+
 from utils.file_utils import *
 from plot_scripts.plot_utils import plot_single_pixel_dist, plot_single_pixel_corr, plot_single_pixel_depth_pairs
 from utils.global_constants import *
 from utils.tof_utils import build_coding_matrix_from_correlations, get_simulated_coding_matrix, \
     calculate_tof_domain_params, decode_single_pixel_experiment
 from utils.parameter_classes import DecodeConfig
+import numpy as np
 
 # -----------------------------------------------------------------------------
 # CONFIG (capitalized)
 # -----------------------------------------------------------------------------
-EXP_PATH = os.path.join('exp_6')
+EXP_PATH = os.path.join('exp_6_OD4_lowAMB_lowEXP')
 N_TBINS = None # 1500
 
 #PLotting utils for visualization
@@ -18,7 +23,7 @@ PLOT_SINGLE_PIXEL = True
 SIMULATED_CORRELATIONS = False
 
 #Smoothing or shifting the correlation functions
-SIGMA_SIZE = 1 #None if no smoothing
+SIGMA_SIZE = None #None if no smoothing
 SHIFT_SIZE = None #None if no shifting
 
 # -----------------------------------------------------------------------------
@@ -65,6 +70,8 @@ if __name__ == '__main__':
     depths_dict = {}
 
     for i, coded_vals_name in enumerate(capture_paths):
+        if coded_vals_name.startswith('.'):
+            continue
         coded_vals_path = os.path.join(capture_folder, coded_vals_name)
         capture_file = np.load(coded_vals_path, allow_pickle=True)
         params = capture_file['cfg'].item()
@@ -78,6 +85,8 @@ if __name__ == '__main__':
         freq_mhz = freq * 1e-6
         duty = params['duty']
         rep_tau = params['rep_tau']
+
+        #pprint.pprint(params)
 
         corr_path = os.path.join(correlation_folder, make_correlation_filename(capture_type, k,
                                                                                freq_mhz, mV, mA, duty))
@@ -99,75 +108,72 @@ if __name__ == '__main__':
                 cfg.shift,
                 cfg.n_tbins,
             )
-        #coded_vals = coded_vals[2:-2, :]
-
-        # mn = coding_matrix.min()
-        # mx = coding_matrix.max()
-        # coding_matrix = (coding_matrix - mn) / (mx - mn)
-
 
         n_tbins = cfg.n_tbins if cfg.n_tbins is not None else coding_matrix.shape[0]
         (rep_tau, rep_freq,tbin_res,
          t_domain,max_depth,tbin_depth_res,)= calculate_tof_domain_params(n_tbins, rep_tau)
 
-        # -----------------------------------------------------------------
-        # decode to depth map
-        # -----------------------------------------------------------------
+
+
+
         depths, zncc = decode_single_pixel_experiment(
             coded_vals,
             coding_matrix,
             tbin_depth_res,
+            [280, 300],
+            [155, 170],
+            2
         )
-
-
-
 
         try:
             coded_vals_gt = np.load(gt_coded_vals_path, allow_pickle=True)['coded_vals']
-            #coded_vals_gt = coded_vals_gt[2:-2, :]
 
             gt_depths, zncc = decode_single_pixel_experiment(
                 coded_vals_gt,
                 coding_matrix,
                 tbin_depth_res,
+            [280, 300],
+            [155, 170],
+                1
             )
         except FileNotFoundError:
             print('GT Depth Map not found, Using Captured Depth Map Instead')
             gt_depths = np.copy(depths)
             coded_vals_gt = None
 
-
+        #plt.imshow(np.sum(np.sum(coded_vals_gt, axis=0), axis=-1))
+        #plt.show()
 
         print(f'capture type: {capture_type}')
         print(f'depth: {gt_depths[0]:.3f}')
         #print(f'counts: {coded_vals[0, :]}')
-        print(f'total counts: {np.sum(coded_vals[0, :]):.3f}')
+        counts = np.sum(coded_vals[0, 0, 280:300, 160:170, :])
+        print(f'total counts: {counts:.3f}')
         if coded_vals_gt is not None:
             #print(f'ground truth counts: {coded_vals_gt[0, :]}')
-            print(f'ground truth total counts: {np.sum(coded_vals_gt[0, :]):.3f}')
+            counts_t = np.sum(coded_vals_gt[0, 280:300, 160:170, :])
+            print(f'ground truth total counts: {counts_t:.3f}')
         print('----------------------------------')
 
+        phase_shifts = params['phase_shifts']#[2:-2]
+        depths = depths#[:, 2:-2]
+        gt_depths = gt_depths#[2:-2]
 
         mae = np.nanmean(np.abs(depths - gt_depths))
         rmse = np.sqrt(np.nanmean((depths - gt_depths) ** 2))
-
-        print("mae:", mae)
-        print("rmse:", rmse)
-
         cfg_dict = asdict(cfg)
         cfg_dict.update({'depths': depths, 'gt_depths': gt_depths,
                          'rmse': rmse, 'mae': mae, 'coding_matrix': coding_matrix,
                          'tbin_res': tbin_res, 'tbin_depth_res': tbin_depth_res,
-                         'phase_shifts' : params['phase_shifts']})
-        cfg_dict.update(params)
-        #cfg_dict['phase_shifts'] = params['phase_shifts'][2:-2]
+                         'phase_shifts' : phase_shifts, 'capture_type': capture_type})
+        #cfg_dict.update(params)
         depths_dict[coded_vals_path] = cfg_dict
 
-    # if cfg.plot_single_pixel:
-    #     plot_single_pixel_dist(depths_dict)
-    #
-    #    #plot_single_pixel_depth_pairs(depths_dict)
-    #
-    #
-    #
-    #     plot_single_pixel_corr(depths_dict)
+    if cfg.plot_single_pixel:
+        plot_single_pixel_dist(depths_dict)
+
+        plot_single_pixel_depth_pairs(depths_dict)
+
+
+
+        plot_single_pixel_corr(depths_dict)
