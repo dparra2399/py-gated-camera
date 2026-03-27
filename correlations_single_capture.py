@@ -20,17 +20,17 @@ BIT_DEPTH = 12
 # Capture parameters
 INT_TIME = 1  # integration time
 BURST_TIME = 4800
-K = 3  # number of time bins
+K = 4  # number of time bins
 GATE_STEP_SIZE = 300 #Steps in picoseconds
-GATE_SHRINKAGE = 5 #In NS
+GATE_SHRINKAGE = 0 #In NS
 CAPTURE_TYPE = 'coarse'
 
 # Illumination Parameters:
-HIGH_LEVEL_AMPLITUDE = 3.4 #in Vpp
+HIGH_LEVEL_AMPLITUDE = 4.0 #in Vpp
 LOW_LEVEL_AMPLITUDE = -4.0
 CURRENT = 50 #in mA
 EDGE = 6 * 1e-9 #Edge rate for pulse wave
-DUTY = 30 # In percentage
+DUTY = 23 # In percentage
 REP_RATE = 10 * 1e6 #in HZ
 ILLUM_TYPE = 'gaussian'
 

@@ -14,8 +14,8 @@ N_TBINS = 1500
 
 #PLotting utils for visualization
 PLOT_DEPTH_MAPS = True
-VMINS =  [11.0, 12.7] * 1#None if no min depth value just choose smallest
-VMAXS =  [13.0, 13.0] * 1#none if no max depth value just choose largest
+VMINS =  [8.0, 8.0] * 1#None if no min depth value just choose smallest
+VMAXS =  [9.0, 9.0] * 1#none if no max depth value just choose largest
 MEDIAN_FILTER_SIZE = 11
 
 #Masking or normalizing depth maps
@@ -28,7 +28,7 @@ USE_FULL_CORRELATIONS = False
 
 #Smoothing or shifting the correlation functions
 SIGMA_SIZE = None #None if no smoothing
-SHIFT_SIZE = 150 #None if no shifting
+SHIFT_SIZE = None #None if no shifting
 
 #Corrections to depth map
 CORRECT_DEPTH_DISTORTION = False

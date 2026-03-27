@@ -4,7 +4,7 @@ import os
 # Parameters (shape-only)
 # =======================================
 N = 16384
-DUTY_FWHM = 0.50      # FWHM as fraction of period (0..1)
+DUTY_FWHM = 0.23      # FWHM as fraction of period (0..1)
 CENTER = 0.5           # pulse center in cycle fraction
 VOLTAGE = 2            # keep your 2 so normalization maps to [-1, 1]
 

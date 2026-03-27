@@ -12,8 +12,8 @@ import numpy as np
 
 # -----------------------------------------------------------------------------
 # CONFIG (capitalized)
-# -----------------------------------------------------------------------------
-EXP_PATH = os.path.join('exp_6_OD4_lowAMB_lowEXP')
+# ----------------------------------------------------------------------------
+EXP_PATH = os.path.join('exp_2')
 N_TBINS = None # 1500
 
 #PLotting utils for visualization
@@ -23,7 +23,7 @@ PLOT_SINGLE_PIXEL = True
 SIMULATED_CORRELATIONS = False
 
 #Smoothing or shifting the correlation functions
-SIGMA_SIZE = None #None if no smoothing
+SIGMA_SIZE = 1 #None if no smoothing
 SHIFT_SIZE = None #None if no shifting
 
 # -----------------------------------------------------------------------------
@@ -122,7 +122,7 @@ if __name__ == '__main__':
             tbin_depth_res,
             [280, 300],
             [155, 170],
-            2
+            5
         )
 
         try:

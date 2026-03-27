@@ -19,7 +19,7 @@ from utils.tof_utils import (
 # =============================
 PHOTON_COUNT = 1000
 SBR = 1.0
-TRIALS = 1
+TRIALS = 100
 N_TBINS = 999
 SMOOTH_SIGMA = 1
 SHIFT = None
@@ -35,11 +35,13 @@ ham,3,5,100,50,10,False
 """
 
 DEFAULT_RUNS = [
-    "ham,3,10,4000,50,20,False",
-    "ham,3,10,4000,50,20,True",
+    #"ham,3,10,4000,50,20,False",
+    #"ham,3,10,4000,50,20,True",
     #"coarse,3,10,3400,50,30,False",
     #"ham,3,5, 4000,50,20",
-    #"coarse,3,5, 3400,50,30",
+    "coarse,4,10, 4000,50,23,False",
+    "ham,4,10, 4000,50,15,False",
+
 ]
 
 

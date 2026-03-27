@@ -52,7 +52,7 @@ def get_simulated_coding_matrix(type, n_tbins, k):
         (modfs, demodfs) = func(N=n_tbins)
         #Dt = demodfs.sum(axis=1)
         #print(Dt.min(), Dt.max(), Dt.mean(), Dt.std())
-        irf = gaussian_pulse(np.arange(n_tbins), 0, 1, circ_shifted=True)
+        irf = gaussian_pulse(np.arange(n_tbins), 0, 40, circ_shifted=True)
         coding_matrix = np.fft.ifft(np.fft.fft(modfs, axis=0).conj() * np.fft.fft(demodfs, axis=0), axis=0).real
 
         coding_matrix = np.fft.ifft(
@@ -104,7 +104,7 @@ def build_coding_matrix_from_correlations(
     coding_matrix = np.transpose(
         #np.mean(np.mean(correlations_total[200:-200, 100:correlations_total.shape[1]//2-100, :], axis=0), axis=0)
         #np.mean(np.mean(correlations_total[280:300, 140:150, :], axis=0), axis=0)
-        np.sum(np.sum(correlations_total[280:300, 140:150, ...], axis=0), axis=0)
+        np.sum(np.sum(correlations_total[280:300, 155:170, ...], axis=0), axis=0)
 
     )  # (n_tbins,K)
 

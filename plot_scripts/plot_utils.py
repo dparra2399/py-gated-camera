@@ -187,13 +187,13 @@ def plot_correlation_comparison(
         coding_matrix: np.ndarray,
         shift: int = None,
 ):
-    mins = measured_coding_matrix.min(axis=0, keepdims=True)
-    maxs = measured_coding_matrix.max(axis=0, keepdims=True)
+    mins = measured_coding_matrix.min()
+    maxs = measured_coding_matrix.max()
 
     measured_coding_matrix = (measured_coding_matrix - mins) / (maxs - mins)
 
-    mins = coding_matrix.min(axis=0, keepdims=True)
-    maxs = coding_matrix.max(axis=0, keepdims=True)
+    mins = coding_matrix.min()
+    maxs = coding_matrix.max()
 
     coding_matrix = (coding_matrix - mins) / (maxs - mins)
 
@@ -209,6 +209,35 @@ def plot_correlation_comparison(
     axs.plot(coding_matrix, linestyle='dashed', label='Ideal')
     axs.set_title('Measured vs. Ideal Gate Profiles (Correlations)')
     axs.legend()
+    plt.show()
+
+
+def plot_correlation_comparison_seperate(
+        measured_coding_matrix: np.ndarray,
+        coding_matrix: np.ndarray,
+        shift: int = None,
+):
+    mins = measured_coding_matrix.min()
+    maxs = measured_coding_matrix.max()
+    measured_coding_matrix = (measured_coding_matrix - mins) / (maxs - mins)
+    mins = coding_matrix.min()
+    maxs = coding_matrix.max()
+    coding_matrix = (coding_matrix - mins) / (maxs - mins)
+
+    if shift is not None:
+        for i in range(coding_matrix.shape[-1]):
+            coding_matrix[:, i] = np.roll(coding_matrix[:, i], shift)
+
+    n_cols = coding_matrix.shape[1]  # 3
+    fig, axs = plt.subplots(n_cols, 1, figsize=(8, 4 * n_cols))
+
+    for i in range(n_cols):
+        axs[i].plot(measured_coding_matrix[:, i], label='Measured')
+        axs[i].plot(coding_matrix[:, i], linestyle='dashed', label='Ideal')
+        axs[i].set_title(f'Row {i} - Measured vs. Ideal Gate Profiles')
+        axs[i].legend()
+
+    plt.tight_layout()
     plt.show()
 
 def plot_capture_comparison(depths_maps_dict, x=20, y=20, width=220, height=320,
