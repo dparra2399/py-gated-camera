@@ -13,7 +13,7 @@ from utils.tof_utils import calculate_tof_domain_params
 K = 3
 N_TBINS = 999
 TRIALS = 100
-PHOTON_COUNT = 100
+PHOTON_COUNT = 1000
 SBR = 10.0
 
 REP_RATE = 5e6
@@ -134,7 +134,7 @@ results = [
 
     },
 ]
-plot_correlations_one_plot(results)
+#plot_correlations_one_plot(results)
 plot_coding_error(results)
-#plot_results_summary(results)
-#plot_coding_curve(results)
+# plot_results_summary(results)
+# plot_coding_curve(results)

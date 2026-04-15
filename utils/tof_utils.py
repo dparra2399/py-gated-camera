@@ -172,10 +172,11 @@ def decode_single_pixel_experiment(
     #     avg_coded_vals = np.sum(np.sum(
     #         coded_vals[::skip_pixels, :, y_pixels[0]:y_pixels[1]:skip_pixels, x_pixels[0]:x_pixels[1]:skip_pixels, :],
     #         axis=-2), axis=-2)
-    avg_coded_vals = np.sum(np.sum(
-                    coded_vals[..., y_pixels[0]:y_pixels[1]:skip_pixels, x_pixels[0]:x_pixels[1]:skip_pixels, :],
-                    axis=-2), axis=-2)
+    sub = coded_vals[..., y_pixels[0]:y_pixels[1], x_pixels[0]:x_pixels[1], :]
+    sub = sub.reshape(*sub.shape[:-3], -1, sub.shape[-1])
+    avg_coded_vals = sub[..., ::skip_pixels, :].sum(axis=-2)
 
+    print('Number of pixels: ', sub[..., ::skip_pixels, :].shape[-2])
 
 
     norm_coded_vals = zero_norm_t(avg_coded_vals, axis=-1)
@@ -186,7 +187,7 @@ def decode_single_pixel_experiment(
 
     depths = np.argmax(zncc, axis=-1) * tbin_depth_res
 
-    return depths, zncc
+    return depths, zncc,  sub[..., ::skip_pixels, :].shape[-2] #num pixels
 
 def decode_from_correlations(
     coding_matrix: np.ndarray,
@@ -211,6 +212,12 @@ def decode_from_correlations(
     # global scale so typical total matches photon_count (choose one convention)
     #alpha = photon_count / (clean_coded_vals.sum(axis=1).mean() + 1e-12)  # (1, K)
     #clean_coded_vals *= alpha
+    #
+    # mins = clean_coded_vals.min()
+    # maxs = clean_coded_vals.max()
+    #
+    # clean_coded_vals = (clean_coded_vals - mins) / (maxs - mins)
+
     clean_coded_vals = (clean_coded_vals / np.sum(clean_coded_vals, axis=-1, keepdims=True))
     clean_coded_vals *= photon_count
 

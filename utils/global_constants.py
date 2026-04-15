@@ -10,7 +10,7 @@ READ_PATH_VOLTAGE_FUNCTIONS_WINDOWS = "/depreciated/voltage_functions"
 READ_PATH_VOLTAGE_FUNCTIONS_MAC = "/Users/davidparra/PycharmProjects/py-gated-camera/voltage_functions"
 
 READ_PATH_CAPTURE_WINDOWS = "C:\\Users\\compops\\Desktop\\David_Folder\\gated_captures"
-READ_PATH_CAPTURE_MAC = "/Volumes/velten/Research_Users/David/Gated_Camera_Project/gated_project_data"
+READ_PATH_CAPTURE_MAC = "/Users/davidparra/PycharmProjects/py-gated-camera/data/capture"
 
 READ_PATH_SINGLE_PIXEL_WINDOWS = "C:\\Users\\compops\\Desktop\\David_Folder\\gated_single_pixel"
 READ_PATH_SINGLE_PIXEL_MAC = "/Users/davidparra/PycharmProjects/py-gated-camera/data/single_pixel"

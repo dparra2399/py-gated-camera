@@ -26,7 +26,7 @@ filename =  'coarsek4_10mhz_4000mV_50mA_23duty_correlations.npz'
 SMOOTH_SIGMA = 1
 N_TBINS_DEFAULT = 1000
 SHIFT = None #-8 # -4
-OTHER_SHIFT = -390 #-30 #-80
+OTHER_SHIFT = -80 #-390 #-30 #-80
 
 if __name__ == "__main__":
     folder = get_data_folder(READ_PATH_CORRELATIONS_MAC, READ_PATH_CORRELATIONS_WINDOWS)

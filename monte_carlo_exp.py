@@ -39,7 +39,7 @@ ham,3,5,100,50,10,False
 DEFAULT_RUNS = [
     "ham,3,10,4000,50,20,False",
     "ham,3,10,4000,50,20,True",
-    #"coarse,3,10,3400,50,30,False",
+    "coarse,3,10,3400,50,30,False",
     #"ham,3,5, 4000,50,20",
     #"coarse,3,5, 3400,50,30",
 ]
@@ -187,7 +187,7 @@ if __name__ == "__main__":
     sbrs = np.array(args.sbrs)
     X, Y = np.meshgrid(np.log10(photon_counts), np.log10(sbrs), indexing='ij')
     fig = go.Figure()
-    colors = ['green', 'orange']
+    colors = ['green', 'orange', 'red']
 
     for idx, r in enumerate(args.run):
         fig.add_trace(go.Surface(x=X, y=Y, z=mae_results[idx],

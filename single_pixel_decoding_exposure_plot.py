@@ -3,7 +3,8 @@ import pprint
 from matplotlib import pyplot as plt
 
 from utils.file_utils import *
-from plot_scripts.plot_utils import plot_single_pixel_dist, plot_single_pixel_corr, plot_single_pixel_depth_pairs
+from plot_scripts.plot_utils import plot_single_pixel_dist, plot_single_pixel_corr, plot_single_pixel_depth_pairs, \
+    get_string_name
 from utils.global_constants import *
 from utils.tof_utils import build_coding_matrix_from_correlations, get_simulated_coding_matrix, \
     calculate_tof_domain_params, decode_single_pixel_experiment
@@ -13,11 +14,8 @@ import numpy as np
 # -----------------------------------------------------------------------------
 # CONFIG (capitalized)
 # ----------------------------------------------------------------------------
-EXP_PATH = os.path.join('exp_1_OD7_lowAMB')
+EXP_PATH = os.path.join('exp_5_OD4_lowAMB')
 N_TBINS = None # 1500
-
-#PLotting utils for visualization
-PLOT_SINGLE_PIXEL = True
 
 #Which correlation functions to use
 SIMULATED_CORRELATIONS = False
@@ -25,6 +23,9 @@ SIMULATED_CORRELATIONS = False
 #Smoothing or shifting the correlation functions
 SIGMA_SIZE = 1 #None if no smoothing
 SHIFT_SIZE = None #None if no shifting
+
+#Not apart of the defaults
+SKIP_PIXELS = np.arange(1, 30, 1)
 
 # -----------------------------------------------------------------------------
 # MAIN
@@ -37,7 +38,6 @@ if __name__ == '__main__':
 
             n_tbins=N_TBINS,
 
-            plot_single_pixel=PLOT_SINGLE_PIXEL,
 
             simulated_correlations=SIMULATED_CORRELATIONS,
 
@@ -67,7 +67,7 @@ if __name__ == '__main__':
     capture_paths = os.listdir(capture_folder)
     capture_paths = filter_capture_files(capture_paths)
 
-    depths_dict = {}
+    depths_dict = []
 
     for i, coded_vals_name in enumerate(capture_paths):
         if coded_vals_name.startswith('.'):
@@ -113,22 +113,10 @@ if __name__ == '__main__':
         (rep_tau, rep_freq,tbin_res,
          t_domain,max_depth,tbin_depth_res,)= calculate_tof_domain_params(n_tbins, rep_tau)
 
-
-
-
-        depths, zncc = decode_single_pixel_experiment(
-            coded_vals,
-            coding_matrix,
-            tbin_depth_res,
-            [280, 300],
-            [155, 170],
-            30
-        )
-
         try:
             coded_vals_gt = np.load(gt_coded_vals_path, allow_pickle=True)['coded_vals']
 
-            gt_depths, zncc = decode_single_pixel_experiment(
+            gt_depths, zncc, _ = decode_single_pixel_experiment(
                 coded_vals_gt,
                 coding_matrix,
                 tbin_depth_res,
@@ -137,43 +125,69 @@ if __name__ == '__main__':
                 1
             )
         except FileNotFoundError:
-            print('GT Depth Map not found, Using Captured Depth Map Instead')
-            gt_depths = np.copy(depths)
-            coded_vals_gt = None
+            print('GT Depth Map not found, We need this please ;)')
+            exit(0)
 
-        #plt.imshow(np.sum(np.sum(coded_vals_gt, axis=0), axis=-1))
-        #plt.show()
+        mae_list = []
+        rmse_list = []
+        int_times = []
 
-        print(f'capture type: {capture_type}')
-        print(f'depth: {gt_depths[0]:.3f}')
-        #print(f'counts: {coded_vals[0, :]}')
-        counts = np.sum(coded_vals[0, 0, 280:300, 160:170, :])
-        print(f'total counts: {counts:.3f}')
-        if coded_vals_gt is not None:
-            #print(f'ground truth counts: {coded_vals_gt[0, :]}')
-            counts_t = np.sum(coded_vals_gt[0, 280:300, 160:170, :])
-            print(f'ground truth total counts: {counts_t:.3f}')
-        print('----------------------------------')
+        #gt_depths = gt_depths[2:-2]
 
-        phase_shifts = params['phase_shifts']#[2:-2]
-        depths = depths#[:, 2:-2]
-        gt_depths = gt_depths#[2:-2]
+        for skip_pixels in SKIP_PIXELS:
 
-        mae = np.nanmean(np.abs(depths - gt_depths))
-        rmse = np.sqrt(np.nanmean((depths - gt_depths) ** 2))
+            depths, zncc, num_pixels = decode_single_pixel_experiment(
+                coded_vals,
+                coding_matrix,
+                tbin_depth_res,
+                [280, 300],
+                [155, 170],
+                skip_pixels
+            )
+
+            phase_shifts = params['phase_shifts']#[2:-2]
+            #depths = depths[:, 2:-2]
+
+            mae = np.nanmean(np.abs(depths - gt_depths)) * 1000
+            rmse = np.sqrt(np.nanmean((depths - gt_depths) ** 2))* 1000
+            if mae < 1000:
+                mae_list.append(mae)
+                rmse_list.append(rmse)
+                int_times.append(num_pixels * params['int_time'] / 1000)
+
         cfg_dict = asdict(cfg)
         cfg_dict.update({'depths': depths, 'gt_depths': gt_depths,
-                         'rmse': rmse, 'mae': mae, 'coding_matrix': coding_matrix,
+                         'rmse': rmse_list, 'mae': mae_list, 'coding_matrix': coding_matrix,
                          'tbin_res': tbin_res, 'tbin_depth_res': tbin_depth_res,
-                         'phase_shifts' : phase_shifts, 'capture_type': capture_type})
-        #cfg_dict.update(params)
-        depths_dict[coded_vals_path] = cfg_dict
+                         'phase_shifts' : phase_shifts, 'capture_type': capture_type,
+                         'int_times': int_times})
+            #cfg_dict.update(params)
 
-    if cfg.plot_single_pixel:
-        plot_single_pixel_dist(depths_dict)
-
-        plot_single_pixel_depth_pairs(depths_dict)
+        depths_dict.append(cfg_dict)
 
 
+    fig, axs = plt.subplots(1, 1, figsize=(8, 8))
 
-        plot_single_pixel_corr(depths_dict)
+    for idx, inner_dict in enumerate(depths_dict):
+        rmse = inner_dict['rmse']
+        mae = inner_dict['mae']
+        int_times = inner_dict['int_times']
+        capture_type = inner_dict['capture_type']
+
+        axs.plot(
+            int_times,
+            mae,
+            marker='o',
+            markerfacecolor='none',
+            markeredgewidth=2,
+            label=get_string_name(capture_type),
+        )
+    axs.legend(fontsize=30, framealpha=1, facecolor='white', edgecolor='black')
+    axs.set_xlabel('Integration Time (ms)', fontsize=20)
+    axs.set_ylabel('Depth Error (mm)', fontsize=20)
+    axs.tick_params(axis='both', labelsize=18)
+    plt.grid(True)
+    #plt.rcParams['svg.fonttype'] = 'path'
+    plt.savefig('single_pixel_decoding_exposure_plot.pdf', dpi=300)
+    plt.show()
+    print(len(depths_dict))

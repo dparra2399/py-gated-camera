@@ -245,7 +245,7 @@ def plot_capture_comparison(depths_maps_dict, x=20, y=20, width=220, height=320,
                             median_filter_size=3):
 
 
-    fig = plt.figure(figsize=(6, 4))
+    fig = plt.figure(figsize=(8, 6))
     gs = gridspec.GridSpec(len(depths_maps_dict), 4, height_ratios=[1] * len(depths_maps_dict))
 
     for i, coded_vals_path in enumerate(depths_maps_dict):
@@ -309,11 +309,11 @@ def plot_capture_comparison(depths_maps_dict, x=20, y=20, width=220, height=320,
         # Error map -------------------------------------------------------
         ax4 = fig.add_subplot(gs[i, 3])
         error_map = np.abs(depth_map - gt_depth_map)
-        im4 = ax4.imshow(error_map, vmin=0, vmax=0.1)
+        im4 = ax4.imshow(error_map, vmin=0, vmax=0.5)
         fig.colorbar(im4, ax=ax4, fraction=0.046, pad=0.04, label="Absolute Error (m)")
         ax4.set_title("Error Map")
 
-    fig.subplots_adjust(wspace=0.2, hspace=0.2)
+    fig.subplots_adjust(wspace=0.5, hspace=0.5)
     #plt.tight_layout(pad=0.1, w_pad=0.1, h_pad=0.1)
     plt.show()
 
@@ -477,7 +477,7 @@ def plot_single_pixel_depth_pairs(depths_dict):
     plt.show()
 
 def plot_results_summary(results):
-    fig, axs = plt.subplots(len(results), 3, figsize=(13, 4 * len(results)), squeeze=False)
+    fig, axs = plt.subplots(len(results), 3, figsize=(8, 2 * len(results)), squeeze=False)
 
     for i, r in enumerate(results):
         cm = r["coding_matrix"]
@@ -532,6 +532,7 @@ def plot_coding_curve(results):
     type_colors = {}  # map capture type -> color
     for idx, corr in enumerate(correlations_p):  # (n_tbins, 3)
         name = results[idx]['name']
+        name = name + "_simulated" if results[idx]['simulated'] else name
 
         mins = corr.min()
         maxs = corr.max()
@@ -571,12 +572,18 @@ def plot_coding_error(results):
     type_colors = {}  # map capture type -> color
     for idx, corr in enumerate(correlations_p):  # (n_tbins, 3)
         name = results[idx]['name']
+        try:
+            name = name + "_simulated" if results[idx]['simulated'] else name
+        except:
+            pass
 
-        # mins = corr.min(axis=0, keepdims=True)
-        # maxs = corr.max(axis=0, keepdims=True)
-        #
-        # coding_curve = (corr - mins) / (maxs - mins)
+
         coding_curve = corr.copy()
+
+        mn = coding_curve.min()
+        mx = coding_curve.max()
+        coding_curve = (coding_curve - mn) / (mx - mn)
+
 
         if name not in type_colors:
             type_colors[name] = cmap(len(type_colors))
@@ -588,7 +595,8 @@ def plot_coding_error(results):
 
         errors = []
         for i in range(corr.shape[0]):
-            errors.append(np.sum(np.sqrt(corr[i, :])) / distance)
+            errors.append(np.sqrt(np.sum(corr[i, :])) / distance)
+            print(f'sum: {np.sum(corr[i, :]):.3f} | sqrt: {np.sqrt(np.sum(corr[i, :])):.3f} | distance: {distance:.2f}')
 
         axs.plot(errors, color=color, label=name)
         axs.set_xlabel("Depth")
@@ -619,3 +627,11 @@ def plot_depth_error_distribution(results):
     axes[-1].set_xlabel("Depth")
     plt.tight_layout()
     plt.show()
+
+
+def get_string_name(capture_type):
+    if capture_type == 'coarse':
+        return 'Pulsed'
+    elif capture_type == 'ham':
+        return 'Hamiltonian'
+    return None

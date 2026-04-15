@@ -18,7 +18,7 @@ from utils.tof_utils import (
 # Defaults
 # =============================
 PHOTON_COUNT = 1000
-SBR = 1.0
+SBR = 0.5
 TRIALS = 100
 N_TBINS = 999
 SMOOTH_SIGMA = 1
@@ -35,13 +35,11 @@ ham,3,5,100,50,10,False
 """
 
 DEFAULT_RUNS = [
-    #"ham,3,10,4000,50,20,False",
-    #"ham,3,10,4000,50,20,True",
-    #"coarse,3,10,3400,50,30,False",
+    "ham,3,10,4000,50,20,False",
+    "ham,3,10,4000,50,20,True",
+    "coarse,3,10,3400,50,30,False",
     #"ham,3,5, 4000,50,20",
-    "coarse,4,10, 4000,50,23,False",
-    "ham,4,10, 4000,50,15,False",
-
+    #"coarse,3,5, 3400,50,30",
 ]
 
 
@@ -133,27 +131,8 @@ if __name__ == "__main__":
                 args.shift,
                 args.n_tbins,
             )
-            #if name == 'ham':
-            #    coding_matrix[..., 0] = np.roll(coding_matrix[..., 0], 10)
 
-        #coding_matrix /= np.max(np.abs(coding_matrix), axis=0, keepdims=True)
-        #if name =='ham':
-            #coding_matrix = coding_matrix / np.sqrt(np.mean(coding_matrix ** 122, axis=-1, keepdims=True)) ** 1.345
-            #coding_matrix = 2 * (np.sqrt(coding_matrix + (3/8)))
-        #
-        # mins = coding_matrix.min(axis=0, keepdims=True)
-        # maxs = coding_matrix.max(axis=0, keepdims=True)
-        #
-        # coding_matrix = (coding_matrix - mins) / (maxs - mins)
-
-        #mn = coding_matrix.min()
-        #mx = coding_matrix.max()
-        #coding_matrix = (coding_matrix - mn) / (mx - mn)
-
-        # row_sums = coding_matrix.sum(axis=1)  # sum over K
-        # print(row_sums.min(), row_sums.max(), row_sums.std())
-
-        photon_count = args.photon_count * 1.3 if r['capture_type'] == 'ham' else args.photon_count
+        photon_count = args.photon_count * 1.4 if r['capture_type'] == 'ham' else args.photon_count
         decoded_depths = decode_from_correlations(
             coding_matrix=coding_matrix,
             depths=depths,
@@ -162,6 +141,15 @@ if __name__ == "__main__":
             trials=args.trials,
             rep_rate=args.rep_rate,
         )
+
+        #col_sums = coding_matrix.sum(axis=1, keepdims=True)  # shape: (1, n_cols)
+
+        #
+        mins = coding_matrix.min()
+        maxs = coding_matrix.max()
+
+        coding_matrix = (coding_matrix - mins) / (maxs - mins)
+        coding_matrix = coding_matrix * photon_count + (photon_count / args.sbr) / r['k']
 
         depth_res = 1000 if args.rep_rate is not None else 1
         rmse = float(np.sqrt(np.mean((decoded_depths - depths) ** 2))) * depth_res
@@ -176,6 +164,7 @@ if __name__ == "__main__":
             mae=mae,
             name=name,
             depths=depths,
+            simulated=r["simulated_correlations"]
         ))
 
     plot_results_summary(results)
