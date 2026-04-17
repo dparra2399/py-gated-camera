@@ -17,8 +17,8 @@ from utils.tof_utils import (
 # =============================
 # Defaults
 # =============================
-PHOTON_COUNT = 1000
-SBR = 0.5
+PHOTON_COUNT = 300
+SBR = 1.0
 TRIALS = 100
 N_TBINS = 999
 SMOOTH_SIGMA = 1

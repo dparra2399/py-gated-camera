@@ -15,11 +15,11 @@ import pprint
 
 
 
-#filename =  'coarsek3_10mhz_3400mV_50mA_30duty_correlations.npz'
+filename =  'coarsek3_10mhz_3400mV_50mA_30duty_correlations.npz'
 
 #filename =  'hamk3_10mhz_4000mV_50mA_20duty_correlations.npz'
 
-filename =  'coarsek4_10mhz_4000mV_50mA_23duty_correlations.npz'
+#filename =  'coarsek4_10mhz_4000mV_50mA_23duty_correlations.npz'
 
 #filename =  'hamk4_10mhz_4000mV_50mA_15duty_correlations.npz'
 

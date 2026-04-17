@@ -190,12 +190,12 @@ def plot_correlation_comparison(
     mins = measured_coding_matrix.min()
     maxs = measured_coding_matrix.max()
 
-    measured_coding_matrix = (measured_coding_matrix - mins) / (maxs - mins)
+    #measured_coding_matrix = (measured_coding_matrix - mins) / (maxs - mins)
 
     mins = coding_matrix.min()
     maxs = coding_matrix.max()
 
-    coding_matrix = (coding_matrix - mins) / (maxs - mins)
+    #coding_matrix = (coding_matrix - mins) / (maxs - mins)
 
     #measured_coding_matrix = zero_norm_t(measured_coding_matrix, axis=-1)
     #coding_matrix = zero_norm_t(coding_matrix, axis=-1)
@@ -206,7 +206,7 @@ def plot_correlation_comparison(
 
     fig, axs = plt.subplots(1, 1, figsize=(8, 4))
     axs.plot(measured_coding_matrix, label='Measured')
-    axs.plot(coding_matrix, linestyle='dashed', label='Ideal')
+    #axs.plot(coding_matrix, linestyle='dashed', label='Ideal')
     axs.set_title('Measured vs. Ideal Gate Profiles (Correlations)')
     axs.legend()
     plt.show()

@@ -13,8 +13,8 @@ import numpy as np
 # -----------------------------------------------------------------------------
 # CONFIG (capitalized)
 # ----------------------------------------------------------------------------
-EXP_PATH = os.path.join('exp_1_OD7_lowAMB')
-N_TBINS = None # 1500
+EXP_PATH = os.path.join('exp_0')
+N_TBINS = 1500
 
 #PLotting utils for visualization
 PLOT_SINGLE_PIXEL = True
@@ -87,6 +87,8 @@ if __name__ == '__main__':
         rep_tau = params['rep_tau']
 
         #pprint.pprint(params)
+        #plt.imshow(np.sum(coded_vals[0, 0, :, :, :], axis=-1))
+        #plt.show()
 
         corr_path = os.path.join(correlation_folder, make_correlation_filename(capture_type, k,
                                                                                freq_mhz, mV, mA, duty))
@@ -116,26 +118,28 @@ if __name__ == '__main__':
 
 
 
-        depths, zncc = decode_single_pixel_experiment(
+        depths, zncc, _ = decode_single_pixel_experiment(
             coded_vals,
             coding_matrix,
             tbin_depth_res,
-            [280, 300],
-            [155, 170],
-            30
+            [190, 210],
+            [135, 155],
+            10
         )
 
         try:
             coded_vals_gt = np.load(gt_coded_vals_path, allow_pickle=True)['coded_vals']
 
-            gt_depths, zncc = decode_single_pixel_experiment(
-                coded_vals_gt,
+            gt_depths, zncc, _ = decode_single_pixel_experiment(
+                #coded_vals_gt,
+                coded_vals,
                 coding_matrix,
                 tbin_depth_res,
-            [280, 300],
-            [155, 170],
+            [190, 210],
+            [135, 155],
                 1
             )
+            gt_depths = gt_depths[0, ...]
         except FileNotFoundError:
             print('GT Depth Map not found, Using Captured Depth Map Instead')
             gt_depths = np.copy(depths)

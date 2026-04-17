@@ -8,10 +8,10 @@ BASE = [
     "python", SCRIPT,
     "--k", "3",
     "--im_width", "512",
-    "--burst_time", "4800",
+    "--burst_time", "100",
     "--bit_depth", "12",
-    "--int_time", "5000",
-    "--ground_truth_int_time", "100000",
+    "--int_time", "500",
+    "--ground_truth_int_time", "10000",
     "--ground_truth", "1",
     "--rep_rate", "10000000",
     "--save_into_file", "1",
@@ -23,7 +23,7 @@ BASE = [
 capture_types = ["coarse", "ham"]
 phases = [180]   # <-- set whatever you want (degrees or whatever your script expects)
 
-run_id = 1
+run_id = 3
 
 # OUTER LOOP = things that define a "run folder"
 for phase in phases:

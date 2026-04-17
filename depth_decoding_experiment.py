@@ -9,14 +9,14 @@ from utils.parameter_classes import DecodeConfig
 # -----------------------------------------------------------------------------
 # CONFIG (capitalized)
 # -----------------------------------------------------------------------------
-EXP_PATH = os.path.join('exp_0')
+EXP_PATH = os.path.join('exp_3')
 N_TBINS = 1500
 
 #PLotting utils for visualization
 PLOT_DEPTH_MAPS = True
-VMINS =  [8.0, 8.0] * 1#None if no min depth value just choose smallest
-VMAXS =  [9.0, 9.0] * 1#none if no max depth value just choose largest
-MEDIAN_FILTER_SIZE = 11
+VMINS =  None #[7.5, 7] * 1#None if no min depth value just choose smallest
+VMAXS =  None #[8.5, 8] * 1#none if no max depth value just choose largest
+MEDIAN_FILTER_SIZE = 7
 
 #Masking or normalizing depth maps
 NORMALIZE_DEPTH_MAPS = False
@@ -185,6 +185,10 @@ if __name__ == '__main__':
                          'rmse': rmse, 'mae': mae})
         cfg_dict.update(params)
         depth_map_dict[coded_vals_path] = cfg_dict
+
+
+        plt.plot(coding_matrix)
+        plt.show()
 
     if cfg.plot_depth_maps:
         plot_capture_comparison(depth_map_dict, vmins=cfg.vmins, vmaxs=cfg.vmaxs,
