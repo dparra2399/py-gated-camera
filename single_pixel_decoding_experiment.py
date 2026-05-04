@@ -122,9 +122,9 @@ if __name__ == '__main__':
             coded_vals,
             coding_matrix,
             tbin_depth_res,
-            [190, 210],
-            [135, 155],
-            10
+            [185, 205],
+            [85, 95],
+            50
         )
 
         try:
@@ -135,8 +135,8 @@ if __name__ == '__main__':
                 coded_vals,
                 coding_matrix,
                 tbin_depth_res,
-            [190, 210],
-            [135, 155],
+            [185, 205],
+            [85, 95],
                 1
             )
             gt_depths = gt_depths[0, ...]
@@ -148,16 +148,16 @@ if __name__ == '__main__':
         #plt.imshow(np.sum(np.sum(coded_vals_gt, axis=0), axis=-1))
         #plt.show()
 
-        print(f'capture type: {capture_type}')
-        print(f'depth: {gt_depths[0]:.3f}')
-        #print(f'counts: {coded_vals[0, :]}')
-        counts = np.sum(coded_vals[0, 0, 280:300, 160:170, :])
-        print(f'total counts: {counts:.3f}')
-        if coded_vals_gt is not None:
-            #print(f'ground truth counts: {coded_vals_gt[0, :]}')
-            counts_t = np.sum(coded_vals_gt[0, 280:300, 160:170, :])
-            print(f'ground truth total counts: {counts_t:.3f}')
-        print('----------------------------------')
+        # print(f'capture type: {capture_type}')
+        # print(f'depth: {gt_depths[0]:.3f}')
+        # #print(f'counts: {coded_vals[0, :]}')
+        # counts = np.sum(coded_vals[0, 0, 280:300, 160:170, :])
+        # print(f'total counts: {counts:.3f}')
+        # if coded_vals_gt is not None:
+        #     #print(f'ground truth counts: {coded_vals_gt[0, :]}')
+        #     counts_t = np.sum(coded_vals_gt[0, 280:300, 160:170, :])
+        #     print(f'ground truth total counts: {counts_t:.3f}')
+        # print('----------------------------------')
 
         phase_shifts = params['phase_shifts']#[2:-2]
         depths = depths#[:, 2:-2]
@@ -172,6 +172,8 @@ if __name__ == '__main__':
                          'phase_shifts' : phase_shifts, 'capture_type': capture_type})
         #cfg_dict.update(params)
         depths_dict[coded_vals_path] = cfg_dict
+
+        print(mae, rmse, capture_type)
 
     if cfg.plot_single_pixel:
         plot_single_pixel_dist(depths_dict)

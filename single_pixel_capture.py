@@ -26,9 +26,9 @@ GATE_SHRINKAGE = 1 #In NS
 CAPTURE_TYPE = 'ham'
 
 # Illumination Parameters:
-HIGH_LEVEL_AMPLITUDE = 4.0 #in Vpp
-LOW_LEVEL_AMPLITUDE = -4.0
-CURRENT = 50 #in mA
+HIGH_LEVEL_AMPLITUDE = 0.5 #in Vpp
+LOW_LEVEL_AMPLITUDE = -0.5
+CURRENT = 16 #in mA
 EDGE = 6 * 1e-9 #Edge rate for pulse wave
 DUTY = 20 # In percentage
 REP_RATE = 5 * 1e6 #in HZ
@@ -112,7 +112,7 @@ if __name__ == "__main__":
         usb_port="USB0::0xF4ED::0xEE3A::SDG050D2150058::INSTR"
     )
 
-    ldc220 = NIDAQ_LDC220(max_amps=100)
+    ldc220 = NIDAQ_LDC220(max_amps=40)
     ldc220.set_current(0)
 
     sdg.set_waveform_and_trigger(cfg.illum_type, cfg.duty, cfg.rep_rate,

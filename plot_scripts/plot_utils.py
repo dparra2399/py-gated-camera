@@ -195,7 +195,7 @@ def plot_correlation_comparison(
     mins = coding_matrix.min()
     maxs = coding_matrix.max()
 
-    #coding_matrix = (coding_matrix - mins) / (maxs - mins)
+    coding_matrix = (coding_matrix - mins) / (maxs - mins)
 
     #measured_coding_matrix = zero_norm_t(measured_coding_matrix, axis=-1)
     #coding_matrix = zero_norm_t(coding_matrix, axis=-1)

@@ -141,7 +141,7 @@ class SDG5162_GATED_PROJECT:
         self.sdg.write(f"C1:BSWV LLEV,{low_level}")
         self.sdg.write(f"C1:BSWV PHSE,{phase}")
         self.sdg.write(f"C1:BSWV FRQ,{rep_rate}")
-        self.sdg.write("C1:OUTP PLRT,INVT")
+        #self.sdg.write("C1:OUTP PLRT,INVT")
 
     def set_trigger(self, rep_rate):
         self.sdg.write(f"C2:BSWV WVTP,PULSE")
@@ -158,7 +158,7 @@ class SDG5162_GATED_PROJECT:
         self.sdg.write(f"C1:BSWV DUTY,{duty}")
         self.sdg.write(f"C1:BSWV PHSE,{phase}")
         self.sdg.write(f"C1:BSWV FRQ,{rep_rate}")
-        self.sdg.write("C1:OUTP PLRT,INVT")
+        #self.sdg.write("C1:OUTP PLRT,INVT")
 
     def set_pulse(self, duty, rep_rate, high_level, low_level, phase, edge):
         self.sdg.write(f"C1:BSWV WVTP,PULSE")
@@ -218,7 +218,7 @@ sdg = SDG5162_GATED_PROJECT(
 
 sdg.turn_both_channels_off()
 #
-ni_daq = NIDAQ_LDC220(zero_set=0, max_amps=111)
+ni_daq = NIDAQ_LDC220(zero_set=0, max_amps=40)
 ni_daq.set_current(0)
 print(ni_daq.read_current())
 

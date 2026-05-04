@@ -106,7 +106,7 @@ def build_coding_matrix_from_correlations(
         #np.mean(np.mean(correlations_total[280:300, 140:150, :], axis=0), axis=0)
         #np.sum(np.sum(correlations_total[280:300, 155:170, ...], axis=0), axis=0)
         #np.sum(np.sum(correlations_total[205:220, 135:145, ...], axis=0), axis=0)
-        np.mean(np.mean(correlations_total[195:205, 145:155, :], axis=0), axis=0)
+        np.sum(np.sum(correlations_total[185:205, 85:95, :], axis=0), axis=0)
 
     )  # (n_tbins,K)
 

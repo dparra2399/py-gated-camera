@@ -18,17 +18,17 @@ IM_WIDTH = 512  # image width
 BIT_DEPTH = 12
 
 # Capture parameters
-INT_TIME = 500 # integration time
-BURST_TIME = 100
+INT_TIME = 10 # integration time
+BURST_TIME = 10
 K = 3  # number of time bins
 GATE_STEP_SIZE = 300 #Steps in picoseconds
 GATE_SHRINKAGE = 5 #In NS
 CAPTURE_TYPE = 'coarse'
 
 # Illumination Parameters:
-HIGH_LEVEL_AMPLITUDE = 3.4 #in Vpp
-LOW_LEVEL_AMPLITUDE = -4.0
-CURRENT = 50 #in mA
+HIGH_LEVEL_AMPLITUDE = 0.42 #in Vpp
+LOW_LEVEL_AMPLITUDE = -0.5
+CURRENT = 16 #in mA
 EDGE = 6 * 1e-9 #Edge rate for pulse wave
 DUTY = 30 # In percentage
 REP_RATE = 10 * 1e6 #in HZ

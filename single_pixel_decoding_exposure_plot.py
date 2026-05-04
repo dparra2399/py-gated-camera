@@ -113,23 +113,23 @@ if __name__ == '__main__':
         (rep_tau, rep_freq,tbin_res,
          t_domain,max_depth,tbin_depth_res,)= calculate_tof_domain_params(n_tbins, rep_tau)
 
-        try:
-            coded_vals_gt = np.load(gt_coded_vals_path, allow_pickle=True)['coded_vals']
-
-            gt_depths, zncc, _ = decode_single_pixel_experiment(
-                coded_vals_gt,
-               # coded_vals,
-                coding_matrix,
-                tbin_depth_res,
-            [190, 210],
-            [135, 155],
-                1
-            )
-            #gt_depths = gt_depths[0, ...]
-
-        except FileNotFoundError:
-            print('GT Depth Map not found, We need this please ;)')
-            exit(0)
+        # try:
+        #     coded_vals_gt = np.load(gt_coded_vals_path, allow_pickle=True)['coded_vals']
+        #
+        #     gt_depths, zncc, _ = decode_single_pixel_experiment(
+        #         #coded_vals_gt,
+        #         #coded_vals,
+        #         coding_matrix,
+        #         tbin_depth_res,
+        #     [185, 205],
+        #     [85, 95],
+        #         1
+        #     )
+        #     #gt_depths = gt_depths[0, ...]
+        #
+        # except FileNotFoundError:
+        #     print('GT Depth Map not found, We need this please ;)')
+        #     exit(0)
 
         mae_list = []
         rmse_list = []
@@ -138,30 +138,30 @@ if __name__ == '__main__':
         #gt_depths = gt_depths[2:-2]
 
         for i, skip_pixels in enumerate(SKIP_PIXELS):
-            # try:
-            #     coded_vals_gt = np.load(gt_coded_vals_path, allow_pickle=True)['coded_vals']
-            #
-            #     gt_depths, zncc, _ = decode_single_pixel_experiment(
-            #         # coded_vals_gt,
-            #         coded_vals,
-            #         coding_matrix,
-            #         tbin_depth_res,
-            #         [195, 205],
-            #         [145, 155],
-            #         1
-            #     )
-            #     #gt_depths = gt_depths[0, ...]
-            #
-            # except FileNotFoundError:
-            #     print('GT Depth Map not found, We need this please ;)')
-            #     exit(0)
+            try:
+                coded_vals_gt = np.load(gt_coded_vals_path, allow_pickle=True)['coded_vals']
+
+                gt_depths, zncc, _ = decode_single_pixel_experiment(
+                    # coded_vals_gt,
+                    coded_vals,
+                    coding_matrix,
+                    tbin_depth_res,
+                        [185, 205],
+                        [85, 95],
+                    1
+                )
+                gt_depths = gt_depths[0, ...]
+
+            except FileNotFoundError:
+                print('GT Depth Map not found, We need this please ;)')
+                exit(0)
 
             depths, zncc, num_pixels = decode_single_pixel_experiment(
                 coded_vals,
                 coding_matrix,
                 tbin_depth_res,
-                [190, 210],
-                [135, 155],
+                [185, 205],
+                [85, 95],
                 skip_pixels
             )
 

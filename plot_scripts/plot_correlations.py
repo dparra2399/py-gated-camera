@@ -15,9 +15,9 @@ import pprint
 
 
 
-filename =  'coarsek3_10mhz_3400mV_50mA_30duty_correlations.npz'
+filename =  'coarsek3_10mhz_420mV_16mA_30duty_correlations.npz'
 
-#filename =  'hamk3_10mhz_4000mV_50mA_20duty_correlations.npz'
+#filename =  'hamk3_10mhz_500mV_16mA_20duty_correlations.npz'
 
 #filename =  'coarsek4_10mhz_4000mV_50mA_23duty_correlations.npz'
 
@@ -54,7 +54,7 @@ if __name__ == "__main__":
     #coding_matrix = get_simulated_coding_matrix('ham', N_TBINS_DEFAULT, K)
 
 
-    point_list = [(10, 10), (165, 285), (50, 200)]
+    point_list = [(10, 10), (100, 200), (50, 200)]
 
     plot_correlation_functions(
             point_list,

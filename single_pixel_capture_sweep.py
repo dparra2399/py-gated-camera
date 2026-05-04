@@ -9,31 +9,32 @@ BASE = [
     "python", SCRIPT,
     "--k", "3",
     "--im_width", "512",
-    "--burst_time", "100",
+    "--burst_time", "10",
     "--bit_depth", "12",
-    "--int_time", "100", #5
-    "--ground_truth_int_time", "100", #40
+    "--int_time", "10", #5
+    "--ground_truth_int_time", "10", #40
     "--ground_truth", "1",
     "--rep_rate", "10000000",
     "--save_into_file", "1",
     "--iterations", "1",
-    "--current", "50",
-    "--trials", "200",
+    "--current", "16",
+    "--trials", "100",
 ]
 
 # sweeps
-capture_types = ["coarse", "ham"]
-phase_shifts = np.arange(20, 340, 20).tolist()  # <-- set whatever you want (degrees or whatever your script expects)
+capture_types = ["ham", "coarse"]
+phase_shifts = np.arange(20, 340, 30).tolist()  # <-- set whatever you want (degrees or whatever your script expects)
 
 print(phase_shifts)
+print(len(phase_shifts))
 
-run_id = 0
+run_id = 1
 
 # INNER LOOP = capture types share the SAME run_id folder
 for typ in capture_types:
 
-    high_level_amp=  "4.0"  if typ == "ham" else "3.4"
-    low_level_amps = "-4.0"
+    high_level_amp=  "0.5"  if typ == "ham" else "0.42"
+    low_level_amps = "-0.5"
     illum_typ = "square" if typ == "ham" else "gaussian"
     gate_shrinkage = "5" #"25" #"25" if typ == "ham" else "10"
     #duty = "15" if typ == "ham" else "23" #"30"
