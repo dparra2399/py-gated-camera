@@ -98,13 +98,15 @@ if __name__ == "__main__":
 
     cfg = Config(**vars(args))
     cfg = apply_defaults(cfg)
-    cfg.int_time = cfg.int_time/cfg.k if cfg.split_acquisition else cfg.int_time
 
     SPAD1 = set_up_spad512()
 
     sdg = SDG5162_GATED_PROJECT(
         usb_port="USB0::0xF4ED::0xEE3A::SDG050D2150058::INSTR"
     )
+
+    cfg.int_time = cfg.int_time/cfg.k if cfg.split_acquisition else cfg.int_time
+
 
     ldc220 = NIDAQ_LDC220(max_amps=90)
     ldc220.set_current(0)
