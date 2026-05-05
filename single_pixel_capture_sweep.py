@@ -10,7 +10,8 @@ BASE = [
     "--k", "3",
     "--im_width", "512",
     "--burst_time", "10",
-    "--int_time", "30"
+    "--int_time", "30",
+    "--split_acquisition", "1",
     "--bit_depth", "12",
     "--int_time", "10", #5
     "--ground_truth_int_time", "10", #40

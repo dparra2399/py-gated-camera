@@ -105,9 +105,6 @@ if __name__ == "__main__":
         usb_port="USB0::0xF4ED::0xEE3A::SDG050D2150058::INSTR"
     )
 
-    cfg.int_time = cfg.int_time/cfg.k if cfg.split_acquisition else cfg.int_time
-
-
     ldc220 = NIDAQ_LDC220(max_amps=90)
     ldc220.set_current(0)
 
@@ -118,6 +115,11 @@ if __name__ == "__main__":
     ldc220.set_current(cfg.current)
 
     gate_widths, gate_starts = get_gate_shifts(cfg.capture_type, cfg.rep_rate, cfg.k)
+
+    cfg.int_time = cfg.int_time/gate_widths.size() if cfg.split_acquisition else cfg.int_time
+    print(cfg.int_time)
+    print(gate_widths.size)
+
 
     time.sleep(20)
     needed = {k: v for k, v in asdict(cfg).items() if k in correlation_capture.__code__.co_varnames}

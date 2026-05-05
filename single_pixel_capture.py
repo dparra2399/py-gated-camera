@@ -109,8 +109,7 @@ if __name__ == "__main__":
     cfg = apply_defaults(cfg)
     if isinstance(cfg.phase_shifts, str):
         cfg.phase_shifts = capture_phase_shifts(cfg.phase_shifts)
-    cfg.int_time = cfg.int_time/cfg.k if cfg.split_acquisition else cfg.int_time
-    print(f'int_time : {cfg.int_time}')
+
 
     SPAD1 = set_up_spad512()
 
@@ -128,6 +127,10 @@ if __name__ == "__main__":
     ldc220.set_current(cfg.current)
 
     gate_widths, gate_starts = get_gate_shifts(cfg.capture_type, cfg.rep_rate, cfg.k)
+
+    cfg.int_time = cfg.int_time/gate_widths.size() if cfg.split_acquisition else cfg.int_time
+    print(cfg.int_time)
+    print(gate_widths.size)
 
     time.sleep(20)
 
