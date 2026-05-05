@@ -18,7 +18,7 @@ from utils.tof_utils import (
 # Defaults
 # =============================
 PHOTON_COUNT = 1000
-SBR = 1.0
+SBR = 0.1
 TRIALS = 100
 N_TBINS = 999
 SMOOTH_SIGMA = 1
@@ -35,10 +35,10 @@ ham,3,5,100,50,10,False
 """
 
 DEFAULT_RUNS = [
-    "ham,3,10,500,16,20,False",
-    "ham,3,10,500,16,20,True",
-    "ham,4,10,500,16,20,True",
-    "coarse,3,10,420,16,30,False",
+    "ham,4,10,500,16,15,False",
+    "ham,4,10,500,16,15,True",
+    "ham,4,10,500,16,15,True",
+    "coarse,4,10,540,16,23,False",
     #"ham,3,5, 4000,50,20",
     #"coarse,3,5, 3400,50,30",
 ]
@@ -133,7 +133,7 @@ if __name__ == "__main__":
                 args.n_tbins,
             )
 
-        photon_count = args.photon_count * 1.4 if r['capture_type'] == 'ham' else args.photon_count
+        photon_count = args.photon_count * 1.7 if r['capture_type'] == 'ham' else args.photon_count
         decoded_depths = decode_from_correlations(
             coding_matrix=coding_matrix,
             depths=depths,

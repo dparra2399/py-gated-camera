@@ -13,7 +13,7 @@ import numpy as np
 # -----------------------------------------------------------------------------
 # CONFIG (capitalized)
 # ----------------------------------------------------------------------------
-EXP_PATH = os.path.join('exp_0')
+EXP_PATH = os.path.join('exp_4')
 N_TBINS = 1500
 
 #PLotting utils for visualization
@@ -139,25 +139,20 @@ if __name__ == '__main__':
                 SINGLE_PIXEL_COORDS['x'],
                 1
             )
-            gt_depths = gt_depths[0, ...]
+            #gt_depths = gt_depths[0, ...]
         except FileNotFoundError:
             print('GT Depth Map not found, Using Captured Depth Map Instead')
             gt_depths = np.copy(depths)
             coded_vals_gt = None
 
-        #plt.imshow(np.sum(np.sum(coded_vals_gt, axis=0), axis=-1))
-        #plt.show()
+        # plt.imshow(np.sum(np.sum(coded_vals_gt, axis=0), axis=-1))
+        # plt.show()
 
-        # print(f'capture type: {capture_type}')
-        # print(f'depth: {gt_depths[0]:.3f}')
-        # #print(f'counts: {coded_vals[0, :]}')
-        # counts = np.sum(coded_vals[0, 0, 280:300, 160:170, :])
-        # print(f'total counts: {counts:.3f}')
-        # if coded_vals_gt is not None:
-        #     #print(f'ground truth counts: {coded_vals_gt[0, :]}')
-        #     counts_t = np.sum(coded_vals_gt[0, 280:300, 160:170, :])
-        #     print(f'ground truth total counts: {counts_t:.3f}')
-        # print('----------------------------------')
+        print(f'capture type: {capture_type}')
+        print(f'depth: {gt_depths[0, 0]:.3f}')
+        counts = np.sum(coded_vals[0, 0, SINGLE_PIXEL_COORDS['y'][0]:SINGLE_PIXEL_COORDS['y'][1], SINGLE_PIXEL_COORDS['x'][0]:SINGLE_PIXEL_COORDS['x'][1], :])
+        print(f'total counts: {counts:.3f}')
+        print('----------------------------------')
 
         phase_shifts = params['phase_shifts']#[2:-2]
         depths = depths#[:, 2:-2]

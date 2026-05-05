@@ -128,9 +128,8 @@ if __name__ == "__main__":
 
     gate_widths, gate_starts = get_gate_shifts(cfg.capture_type, cfg.rep_rate, cfg.k)
 
-    cfg.int_time = cfg.int_time/gate_widths.size() if cfg.split_acquisition else cfg.int_time
-    print(cfg.int_time)
-    print(gate_widths.size)
+    total_count = sum(len(sublist) for sublist in gate_widths)
+    cfg.int_time = cfg.int_time/total_count if cfg.split_acquisition else cfg.int_time
 
     time.sleep(20)
 

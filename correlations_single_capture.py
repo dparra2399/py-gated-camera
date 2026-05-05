@@ -21,19 +21,19 @@ BIT_DEPTH = 12
 SPLIT_ACQUISITION= False
 INT_TIME = 10 # integration time
 BURST_TIME = 10
-K = 3  # number of time bins
-GATE_STEP_SIZE = 300 #Steps in picoseconds
+K = 4  # number of time bins
+GATE_STEP_SIZE = 1250 #Steps in picoseconds
 GATE_SHRINKAGE = 5 #In NS
-CAPTURE_TYPE = 'coarse'
+CAPTURE_TYPE = 'ham'
 
 # Illumination Parameters:
-HIGH_LEVEL_AMPLITUDE = 0.42 #in Vpp
+HIGH_LEVEL_AMPLITUDE = 0.5 #in Vpp
 LOW_LEVEL_AMPLITUDE = -0.5
 CURRENT = 16 #in mA
 EDGE = 6 * 1e-9 #Edge rate for pulse wave
-DUTY = 30 # In percentage
+DUTY = 15 # In percentage
 REP_RATE = 10 * 1e6 #in HZ
-ILLUM_TYPE = 'gaussian'
+ILLUM_TYPE = 'square'
 
 #Plot Parameters
 PLOT_CORRELATIONS = True
@@ -115,10 +115,8 @@ if __name__ == "__main__":
     ldc220.set_current(cfg.current)
 
     gate_widths, gate_starts = get_gate_shifts(cfg.capture_type, cfg.rep_rate, cfg.k)
-
-    cfg.int_time = cfg.int_time/gate_widths.size() if cfg.split_acquisition else cfg.int_time
-    print(cfg.int_time)
-    print(gate_widths.size)
+    total_count = sum(len(sublist) for sublist in gate_widths)
+    cfg.int_time = cfg.int_time/total_count if cfg.split_acquisition else cfg.int_time
 
 
     time.sleep(20)

@@ -68,8 +68,8 @@ def get_hamk4_gate_shifts(freq, k=4):
 
 def get_coarse_gate_shifts(freq, k):
     gate_width = math.ceil((((1/freq)*1e12) // k) * 1e-3 )
-    gate_starts = np.array([[(gate_width * (gate_step))] for gate_step in range(k)]) * 1e3
-    gate_widths = np.array([[gate_width] for i in range(k)])
+    gate_starts = [[(gate_width * (gate_step) * 1e3)] for gate_step in range(k)]
+    gate_widths = [[gate_width] for i in range(k)]
     return gate_widths, gate_starts
 
 def get_gate_shifts(type, freq, k):

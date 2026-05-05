@@ -329,7 +329,7 @@ def plot_single_pixel_dist(depths_dict):
     first = depths_dict[keys[0]]
     gt_depths = first['gt_depths']
 
-    x = np.arange(len(gt_depths))
+    x = np.arange(len(gt_depths[0]))
 
     width = 0.8 / n_methods  # squish bars together
 
@@ -344,6 +344,8 @@ def plot_single_pixel_dist(depths_dict):
 
         error = np.mean(np.abs(inner['depths'] - inner['gt_depths']), axis=0)
 
+        gt_depths = np.mean(inner['gt_depths'], axis=0)
+
         offset = (i - (n_methods - 1) / 2) * width
 
         label = (
@@ -352,25 +354,24 @@ def plot_single_pixel_dist(depths_dict):
             f"RMSE={inner['rmse'] * 1000:.2f}mm"
         )
 
-        # bars = ax.bar(
-        #     x + offset,
-        #     error,
-        #     width=width,
-        #     color=colors[i % len(colors)],
-        #     label=label
-        # )
+        bars = ax.bar(
+            x + offset,
+            error,
+            width=width,
+            color=colors[i % len(colors)],
+            label=label
+        )
 
-        # add depth labels above each bar
-        # for xi, yi, d in zip(x + offset, error, inner['gt_depths']):
-        #     ax.text(
-        #         xi,
-        #         yi + (0.02 * ymax),  # small offset above bar
-        #         f"{d:.2f}",
-        #         ha='center',
-        #         va='bottom',
-        #         rotation=0,
-        #         fontsize=8
-        #     )
+        for xi, yi, d in zip(x + offset, error, gt_depths):
+            ax.text(
+                xi,
+                yi + (0.02 * ymax),  # small offset above bar
+                f"{d:.2f}",
+                ha='center',
+                va='bottom',
+                rotation=0,
+                fontsize=8
+            )
 
     ax.set_ylim(0, ymax)
     ax.set_xticks(np.arange(len(first['phase_shifts'])))
@@ -399,9 +400,10 @@ def plot_single_pixel_corr(depths_dict):
         gt_depths = inner_dict['gt_depths']
 
         mean_depths = np.mean(depths, axis=0)
+        gt_mean_depths = np.mean(gt_depths, axis=0)
 
         depths_plot = (mean_depths / tbin_depth_res).astype(int)
-        gt_depths_plot = (gt_depths / tbin_depth_res).astype(int)
+        gt_depths_plot = (gt_mean_depths / tbin_depth_res).astype(int)
 
         ax[i].plot(coding_matrix)
 
@@ -415,7 +417,7 @@ def plot_single_pixel_corr(depths_dict):
                 ax[i].axvline(gt_depths_plot[j], linestyle='--', color='blue')
                 ax[i].axvline(depths_plot[j], color='red')
 
-            if np.abs(mean_depths[j] - gt_depths[j]) < 4:
+            if np.abs(mean_depths[j] - gt_mean_depths[j]) < 4:
                 ax[i].plot(
                     [gt_depths_plot[j], depths_plot[j]],
                     [0.95 * ymax, 0.95 * ymax],
@@ -437,7 +439,7 @@ def plot_single_pixel_depth_pairs(depths_dict):
     for i, key in enumerate(keys):
         inner = depths_dict[key]
 
-        gt = np.asarray(inner['gt_depths'])   # (N,)
+        gt = np.mean(np.asarray(inner['gt_depths']), axis=0)    # (N,)
         est = np.mean(np.asarray(inner['depths']), axis=0)    # (N,)
         phase_shifts = inner['phase_shifts']  # (N,) labels
 

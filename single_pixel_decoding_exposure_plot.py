@@ -2,6 +2,7 @@ import pprint
 
 from matplotlib import pyplot as plt
 
+from spad_lib.spad512utils import get_gate_shifts
 from utils.file_utils import *
 from plot_scripts.plot_utils import plot_single_pixel_dist, plot_single_pixel_corr, plot_single_pixel_depth_pairs, \
     get_string_name
@@ -14,7 +15,7 @@ import numpy as np
 # -----------------------------------------------------------------------------
 # CONFIG (capitalized)
 # ----------------------------------------------------------------------------
-EXP_PATH = os.path.join('exp_1')
+EXP_PATH = os.path.join('exp_4')
 N_TBINS = 1500
 
 #Which correlation functions to use
@@ -27,7 +28,7 @@ SHIFT_SIZE = None #None if no shifting
 TOTAL_PIXELS = ((SINGLE_PIXEL_COORDS['y'][1] - SINGLE_PIXEL_COORDS['y'][0])
                 * (SINGLE_PIXEL_COORDS['x'][1] - SINGLE_PIXEL_COORDS['x'][0]))
 #Not apart of the defaults
-N_PIXELS = np.arange(1, TOTAL_PIXELS//2, 5)
+N_PIXELS = np.arange(1, TOTAL_PIXELS//2, 10)
 
 # -----------------------------------------------------------------------------
 # MAIN
@@ -87,6 +88,11 @@ if __name__ == '__main__':
         freq_mhz = freq * 1e-6
         duty = params['duty']
         rep_tau = params['rep_tau']
+
+        gate_widths, gate_starts = get_gate_shifts(capture_type, freq, k)
+        total_count = sum(len(sublist) for sublist in gate_widths)
+        int_time = params['int_time'] * total_count
+
 
         #pprint.pprint(params)
 
@@ -162,7 +168,7 @@ if __name__ == '__main__':
             if mae < 1000:
                 mae_list.append(mae)
                 rmse_list.append(rmse)
-                int_times.append(num_pixels * params['int_time'])
+                int_times.append(num_pixels * int_time)
 
         cfg_dict = asdict(cfg)
         cfg_dict.update({'depths': depths, 'gt_depths': gt_depths,

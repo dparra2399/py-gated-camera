@@ -29,5 +29,5 @@ SPEED_OF_LIGHT = 3e8
 PIXEL_PITCH = 16.38 #in uM
 FOCAL_LENGTH = 25 #in mm
 
-SINGLE_PIXEL_COORDS = {'x': [85, 95],
+SINGLE_PIXEL_COORDS = {'x': [85, 105],
                        'y': [185, 205]}
