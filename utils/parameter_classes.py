@@ -15,6 +15,7 @@ class Config:
     gate_shrinkage: Optional[int] = None
     capture_type: Optional[str] = None
     trials: Optional[int] = None
+    split_acquisition: Optional[bool] = None
 
     # Illumination
     high_level_amplitude: Optional[float] = None

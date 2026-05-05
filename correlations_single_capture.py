@@ -18,6 +18,7 @@ IM_WIDTH = 512  # image width
 BIT_DEPTH = 12
 
 # Capture parameters
+SPLIT_ACQUISITION= False
 INT_TIME = 10 # integration time
 BURST_TIME = 10
 K = 3  # number of time bins
@@ -65,6 +66,7 @@ if __name__ == "__main__":
             int_time=INT_TIME,
             burst_time=BURST_TIME,
             k=K,
+            split_acquisition=SPLIT_ACQUISITION,
             gate_shrinkage=GATE_SHRINKAGE,
             capture_type=CAPTURE_TYPE,
             high_level_amplitude=HIGH_LEVEL_AMPLITUDE,
@@ -96,6 +98,7 @@ if __name__ == "__main__":
 
     cfg = Config(**vars(args))
     cfg = apply_defaults(cfg)
+    cfg.int_time = cfg.int_time/cfg.k if cfg.split_acquisition else cfg.int_time
 
     SPAD1 = set_up_spad512()
 

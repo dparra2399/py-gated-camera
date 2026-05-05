@@ -87,8 +87,8 @@ if __name__ == '__main__':
         rep_tau = params['rep_tau']
 
         #pprint.pprint(params)
-        #plt.imshow(np.sum(coded_vals[0, 0, :, :, :], axis=-1))
-        #plt.show()
+        # plt.imshow(np.sum(coded_vals[0, 0, :, :, :], axis=-1))
+        # plt.show()
 
         corr_path = os.path.join(correlation_folder, make_correlation_filename(capture_type, k,
                                                                                freq_mhz, mV, mA, duty))
@@ -122,9 +122,9 @@ if __name__ == '__main__':
             coded_vals,
             coding_matrix,
             tbin_depth_res,
-            [185, 205],
-            [85, 95],
-            50
+            SINGLE_PIXEL_COORDS['y'],
+            SINGLE_PIXEL_COORDS['x'],
+            100
         )
 
         try:
@@ -135,8 +135,8 @@ if __name__ == '__main__':
                 coded_vals,
                 coding_matrix,
                 tbin_depth_res,
-            [185, 205],
-            [85, 95],
+                SINGLE_PIXEL_COORDS['y'],
+                SINGLE_PIXEL_COORDS['x'],
                 1
             )
             gt_depths = gt_depths[0, ...]

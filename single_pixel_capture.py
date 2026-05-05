@@ -1,6 +1,8 @@
 #Standard imports
 import time
 import numpy as np
+
+from correlations_single_capture import SPLIT_ACQUISITION
 #Library imports
 from utils.global_constants import *
 from utils.file_utils import build_parser_from_config, save_capture_and_gt_data, capture_phase_shifts
@@ -15,6 +17,7 @@ IM_WIDTH = 512  # image width
 BIT_DEPTH = 12
 
 # Capture parameters
+SPLIT_ACQUISITION = False
 INT_TIME = 1  # integration time
 GROUND_TRUTH_INT_TIME = 40
 BURST_TIME = 4800 #Maxiumum burst time is 4800 ms
@@ -66,6 +69,7 @@ if __name__ == "__main__":
             im_width=IM_WIDTH,
             bit_depth=BIT_DEPTH,
             int_time=INT_TIME,
+            split_acquisition=SPLIT_ACQUISITION,
             ground_truth_int_time=GROUND_TRUTH_INT_TIME,
             burst_time=BURST_TIME,
             k=K,
@@ -105,6 +109,8 @@ if __name__ == "__main__":
     cfg = apply_defaults(cfg)
     if isinstance(cfg.phase_shifts, str):
         cfg.phase_shifts = capture_phase_shifts(cfg.phase_shifts)
+    cfg.int_time = cfg.int_time/cfg.k if cfg.split_acquisition else cfg.int_time
+    print(f'int_time : {cfg.int_time}')
 
     SPAD1 = set_up_spad512()
 

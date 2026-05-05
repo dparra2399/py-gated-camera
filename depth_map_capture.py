@@ -15,6 +15,7 @@ IM_WIDTH = 512  # image width
 BIT_DEPTH = 12
 
 # Capture parameters
+SPLIT_ACQUISITION = False
 INT_TIME = 10  # integration time
 GROUND_TRUTH_INT_TIME = 800_000
 BURST_TIME = 4800 #Maxiumum burst time is 4800 ms
@@ -62,6 +63,7 @@ if __name__ == "__main__":
             im_width=IM_WIDTH,
             bit_depth=BIT_DEPTH,
             int_time=INT_TIME,
+            split_acquisition=SPLIT_ACQUISITION,
             ground_truth_int_time=GROUND_TRUTH_INT_TIME,
             burst_time=BURST_TIME,
             k=K,
@@ -98,6 +100,8 @@ if __name__ == "__main__":
 
     cfg = Config(**vars(args))
     cfg = apply_defaults(cfg)
+    cfg.int_time = cfg.int_time/cfg.k if cfg.split_acquisition else cfg.int_time
+
 
     SPAD1 = set_up_spad512()
 

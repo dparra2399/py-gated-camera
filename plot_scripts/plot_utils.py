@@ -352,25 +352,25 @@ def plot_single_pixel_dist(depths_dict):
             f"RMSE={inner['rmse'] * 1000:.2f}mm"
         )
 
-        bars = ax.bar(
-            x + offset,
-            error,
-            width=width,
-            color=colors[i % len(colors)],
-            label=label
-        )
+        # bars = ax.bar(
+        #     x + offset,
+        #     error,
+        #     width=width,
+        #     color=colors[i % len(colors)],
+        #     label=label
+        # )
 
         # add depth labels above each bar
-        for xi, yi, d in zip(x + offset, error, inner['gt_depths']):
-            ax.text(
-                xi,
-                yi + (0.02 * ymax),  # small offset above bar
-                f"{d:.2f}",
-                ha='center',
-                va='bottom',
-                rotation=0,
-                fontsize=8
-            )
+        # for xi, yi, d in zip(x + offset, error, inner['gt_depths']):
+        #     ax.text(
+        #         xi,
+        #         yi + (0.02 * ymax),  # small offset above bar
+        #         f"{d:.2f}",
+        #         ha='center',
+        #         va='bottom',
+        #         rotation=0,
+        #         fontsize=8
+        #     )
 
     ax.set_ylim(0, ymax)
     ax.set_xticks(np.arange(len(first['phase_shifts'])))

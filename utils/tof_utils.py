@@ -2,7 +2,7 @@ import numpy as np
 from scipy.interpolate import interp1d
 from scipy.ndimage import gaussian_filter, gaussian_filter1d, median_filter
 from felipe_utils.tof_utils_felipe import zero_norm_t
-from utils.global_constants import EPILSON, SPEED_OF_LIGHT
+from utils.global_constants import EPILSON, SPEED_OF_LIGHT, SINGLE_PIXEL_COORDS
 from felipe_utils import tof_utils_felipe
 from felipe_utils import CodingFunctionsFelipe
 from felipe_utils.research_utils.signalproc_ops import gaussian_pulse
@@ -106,7 +106,8 @@ def build_coding_matrix_from_correlations(
         #np.mean(np.mean(correlations_total[280:300, 140:150, :], axis=0), axis=0)
         #np.sum(np.sum(correlations_total[280:300, 155:170, ...], axis=0), axis=0)
         #np.sum(np.sum(correlations_total[205:220, 135:145, ...], axis=0), axis=0)
-        np.sum(np.sum(correlations_total[185:205, 85:95, :], axis=0), axis=0)
+        #np.sum(np.sum(correlations_total[185:205, 85:95, :], axis=0), axis=0)
+        np.sum(np.sum(correlations_total[SINGLE_PIXEL_COORDS['y'][0]:SINGLE_PIXEL_COORDS['y'][1], SINGLE_PIXEL_COORDS['x'][0]:SINGLE_PIXEL_COORDS['x'][1], :], axis=0), axis=0)
 
     )  # (n_tbins,K)
 
@@ -163,33 +164,30 @@ def decode_single_pixel_experiment(
     tbin_depth_res: float,
     y_pixels: list,
     x_pixels: list,
-    skip_pixels: int,
+    n_pixels: int,
+    pixel_order: np.ndarray = None,
+    seed: int = 0,
 ):
-    # normalize per-pixel coded vals → (N,K)
-    # if coded_vals.ndim == 4:
-    #     avg_coded_vals = np.sum(np.sum(
-    #         coded_vals[..., y_pixels[0]:y_pixels[1]:skip_pixels, x_pixels[0]:x_pixels[1]:skip_pixels, :],
-    #         axis=-2), axis=-2)
-    # else:
-    #     avg_coded_vals = np.sum(np.sum(
-    #         coded_vals[::skip_pixels, :, y_pixels[0]:y_pixels[1]:skip_pixels, x_pixels[0]:x_pixels[1]:skip_pixels, :],
-    #         axis=-2), axis=-2)
     sub = coded_vals[..., y_pixels[0]:y_pixels[1], x_pixels[0]:x_pixels[1], :]
     sub = sub.reshape(*sub.shape[:-3], -1, sub.shape[-1])
-    avg_coded_vals = sub[..., ::skip_pixels, :].sum(axis=-2)
+    total_pixels = sub.shape[-2]
 
-    #print('Number of pixels: ', sub[..., ::skip_pixels, :].shape[-2])
+    if pixel_order is None:
+        rng = np.random.default_rng(seed)
+        pixel_order = rng.permutation(total_pixels)
 
+    n_pixels = min(n_pixels, total_pixels)
+    idx = pixel_order[:n_pixels]
+
+    avg_coded_vals = sub[..., idx, :].sum(axis=-2)
 
     norm_coded_vals = zero_norm_t(avg_coded_vals, axis=-1)
-
     norm_coding_matrix = zero_norm_t(coding_matrix, axis=-1)
 
     zncc = np.matmul(norm_coding_matrix, norm_coded_vals[..., np.newaxis]).squeeze(-1)
-
     depths = np.argmax(zncc, axis=-1) * tbin_depth_res
 
-    return depths, zncc,  sub[..., ::skip_pixels, :].shape[-2] #num pixels
+    return depths, zncc, n_pixels
 
 def decode_from_correlations(
     coding_matrix: np.ndarray,

@@ -14,7 +14,7 @@ import numpy as np
 # -----------------------------------------------------------------------------
 # CONFIG (capitalized)
 # ----------------------------------------------------------------------------
-EXP_PATH = os.path.join('exp_0')
+EXP_PATH = os.path.join('exp_1')
 N_TBINS = 1500
 
 #Which correlation functions to use
@@ -24,8 +24,10 @@ SIMULATED_CORRELATIONS = False
 SIGMA_SIZE = 1 #None if no smoothing
 SHIFT_SIZE = None #None if no shifting
 
+TOTAL_PIXELS = ((SINGLE_PIXEL_COORDS['y'][1] - SINGLE_PIXEL_COORDS['y'][0])
+                * (SINGLE_PIXEL_COORDS['x'][1] - SINGLE_PIXEL_COORDS['x'][0]))
 #Not apart of the defaults
-SKIP_PIXELS = np.arange(1, 30, 2)
+N_PIXELS = np.arange(1, TOTAL_PIXELS//2, 5)
 
 # -----------------------------------------------------------------------------
 # MAIN
@@ -113,44 +115,29 @@ if __name__ == '__main__':
         (rep_tau, rep_freq,tbin_res,
          t_domain,max_depth,tbin_depth_res,)= calculate_tof_domain_params(n_tbins, rep_tau)
 
-        # try:
-        #     coded_vals_gt = np.load(gt_coded_vals_path, allow_pickle=True)['coded_vals']
-        #
-        #     gt_depths, zncc, _ = decode_single_pixel_experiment(
-        #         #coded_vals_gt,
-        #         #coded_vals,
-        #         coding_matrix,
-        #         tbin_depth_res,
-        #     [185, 205],
-        #     [85, 95],
-        #         1
-        #     )
-        #     #gt_depths = gt_depths[0, ...]
-        #
-        # except FileNotFoundError:
-        #     print('GT Depth Map not found, We need this please ;)')
-        #     exit(0)
-
         mae_list = []
         rmse_list = []
         int_times = []
 
-        #gt_depths = gt_depths[2:-2]
 
-        for i, skip_pixels in enumerate(SKIP_PIXELS):
+        pixel_order = np.random.default_rng(0).permutation(TOTAL_PIXELS)
+
+        for i, n in enumerate(N_PIXELS):
             try:
                 coded_vals_gt = np.load(gt_coded_vals_path, allow_pickle=True)['coded_vals']
 
-                gt_depths, zncc, _ = decode_single_pixel_experiment(
-                    # coded_vals_gt,
+                gt_depths, zncc_gt, _ = decode_single_pixel_experiment(
+                    #coded_vals_gt,
                     coded_vals,
                     coding_matrix,
                     tbin_depth_res,
-                        [185, 205],
-                        [85, 95],
-                    1
+                    SINGLE_PIXEL_COORDS['y'],
+                    SINGLE_PIXEL_COORDS['x'],
+                    n_pixels=TOTAL_PIXELS,
+                    pixel_order=pixel_order
+
                 )
-                gt_depths = gt_depths[0, ...]
+                #gt_depths = gt_depths[0, ...]
 
             except FileNotFoundError:
                 print('GT Depth Map not found, We need this please ;)')
@@ -160,13 +147,15 @@ if __name__ == '__main__':
                 coded_vals,
                 coding_matrix,
                 tbin_depth_res,
-                [185, 205],
-                [85, 95],
-                skip_pixels
+                SINGLE_PIXEL_COORDS['y'],
+                SINGLE_PIXEL_COORDS['x'],
+                n_pixels=n,
+                pixel_order=pixel_order
             )
 
             phase_shifts = params['phase_shifts']#[2:-2]
             #depths = depths[:, 2:-2]
+            #gt_depths = gt_depths[:, 2:-2]
 
             mae = np.nanmean(np.abs(depths - gt_depths)) * 1000
             rmse = np.sqrt(np.nanmean((depths - gt_depths) ** 2))* 1000
@@ -191,7 +180,7 @@ if __name__ == '__main__':
     for idx, inner_dict in enumerate(depths_dict):
         rmse = inner_dict['rmse']
         mae = inner_dict['mae']
-        int_times = np.log10(inner_dict['int_times'])
+        int_times = inner_dict['int_times']
         capture_type = inner_dict['capture_type']
 
         axs.plot(
