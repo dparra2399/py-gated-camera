@@ -168,7 +168,8 @@ class SDG5162_GATED_PROJECT:
         self.sdg.write(f"C1:BSWV RISE,{edge}")
         self.sdg.write(f"C1:BSWV FALL,{edge}")
         self.sdg.write(f"C1:BSWV FRQ,{rep_rate}")
-        self.sdg.write("C1:OUTP PLRT,INVT")
+        self.sdg.write(f"C1:BSWV DLY,{phase}")
+        #self.sdg.write("C1:OUTP PLRT,INVT")
 
     def set_phase_shift(self, phase):
         self.sdg.write(f"C1:BSWV PHSE,{phase}")

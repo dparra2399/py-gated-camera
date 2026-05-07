@@ -2,7 +2,6 @@
 import time
 import numpy as np
 
-from correlations_single_capture import SPLIT_ACQUISITION
 #Library imports
 from utils.global_constants import *
 from utils.file_utils import build_parser_from_config, save_capture_and_gt_data, capture_phase_shifts
@@ -131,6 +130,8 @@ if __name__ == "__main__":
     total_count = sum(len(sublist) for sublist in gate_widths)
     cfg.int_time = cfg.int_time/total_count if cfg.split_acquisition else cfg.int_time
 
+    print(f"int_time: {cfg.int_time}")
+
     time.sleep(20)
 
     needed = {k: v for k, v in asdict(cfg).items() if k in depth_map_capture.__code__.co_varnames}
@@ -154,18 +155,11 @@ if __name__ == "__main__":
             trial_runs.append(coded_vals)
 
         coded_vals_range.append(np.stack(trial_runs))
-        # coded_vals_range.append(
-        #     #np.mean(np.mean(coded_vals[20:-20, 20:coded_vals.shape[1]//2-20, :], axis=0), axis=0)
-        #     np.mean(np.mean(coded_vals[280:300, 140:150, :], axis=0), axis=0)
-        # )
         if cfg.ground_truth:
             gt_coded_vals = depth_map_capture(SPAD1, gate_starts=gate_starts, gate_widths=gate_widths,
                                                          int_time=cfg.ground_truth_int_time, **needed)
             gt_coded_vals_range.append(gt_coded_vals)
-            # gt_coded_vals_range.append(
-            #     #np.mean(np.mean(gt_coded_vals[20:-20, 20:gt_coded_vals.shape[1]//2-20, :], axis=0), axis=0)
-            #     np.mean(np.mean(gt_coded_vals[280:300, 140:150, :], axis=0), axis=0)
-            # )
+
 
     single_pixel_coded_vals = np.swapaxes(np.stack(coded_vals_range), 1, 0)
     gt_single_pixel_coded_vals = np.stack(gt_coded_vals_range) if gt_coded_vals_range is not None else None

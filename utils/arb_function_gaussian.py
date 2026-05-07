@@ -4,7 +4,7 @@ import os
 # Parameters (shape-only)
 # =======================================
 N = 16384
-DUTY_FWHM = 0.23      # FWHM as fraction of period (0..1)
+DUTY_FWHM = 0.15      # FWHM as fraction of period (0..1)
 CENTER = 0.5           # pulse center in cycle fraction
 VOLTAGE = 2            # keep your 2 so normalization maps to [-1, 1]
 
@@ -21,7 +21,7 @@ g /= g.max()
 g = 2*g - 1
 
 
-outfile = os.path.join('arb_functions', f"GAUSS{DUTY_FWHM*100:.0f}DUTY.csv")
+outfile = os.path.join(f"GAUSS{DUTY_FWHM*100:.0f}DUTY.csv")
 
 with open(outfile, "w") as f:
     f.write(f"data length,{N}\n")

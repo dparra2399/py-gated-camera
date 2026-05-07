@@ -27,13 +27,13 @@ GATE_SHRINKAGE = 5 #In NS
 CAPTURE_TYPE = 'ham'
 
 # Illumination Parameters:
-HIGH_LEVEL_AMPLITUDE = 0.5 #in Vpp
+HIGH_LEVEL_AMPLITUDE = 0.77 #in Vpp
 LOW_LEVEL_AMPLITUDE = -0.5
 CURRENT = 16 #in mA
 EDGE = 6 * 1e-9 #Edge rate for pulse wave
 DUTY = 15 # In percentage
 REP_RATE = 10 * 1e6 #in HZ
-ILLUM_TYPE = 'square'
+ILLUM_TYPE = 'pulse'
 
 #Plot Parameters
 PLOT_CORRELATIONS = True
@@ -105,7 +105,7 @@ if __name__ == "__main__":
         usb_port="USB0::0xF4ED::0xEE3A::SDG050D2150058::INSTR"
     )
 
-    ldc220 = NIDAQ_LDC220(max_amps=90)
+    ldc220 = NIDAQ_LDC220(max_amps=40)
     ldc220.set_current(0)
 
     sdg.set_waveform_and_trigger(cfg.illum_type, cfg.duty, cfg.rep_rate,
@@ -113,6 +113,7 @@ if __name__ == "__main__":
     sdg.turn_both_channels_on()
 
     ldc220.set_current(cfg.current)
+
 
     gate_widths, gate_starts = get_gate_shifts(cfg.capture_type, cfg.rep_rate, cfg.k)
     total_count = sum(len(sublist) for sublist in gate_widths)
