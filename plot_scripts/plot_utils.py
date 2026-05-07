@@ -631,9 +631,9 @@ def plot_depth_error_distribution(results):
     plt.show()
 
 
-def get_string_name(capture_type):
+def get_string_name(capture_type, k):
     if capture_type == 'coarse':
-        return 'Pulsed'
+        return 'Pulsed' + " K=" + str(k)
     elif capture_type == 'ham':
-        return 'Hamiltonian'
+        return 'Hamiltonian' + " K=" + str(k)
     return None

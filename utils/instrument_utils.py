@@ -174,6 +174,8 @@ class SDG5162_GATED_PROJECT:
     def set_phase_shift(self, phase):
         self.sdg.write(f"C1:BSWV PHSE,{phase}")
 
+    def set_delay(self, delay):
+        self.sdg.write(f"C1:BSWV DLY,{delay}")
 
     def turn_channel_on(self, channel):
         self.sdg.write(f"C{channel}:OUTP ON")

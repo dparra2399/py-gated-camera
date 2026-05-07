@@ -73,7 +73,7 @@ def get_coarse_gate_shifts(freq, k):
     return gate_widths, gate_starts
 
 def get_gate_shifts(type, freq, k):
-    if type == 'coarse':
+    if type == 'coarse' or type == 'rect':
         name = 'coarse'
     elif type == 'ham':
         name = f'hamk{k}'

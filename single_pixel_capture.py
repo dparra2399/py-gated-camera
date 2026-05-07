@@ -22,8 +22,6 @@ GROUND_TRUTH_INT_TIME = 40
 BURST_TIME = 4800 #Maxiumum burst time is 4800 ms
 K = 3  # number of time bins
 TRIALS = 2
-
-
 GATE_SHRINKAGE = 1 #In NS
 CAPTURE_TYPE = 'ham'
 
@@ -33,7 +31,7 @@ LOW_LEVEL_AMPLITUDE = -0.5
 CURRENT = 16 #in mA
 EDGE = 6 * 1e-9 #Edge rate for pulse wave
 DUTY = 20 # In percentage
-REP_RATE = 5 * 1e6 #in HZ
+REP_RATE = 10 * 1e6 #in HZ
 ILLUM_TYPE = 'square'
 
 #Single-pixel experiment parameters
@@ -139,8 +137,17 @@ if __name__ == "__main__":
 
     coded_vals_range = []
     gt_coded_vals_range = [] if cfg.ground_truth else None
+
+    def phase_shift_helper(phase_shift, rep_rate, illum_type):
+        if illum_type == "pulse":
+            delay_ns = phase_shift / 360 * (1 / rep_rate) * 1e9
+            sdg.set_delay(delay_ns)
+        else:
+            sdg.set_phase_shift(phase_shift)
+
     for phase_shift in cfg.phase_shifts:
-        sdg.set_phase_shift(phase_shift)
+        phase_shift_helper(phase_shift, cfg.rep_rate, cfg.illum_type)
+        #sdg.set_phase_shift(phase_shift)
 
         print('+++++++++++++++++++++++++++++++++++++++++++++++++++++++')
         print(f'phase_shift : {phase_shift}')

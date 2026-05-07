@@ -167,19 +167,24 @@ def decode_single_pixel_experiment(
     n_pixels: int,
     pixel_order: np.ndarray = None,
     seed: int = 0,
+    gt: bool = False,
 ):
+
     sub = coded_vals[..., y_pixels[0]:y_pixels[1], x_pixels[0]:x_pixels[1], :]
     sub = sub.reshape(*sub.shape[:-3], -1, sub.shape[-1])
     total_pixels = sub.shape[-2]
 
-    if pixel_order is None:
-        rng = np.random.default_rng(seed)
-        pixel_order = rng.permutation(total_pixels)
+    if gt is True:
+        avg_coded_vals = sub.sum(axis=-2)
+    else:
+        if pixel_order is None:
+            rng = np.random.default_rng(seed)
+            pixel_order = rng.permutation(total_pixels)
 
-    n_pixels = min(n_pixels, total_pixels)
-    idx = pixel_order[:n_pixels]
+        n_pixels = min(n_pixels, total_pixels)
+        idx = pixel_order[:n_pixels]
 
-    avg_coded_vals = sub[..., idx, :].sum(axis=-2)
+        avg_coded_vals = sub[..., idx, :].sum(axis=-2)
 
     norm_coded_vals = zero_norm_t(avg_coded_vals, axis=-1)
     norm_coding_matrix = zero_norm_t(coding_matrix, axis=-1)

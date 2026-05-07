@@ -15,7 +15,7 @@ import numpy as np
 # -----------------------------------------------------------------------------
 # CONFIG (capitalized)
 # ----------------------------------------------------------------------------
-EXP_PATH = os.path.join('exp_4')
+EXP_PATH = os.path.join('coarse(trap)_k3_HIGHSNR')
 N_TBINS = 1500
 
 #Which correlation functions to use
@@ -28,7 +28,7 @@ SHIFT_SIZE = None #None if no shifting
 TOTAL_PIXELS = ((SINGLE_PIXEL_COORDS['y'][1] - SINGLE_PIXEL_COORDS['y'][0])
                 * (SINGLE_PIXEL_COORDS['x'][1] - SINGLE_PIXEL_COORDS['x'][0]))
 #Not apart of the defaults
-N_PIXELS = np.arange(1, TOTAL_PIXELS//2, 10)
+N_PIXELS = np.arange(1, TOTAL_PIXELS, 15)
 
 # -----------------------------------------------------------------------------
 # MAIN
@@ -125,29 +125,27 @@ if __name__ == '__main__':
         rmse_list = []
         int_times = []
 
-
         pixel_order = np.random.default_rng(0).permutation(TOTAL_PIXELS)
 
+        #coded_vals_gt = np.load(gt_coded_vals_path, allow_pickle=True)['coded_vals']
+
+        gt_depths, zncc_gt, _ = decode_single_pixel_experiment(
+            # coded_vals_gt,
+            coded_vals,
+            coding_matrix,
+            tbin_depth_res,
+            SINGLE_PIXEL_COORDS['y'],
+            #[0, 512],
+            SINGLE_PIXEL_COORDS['x'],
+            #[0, 512],
+            n_pixels=TOTAL_PIXELS,
+            pixel_order=pixel_order,
+            #gt=True
+
+        )
+        # gt_depths = gt_depths[0, ...]
+
         for i, n in enumerate(N_PIXELS):
-            try:
-                coded_vals_gt = np.load(gt_coded_vals_path, allow_pickle=True)['coded_vals']
-
-                gt_depths, zncc_gt, _ = decode_single_pixel_experiment(
-                    #coded_vals_gt,
-                    coded_vals,
-                    coding_matrix,
-                    tbin_depth_res,
-                    SINGLE_PIXEL_COORDS['y'],
-                    SINGLE_PIXEL_COORDS['x'],
-                    n_pixels=TOTAL_PIXELS,
-                    pixel_order=pixel_order
-
-                )
-                #gt_depths = gt_depths[0, ...]
-
-            except FileNotFoundError:
-                print('GT Depth Map not found, We need this please ;)')
-                exit(0)
 
             depths, zncc, num_pixels = decode_single_pixel_experiment(
                 coded_vals,
@@ -175,7 +173,7 @@ if __name__ == '__main__':
                          'rmse': rmse_list, 'mae': mae_list, 'coding_matrix': coding_matrix,
                          'tbin_res': tbin_res, 'tbin_depth_res': tbin_depth_res,
                          'phase_shifts' : phase_shifts, 'capture_type': capture_type,
-                         'int_times': int_times})
+                         'int_times': int_times, "k": k})
             #cfg_dict.update(params)
 
         depths_dict.append(cfg_dict)
@@ -188,6 +186,7 @@ if __name__ == '__main__':
         mae = inner_dict['mae']
         int_times = inner_dict['int_times']
         capture_type = inner_dict['capture_type']
+        k = inner_dict['k']
 
         axs.plot(
             int_times,
@@ -195,8 +194,10 @@ if __name__ == '__main__':
             marker='o',
             markerfacecolor='none',
             markeredgewidth=2,
-            label=get_string_name(capture_type),
+            label=get_string_name(capture_type, k),
         )
+        axs.set_ylim(0, 200)
+
     axs.legend(fontsize=30, framealpha=1, facecolor='white', edgecolor='black')
     axs.set_xlabel('Integration Time (ms)', fontsize=20)
     axs.set_ylabel('Depth Error (mm)', fontsize=20)
