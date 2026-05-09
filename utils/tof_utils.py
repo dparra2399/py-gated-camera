@@ -1,6 +1,8 @@
 import numpy as np
 from scipy.interpolate import interp1d
 from scipy.ndimage import gaussian_filter, gaussian_filter1d, median_filter
+
+from felipe_utils.research_utils import signalproc_ops, np_utils
 from felipe_utils.tof_utils_felipe import zero_norm_t
 from utils.global_constants import EPILSON, SPEED_OF_LIGHT, SINGLE_PIXEL_COORDS
 from felipe_utils import tof_utils_felipe
@@ -174,6 +176,7 @@ def decode_depth_map(
     return depth_map, zncc
 
 def decode_single_pixel_experiment(
+    capture_type: str,
     coded_vals: np.ndarray,
     coding_matrix: np.ndarray,
     tbin_depth_res: float,
@@ -201,13 +204,36 @@ def decode_single_pixel_experiment(
 
         avg_coded_vals = sub[..., idx, :].sum(axis=-2)
 
-    norm_coded_vals = zero_norm_t(avg_coded_vals, axis=-1)
+    if capture_type == 'timeslicing':
+        return matchfilt_reconstruction(avg_coded_vals, tbin_depth_res), n_pixels
+    else:
+        return zncc_decoding(avg_coded_vals, coding_matrix, tbin_depth_res), n_pixels
+
+
+def matchfilt_reconstruction(c_vals, tbin_depth_res):
+    template =  gaussian_pulse(np.arange(c_vals.shape[-1]), 0, 12, circ_shifted=True)
+    zn_template = zero_norm_t(template, axis=-1)
+    zn_c_vals = zero_norm_t(c_vals, axis=-1)
+    shifts = signalproc_ops.circular_matched_filter(zn_c_vals, zn_template)
+    # vectorize tensors
+    (c_vals, c_vals_shape) = np_utils.vectorize_tensor(c_vals, axis=-1)
+    shifts = shifts.reshape((c_vals.shape[0],))
+    h_rec = np.zeros(c_vals.shape, dtype=template.dtype)
+    for i in range(shifts.size): h_rec[i, :] = np.roll(template, shift=shifts[i], axis=-1)
+    c_vals = c_vals.reshape(c_vals_shape)
+    recon = h_rec.reshape(c_vals_shape)
+    depths = np.argmax(recon, axis=-1) * tbin_depth_res
+
+    return depths, recon
+
+def zncc_decoding(coded_vals, coding_matrix, tbin_depth_res):
+    norm_coded_vals = zero_norm_t(coded_vals, axis=-1)
     norm_coding_matrix = zero_norm_t(coding_matrix, axis=-1)
 
     zncc = np.matmul(norm_coding_matrix, norm_coded_vals[..., np.newaxis]).squeeze(-1)
     depths = np.argmax(zncc, axis=-1) * tbin_depth_res
 
-    return depths, zncc, n_pixels
+    return depths, zncc
 
 def decode_from_correlations(
     coding_matrix: np.ndarray,

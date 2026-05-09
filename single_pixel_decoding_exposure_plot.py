@@ -132,8 +132,9 @@ if __name__ == '__main__':
 
         #coded_vals_gt = np.load(gt_coded_vals_path, allow_pickle=True)['coded_vals']
 
-        gt_depths, zncc_gt, _ = decode_single_pixel_experiment(
+        gt_depths, recon_gt, _ = decode_single_pixel_experiment(
             # coded_vals_gt,
+            capture_type,
             coded_vals,
             coding_matrix,
             tbin_depth_res,
@@ -150,7 +151,8 @@ if __name__ == '__main__':
 
         for i, n in enumerate(N_PIXELS):
 
-            depths, zncc, num_pixels = decode_single_pixel_experiment(
+            depths, recon, num_pixels = decode_single_pixel_experiment(
+                capture_type,
                 coded_vals,
                 coding_matrix,
                 tbin_depth_res,
