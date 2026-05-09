@@ -19,7 +19,7 @@ BASE = [
     "--save_into_file", "1",
     "--iterations", "1",
     "--current", "16",
-    "--trials", "10",
+    "--trials", "100",
 ]
 
 # sweeps
@@ -29,7 +29,7 @@ phase_shifts = np.arange(20, 340, 30).tolist()  # <-- set whatever you want (deg
 print(phase_shifts)
 print(len(phase_shifts))
 
-run_id = 0
+run_id = 1
 
 # INNER LOOP = capture types share the SAME run_id folder
 for typ in capture_types:

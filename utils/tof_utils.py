@@ -205,9 +205,11 @@ def decode_single_pixel_experiment(
         avg_coded_vals = sub[..., idx, :].sum(axis=-2)
 
     if capture_type == 'timeslicing':
-        return matchfilt_reconstruction(avg_coded_vals, tbin_depth_res), n_pixels
+        depths, recon =  matchfilt_reconstruction(avg_coded_vals, tbin_depth_res)
     else:
-        return zncc_decoding(avg_coded_vals, coding_matrix, tbin_depth_res), n_pixels
+        depths, recon =  zncc_decoding(avg_coded_vals, coding_matrix, tbin_depth_res)
+    return depths, recon, n_pixels
+
 
 
 def matchfilt_reconstruction(c_vals, tbin_depth_res):

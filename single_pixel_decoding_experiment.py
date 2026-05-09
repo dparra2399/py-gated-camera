@@ -14,7 +14,7 @@ import numpy as np
 # -----------------------------------------------------------------------------
 # CONFIG (capitalized)
 # ----------------------------------------------------------------------------
-EXP_PATH = os.path.join('HIGHSNR_k3')
+EXP_PATH = os.path.join('exp_0')
 N_TBINS = 1500
 
 #PLotting utils for visualization
@@ -87,7 +87,7 @@ if __name__ == '__main__':
         duty = params['duty']
         rep_tau = params['rep_tau']
 
-        #pprint.pprint(params)
+        # pprint.pprint(params)
         # plt.imshow(np.sum(coded_vals[0, 0, :, :, :], axis=-1))
         # plt.show()
 
@@ -99,7 +99,10 @@ if __name__ == '__main__':
                                           make_capture_filename(capture_type, k, freq_mhz, mV, mA, duty,
                                                                 None, True))
 
-        correlations_total = np.load(corr_path, allow_pickle=True)['correlations']
+        if capture_type == "timeslicing":
+            correlations_total = coded_vals[0, 5, ...]
+        else:
+            correlations_total = np.load(corr_path, allow_pickle=True)['correlations']
 
         if cfg.simulated_correlations:
             coding_matrix = get_simulated_coding_matrix(capture_type, cfg.n_tbins, k)
@@ -112,6 +115,9 @@ if __name__ == '__main__':
                 cfg.n_tbins,
             )
 
+        plt.plot(coding_matrix)
+        plt.show()
+
         n_tbins = cfg.n_tbins if cfg.n_tbins is not None else coding_matrix.shape[0]
         (rep_tau, rep_freq,tbin_res,
          t_domain,max_depth,tbin_depth_res,)= calculate_tof_domain_params(n_tbins, rep_tau)
@@ -120,15 +126,17 @@ if __name__ == '__main__':
 
 
         depths, zncc, _ = decode_single_pixel_experiment(
+            capture_type,
             coded_vals,
             coding_matrix,
             tbin_depth_res,
             SINGLE_PIXEL_COORDS['y'],
             SINGLE_PIXEL_COORDS['x'],
-            n_pixels=TOTAL_PIXELS
+            n_pixels=100
         )
 
         gt_depths, zncc_gt, _ = decode_single_pixel_experiment(
+            capture_type,
             #coded_vals_gt,
             coded_vals,
             coding_matrix,

@@ -179,8 +179,11 @@ if __name__ == "__main__":
                                                          int_time=cfg.ground_truth_int_time, **needed)
             gt_coded_vals_range.append(gt_coded_vals)
 
-
-    single_pixel_coded_vals = np.swapaxes(np.stack(coded_vals_range), 1, 0)
+    single_pixel_coded_vals = np.swapaxes(
+        np.stack([x.astype(np.float32) for x in coded_vals_range]),
+        1,
+        0
+    )
     gt_single_pixel_coded_vals = np.stack(gt_coded_vals_range) if gt_coded_vals_range is not None else None
 
     ldc220.set_current(0)

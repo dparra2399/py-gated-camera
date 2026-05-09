@@ -16,7 +16,7 @@ import numpy as np
 # -----------------------------------------------------------------------------
 # CONFIG (capitalized)
 # ----------------------------------------------------------------------------
-EXP_PATH = os.path.join('k3_LOWSNR.zip')
+EXP_PATH = os.path.join('exp_0')
 N_TBINS = 1500
 
 #Which correlation functions to use
@@ -107,18 +107,22 @@ if __name__ == '__main__':
                                           make_capture_filename(capture_type, k, freq_mhz, mV, mA, duty,
                                                                 None, True))
 
-        correlations_total = np.load(corr_path, allow_pickle=True)['correlations']
 
-        if cfg.simulated_correlations:
-            coding_matrix = get_simulated_coding_matrix(capture_type, cfg.n_tbins, k)
+        if capture_type == "timeslicing":
+            coding_matrix = None
         else:
-            coding_matrix = build_coding_matrix_from_correlations(
-                correlations_total,
-                False,
-                cfg.smooth_sigma,
-                cfg.shift,
-                cfg.n_tbins,
-            )
+            correlations_total = np.load(corr_path, allow_pickle=True)['correlations']
+
+            if cfg.simulated_correlations:
+                coding_matrix = get_simulated_coding_matrix(capture_type, cfg.n_tbins, k)
+            else:
+                coding_matrix = build_coding_matrix_from_correlations(
+                    correlations_total,
+                    False,
+                    cfg.smooth_sigma,
+                    cfg.shift,
+                    cfg.n_tbins,
+                )
 
         n_tbins = cfg.n_tbins if cfg.n_tbins is not None else coding_matrix.shape[0]
         (rep_tau, rep_freq,tbin_res,
