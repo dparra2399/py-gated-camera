@@ -2,6 +2,7 @@ import pprint
 
 from matplotlib import pyplot as plt
 
+from single_pixel_decoding_exposure_plot import TOTAL_PIXELS
 from utils.file_utils import *
 from plot_scripts.plot_utils import plot_single_pixel_dist, plot_single_pixel_corr, plot_single_pixel_depth_pairs
 from utils.global_constants import *
@@ -13,7 +14,7 @@ import numpy as np
 # -----------------------------------------------------------------------------
 # CONFIG (capitalized)
 # ----------------------------------------------------------------------------
-EXP_PATH = os.path.join('exp_0')
+EXP_PATH = os.path.join('HIGHSNR_k3')
 N_TBINS = 1500
 
 #PLotting utils for visualization
@@ -124,27 +125,18 @@ if __name__ == '__main__':
             tbin_depth_res,
             SINGLE_PIXEL_COORDS['y'],
             SINGLE_PIXEL_COORDS['x'],
-            100
+            n_pixels=TOTAL_PIXELS
         )
 
-        try:
-            coded_vals_gt = np.load(gt_coded_vals_path, allow_pickle=True)['coded_vals']
-
-            gt_depths, zncc, _ = decode_single_pixel_experiment(
-                #coded_vals_gt,
-                coded_vals,
-                coding_matrix,
-                tbin_depth_res,
-                SINGLE_PIXEL_COORDS['y'],
-                SINGLE_PIXEL_COORDS['x'],
-                1
-            )
-            #gt_depths = gt_depths[0, ...]
-        except FileNotFoundError:
-            print('GT Depth Map not found, Using Captured Depth Map Instead')
-            gt_depths = np.copy(depths)
-            coded_vals_gt = None
-
+        gt_depths, zncc_gt, _ = decode_single_pixel_experiment(
+            #coded_vals_gt,
+            coded_vals,
+            coding_matrix,
+            tbin_depth_res,
+            SINGLE_PIXEL_COORDS['y'],
+            SINGLE_PIXEL_COORDS['x'],
+            n_pixels=TOTAL_PIXELS
+        )
         # plt.imshow(np.sum(np.sum(coded_vals_gt, axis=0), axis=-1))
         # plt.show()
 

@@ -417,7 +417,7 @@ def plot_single_pixel_corr(depths_dict):
                 ax[i].axvline(gt_depths_plot[j], linestyle='--', color='blue')
                 ax[i].axvline(depths_plot[j], color='red')
 
-            if np.abs(mean_depths[j] - gt_mean_depths[j]) < 4:
+            if np.abs(mean_depths[j] - gt_mean_depths[j]) < 1000:
                 ax[i].plot(
                     [gt_depths_plot[j], depths_plot[j]],
                     [0.95 * ymax, 0.95 * ymax],
@@ -633,7 +633,13 @@ def plot_depth_error_distribution(results):
 
 def get_string_name(capture_type, k):
     if capture_type == 'coarse':
-        return 'Pulsed' + " K=" + str(k)
+        return 'Triangle (Gauss.)' + " K=" + str(k)
+    elif capture_type == 'trapcoarse':
+        return 'Trapezoidal (Gauss.)' + " K=" + str(k)
+    elif capture_type == 'rect':
+        return 'Triangle (Rect.)' + " K=" + str(k)
+    elif capture_type == 'traprect':
+        return 'Trapezoidal (Rect.)' + " K=" + str(k)
     elif capture_type == 'ham':
-        return 'Hamiltonian' + " K=" + str(k)
+        return 'SiP Hamiltonian' + " K=" + str(k)
     return None

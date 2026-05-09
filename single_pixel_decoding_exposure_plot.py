@@ -1,4 +1,5 @@
 import pprint
+import zipfile
 
 from matplotlib import pyplot as plt
 
@@ -15,7 +16,7 @@ import numpy as np
 # -----------------------------------------------------------------------------
 # CONFIG (capitalized)
 # ----------------------------------------------------------------------------
-EXP_PATH = os.path.join('exp_0')
+EXP_PATH = os.path.join('k3_LOWSNR.zip')
 N_TBINS = 1500
 
 #Which correlation functions to use
@@ -28,7 +29,7 @@ SHIFT_SIZE = None #None if no shifting
 TOTAL_PIXELS = ((SINGLE_PIXEL_COORDS['y'][1] - SINGLE_PIXEL_COORDS['y'][0])
                 * (SINGLE_PIXEL_COORDS['x'][1] - SINGLE_PIXEL_COORDS['x'][0]))
 #Not apart of the defaults
-N_PIXELS = np.arange(1, TOTAL_PIXELS, 15)
+N_PIXELS = np.arange(2, TOTAL_PIXELS//3, 5)
 
 # -----------------------------------------------------------------------------
 # MAIN
@@ -64,10 +65,10 @@ if __name__ == '__main__':
     capture_folder = get_data_folder(READ_PATH_SINGLE_PIXEL_MAC, READ_PATH_SINGLE_PIXEL_WINDOWS)
     assert cfg.exp_path is not None, 'Must define exp_num to find folder'
     capture_folder = os.path.join(capture_folder, cfg.exp_path)
-
-
+    capture_folder = get_capture_folder(capture_folder)
 
     capture_paths = os.listdir(capture_folder)
+    capture_paths = [p for p in capture_paths if os.path.isfile(os.path.join(capture_folder, p))]
     capture_paths = filter_capture_files(capture_paths)
 
     depths_dict = []
@@ -76,6 +77,8 @@ if __name__ == '__main__':
         if coded_vals_name.startswith('.'):
             continue
         coded_vals_path = os.path.join(capture_folder, coded_vals_name)
+        if not os.path.isfile(coded_vals_path):
+            continue
         capture_file = np.load(coded_vals_path, allow_pickle=True)
         params = capture_file['cfg'].item()
         coded_vals = capture_file['coded_vals']
@@ -196,7 +199,7 @@ if __name__ == '__main__':
             markeredgewidth=2,
             label=get_string_name(capture_type, k),
         )
-        axs.set_ylim(0, 200)
+        #axs.set_ylim(0, 200)
 
     axs.legend(fontsize=30, framealpha=1, facecolor='white', edgecolor='black')
     axs.set_xlabel('Integration Time (ms)', fontsize=20)

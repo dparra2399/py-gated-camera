@@ -5,6 +5,9 @@ from PIL import Image
 from dataclasses import fields, asdict, is_dataclass
 from typing import  get_origin, get_args, Union
 import argparse
+import zipfile
+import shutil
+import atexit
 
 def get_data_folder(data_folder_mac, data_folder_linux) -> str:
     if os.path.exists(data_folder_mac):
@@ -37,6 +40,27 @@ def filter_capture_files(npz_files):
             filtered.append(f)
     return filtered
 
+def get_capture_folder(path, delete_unzipped=True):
+    if os.path.isdir(path):
+        return path
+
+    if zipfile.is_zipfile(path):
+        unzip_folder = os.path.splitext(path)[0]
+        os.makedirs(unzip_folder, exist_ok=True)
+
+        with zipfile.ZipFile(path, 'r') as zip_ref:
+            zip_ref.extractall(unzip_folder)
+
+        if delete_unzipped:
+            atexit.register(shutil.rmtree, unzip_folder, ignore_errors=True)
+
+        inner_folder = os.path.join(unzip_folder, os.path.basename(unzip_folder))
+        if os.path.isdir(inner_folder):
+            return inner_folder
+
+        return unzip_folder
+
+    raise FileNotFoundError(f'Capture path is not a directory or zip file: {path}')
 
 def save_capture_and_gt_data(save_path, cfg_dict, coded_vals, gt_coded_vals):
     save_path = os.path.join(save_path, cfg_dict['exp_path']) \
