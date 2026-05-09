@@ -223,7 +223,7 @@ sdg.turn_both_channels_off()
 #
 ni_daq = NIDAQ_LDC220(zero_set=0, max_amps=40)
 ni_daq.set_current(0)
-print(ni_daq.read_current())
+# print(ni_daq.read_current())
 
 #ni_daq.set_current(50)
 #print(ni_daq.read_current())

@@ -72,9 +72,17 @@ def get_coarse_gate_shifts(freq, k):
     gate_widths = [[gate_width] for i in range(k)]
     return gate_widths, gate_starts
 
+def get_trap_gate_shifts(freq, k):
+    gate_widths, gate_starts = get_coarse_gate_shifts(freq, k)
+    gate_widths = [[gate_width[0] * 2] for gate_width in gate_widths]
+    return gate_widths, gate_starts
+
+
 def get_gate_shifts(type, freq, k):
     if type == 'coarse' or type == 'rect':
         name = 'coarse'
+    elif type == 'trapcoarse' or type == 'traprect':
+        name = 'trap'
     elif type == 'ham':
         name = f'hamk{k}'
     else:

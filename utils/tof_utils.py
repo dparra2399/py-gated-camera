@@ -59,8 +59,23 @@ def get_simulated_coding_matrix(type, n_tbins, k):
             np.fft.fft(irf[..., np.newaxis], axis=0).conj() * np.fft.fft(coding_matrix, axis=0),
             axis=0).real
 
-    elif type=='coarse':
+    elif type=='coarse' or type=="rect":
         coding_matrix = np.kron(np.eye(k), np.ones((1, n_tbins //k)))
+        irf = gaussian_pulse(np.arange(coding_matrix.shape[-1]), 0, n_tbins // (k + 4), circ_shifted=True)
+        #
+        # import matplotlib.pyplot as plt
+        # coding_matrix_plot = np.transpose(coding_matrix / np.sum(coding_matrix, axis=-1, keepdims=True))
+        # irf_plot = irf / np.sum(irf, axis=-1, keepdims=True)
+        # plt.plot(coding_matrix_plot)
+        # plt.plot(np.roll(irf_plot, shift=n_tbins // 2))
+        # plt.show()
+
+        coding_matrix = np.fft.ifft(
+            np.fft.fft(irf[..., np.newaxis], axis=0).conj() * np.fft.fft(np.transpose(coding_matrix), axis=0),
+            axis=0).real
+
+    elif type=='trapcoarse' or type=="traprect":
+        coding_matrix = np.kron(np.eye(k), np.ones((1, 2 * n_tbins //k)))
         irf = gaussian_pulse(np.arange(coding_matrix.shape[-1]), 0, n_tbins // (k + 4), circ_shifted=True)
         #
         # import matplotlib.pyplot as plt

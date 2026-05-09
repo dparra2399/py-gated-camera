@@ -16,23 +16,24 @@ IM_WIDTH = 512  # image width
 BIT_DEPTH = 12
 
 # Capture parameters
-SPLIT_ACQUISITION = False
-INT_TIME = 1  # integration time
-GROUND_TRUTH_INT_TIME = 40
-BURST_TIME = 4800 #Maxiumum burst time is 4800 ms
+SPLIT_ACQUISITION = True
+INT_TIME = 30  # integration time
+GROUND_TRUTH_INT_TIME = 30
+BURST_TIME = 10 #Maxiumum burst time is 4800 ms
 K = 3  # number of time bins
-TRIALS = 2
-GATE_SHRINKAGE = 1 #In NS
-CAPTURE_TYPE = 'ham'
+TRIALS = 1
+
+GATE_SHRINKAGE = 5 #In NS
+CAPTURE_TYPE = 'trapcoarse'
 
 # Illumination Parameters:
-HIGH_LEVEL_AMPLITUDE = 0.5 #in Vpp
+HIGH_LEVEL_AMPLITUDE = 0.42 #in Vpp
 LOW_LEVEL_AMPLITUDE = -0.5
 CURRENT = 16 #in mA
 EDGE = 6 * 1e-9 #Edge rate for pulse wave
-DUTY = 20 # In percentage
+DUTY = 30 # In percentage
 REP_RATE = 10 * 1e6 #in HZ
-ILLUM_TYPE = 'square'
+ILLUM_TYPE = 'gaussian'
 
 #Single-pixel experiment parameters
 PHASE_SHIFTS = ",".join(str(item) for item in [30,90,45])
@@ -53,7 +54,6 @@ GATE_STEP_SIZE = 0
 GATE_STEPS = 1
 GATE_DIRECTION = 1
 GATE_TRIG = 0
-
 
 
 if __name__ == "__main__":
@@ -140,7 +140,7 @@ if __name__ == "__main__":
 
     def phase_shift_helper(phase_shift, rep_rate, illum_type):
         if illum_type == "pulse":
-            delay_ns = phase_shift / 360 * (1 / rep_rate) * 1e9
+            delay_ns = phase_shift / 360 * (1 / rep_rate)
             sdg.set_delay(delay_ns)
         else:
             sdg.set_phase_shift(phase_shift)

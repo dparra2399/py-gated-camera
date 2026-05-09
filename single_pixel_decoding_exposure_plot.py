@@ -15,7 +15,7 @@ import numpy as np
 # -----------------------------------------------------------------------------
 # CONFIG (capitalized)
 # ----------------------------------------------------------------------------
-EXP_PATH = os.path.join('coarse(trap)_k3_HIGHSNR')
+EXP_PATH = os.path.join('exp_0')
 N_TBINS = 1500
 
 #Which correlation functions to use

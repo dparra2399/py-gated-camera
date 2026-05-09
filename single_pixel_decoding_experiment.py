@@ -13,7 +13,7 @@ import numpy as np
 # -----------------------------------------------------------------------------
 # CONFIG (capitalized)
 # ----------------------------------------------------------------------------
-EXP_PATH = os.path.join('exp_4')
+EXP_PATH = os.path.join('exp_0')
 N_TBINS = 1500
 
 #PLotting utils for visualization
