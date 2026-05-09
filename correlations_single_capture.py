@@ -21,17 +21,17 @@ BIT_DEPTH = 12
 SPLIT_ACQUISITION = False
 INT_TIME = 10 # integration time
 BURST_TIME = 10
-K = 4  # number of time bins
+K = 16  # number of time bins
 GATE_STEP_SIZE = 300 #Steps in picoseconds
 GATE_SHRINKAGE = 5 #In NS
-CAPTURE_TYPE = 'trapcoarse'
+CAPTURE_TYPE = 'timeslicing'
 
 # Illumination Parameters:
-HIGH_LEVEL_AMPLITUDE = 0.54 #in Vpp
+HIGH_LEVEL_AMPLITUDE = 1.2 #in Vpp
 LOW_LEVEL_AMPLITUDE = -0.5
 CURRENT = 16 #in mA
 EDGE = 6 * 1e-9 #Edge rate for pulse wave
-DUTY = 23 # In percentage
+DUTY = 12 # In percentage
 REP_RATE = 10 * 1e6 #in HZ
 ILLUM_TYPE = 'gaussian'
 

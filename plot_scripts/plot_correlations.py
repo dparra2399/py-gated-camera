@@ -41,6 +41,8 @@ filename = "traprectk4_10mhz_420mV_16mA_23duty_correlations.npz"
 
 filename = "trapcoarsek4_10mhz_540mV_16mA_23duty_correlations.npz"
 
+filename = "timeslicingk16_10mhz_1200mV_16mA_12duty_correlations.npz"
+
 SMOOTH_SIGMA = 1
 N_TBINS_DEFAULT = 1000
 SHIFT = None #-8 # -4
