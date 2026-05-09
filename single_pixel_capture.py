@@ -6,7 +6,7 @@ import numpy as np
 from utils.global_constants import *
 from utils.file_utils import build_parser_from_config, save_capture_and_gt_data, capture_phase_shifts
 from utils.parameter_classes import  Config
-from spad_lib.spad512utils import set_up_spad512, get_gate_shifts, depth_map_capture
+from spad_lib.spad512utils import set_up_spad512, get_gate_shifts, depth_map_capture, burst_capture
 from utils.instrument_utils import SDG5162_GATED_PROJECT, NIDAQ_LDC220
 from dataclasses import asdict
 ##### Editable parameters (defaults; can be overridden via CLI)  #####
@@ -20,23 +20,23 @@ SPLIT_ACQUISITION = True
 INT_TIME = 30  # integration time
 GROUND_TRUTH_INT_TIME = 30
 BURST_TIME = 10 #Maxiumum burst time is 4800 ms
-K = 3  # number of time bins
+K = 16  # number of time bins
 TRIALS = 1
 
 GATE_SHRINKAGE = 5 #In NS
-CAPTURE_TYPE = 'trapcoarse'
+CAPTURE_TYPE = 'timeslicing'
 
 # Illumination Parameters:
-HIGH_LEVEL_AMPLITUDE = 0.42 #in Vpp
+HIGH_LEVEL_AMPLITUDE = 1.2 #in Vpp
 LOW_LEVEL_AMPLITUDE = -0.5
 CURRENT = 16 #in mA
 EDGE = 6 * 1e-9 #Edge rate for pulse wave
-DUTY = 30 # In percentage
+DUTY = 12 # In percentage
 REP_RATE = 10 * 1e6 #in HZ
 ILLUM_TYPE = 'gaussian'
 
 #Single-pixel experiment parameters
-PHASE_SHIFTS = ",".join(str(item) for item in [30,90,45])
+PHASE_SHIFTS = ",".join(str(item) for item in [150,90,45])
 
 # Save Parameters
 SAVE_INTO_FILE = True
@@ -157,10 +157,22 @@ if __name__ == "__main__":
 
         trial_runs = []
         for trials in range(cfg.trials):
-            coded_vals = depth_map_capture(SPAD1, gate_starts=gate_starts, gate_widths=gate_widths,
-                              int_time=cfg.int_time, **needed)
+            if cfg.capture_type == "timeslicing":
+                needed = {k: v for k, v in asdict(cfg).items() if k in burst_capture.__code__.co_varnames}
+                gate_width = gate_widths[0][0]
+                needed["gate_step_size"] = gate_width * 1e3
+                needed["gate_steps"] = cfg.k
+                needed["gate_offset"] = 0
+                coded_vals = burst_capture(SPAD1, gate_width=gate_width, **needed)
+            else:
+                coded_vals = depth_map_capture(SPAD1, gate_starts=gate_starts, gate_widths=gate_widths,
+                                  int_time=cfg.int_time, **needed)
             trial_runs.append(coded_vals)
 
+        # import matplotlib.pyplot as plt
+        # plt.plot(np.sum(np.sum(coded_vals[SINGLE_PIXEL_COORDS['y'][0]:SINGLE_PIXEL_COORDS['y'][1], SINGLE_PIXEL_COORDS['x'][0]:SINGLE_PIXEL_COORDS['x'][1], :], axis=0), axis=0))
+        # plt.show()
+        # exit()
         coded_vals_range.append(np.stack(trial_runs))
         if cfg.ground_truth:
             gt_coded_vals = depth_map_capture(SPAD1, gate_starts=gate_starts, gate_widths=gate_widths,

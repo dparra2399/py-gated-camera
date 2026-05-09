@@ -14,22 +14,22 @@ BASE = [
     "--split_acquisition", "1",
     "--bit_depth", "12",
     "--ground_truth_int_time", "30", #40
-    "--ground_truth", "1",
+    "--ground_truth", "0",
     "--rep_rate", "10000000",
     "--save_into_file", "1",
     "--iterations", "1",
     "--current", "16",
-    "--trials", "100",
+    "--trials", "10",
 ]
 
 # sweeps
-capture_types = ["coarse"]
+capture_types = ["timeslicing"]
 phase_shifts = np.arange(20, 340, 30).tolist()  # <-- set whatever you want (degrees or whatever your script expects)
 
 print(phase_shifts)
 print(len(phase_shifts))
 
-run_id = 8
+run_id = 0
 
 # INNER LOOP = capture types share the SAME run_id folder
 for typ in capture_types:
