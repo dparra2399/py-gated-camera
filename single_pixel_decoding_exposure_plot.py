@@ -16,7 +16,7 @@ import numpy as np
 # -----------------------------------------------------------------------------
 # CONFIG (capitalized)
 # ----------------------------------------------------------------------------
-EXP_PATH = os.path.join('exp_0')
+EXP_PATH = os.path.join('timeslicing_k8_HIGHSNR')
 N_TBINS = 1500
 
 #Which correlation functions to use
@@ -137,22 +137,16 @@ if __name__ == '__main__':
         #coded_vals_gt = np.load(gt_coded_vals_path, allow_pickle=True)['coded_vals']
 
         gt_depths, recon_gt, _ = decode_single_pixel_experiment(
-            # coded_vals_gt,
             capture_type,
             coded_vals,
             coding_matrix,
             tbin_depth_res,
             SINGLE_PIXEL_COORDS['y'],
-            #[0, 512],
             SINGLE_PIXEL_COORDS['x'],
-            #[0, 512],
             n_pixels=TOTAL_PIXELS,
             pixel_order=pixel_order,
-            #gt=True
 
         )
-        # gt_depths = gt_depths[0, ...]
-
         for i, n in enumerate(N_PIXELS):
 
             depths, recon, num_pixels = decode_single_pixel_experiment(

@@ -14,7 +14,7 @@ import numpy as np
 # -----------------------------------------------------------------------------
 # CONFIG (capitalized)
 # ----------------------------------------------------------------------------
-EXP_PATH = os.path.join('exp_0')
+EXP_PATH = os.path.join('timeslicing_k8_HIGHSNR')
 N_TBINS = 1500
 
 #PLotting utils for visualization
@@ -99,10 +99,7 @@ if __name__ == '__main__':
                                           make_capture_filename(capture_type, k, freq_mhz, mV, mA, duty,
                                                                 None, True))
 
-        if capture_type == "timeslicing":
-            correlations_total = coded_vals[0, 5, ...]
-        else:
-            correlations_total = np.load(corr_path, allow_pickle=True)['correlations']
+        correlations_total = np.load(corr_path, allow_pickle=True)['correlations']
 
         if cfg.simulated_correlations:
             coding_matrix = get_simulated_coding_matrix(capture_type, cfg.n_tbins, k)

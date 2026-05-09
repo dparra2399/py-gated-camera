@@ -212,20 +212,19 @@ def decode_single_pixel_experiment(
 
 
 
-def matchfilt_reconstruction(c_vals, tbin_depth_res):
-    template =  gaussian_pulse(np.arange(c_vals.shape[-1]), 0, 12, circ_shifted=True)
+def matchfilt_reconstruction(c_vals, tbin_depth_res, irf_width_tbins=1000):
+    template = gaussian_pulse(np.arange(c_vals.shape[-1]), 0, 12, circ_shifted=True)
     zn_template = zero_norm_t(template, axis=-1)
     zn_c_vals = zero_norm_t(c_vals, axis=-1)
     shifts = signalproc_ops.circular_matched_filter(zn_c_vals, zn_template)
-    # vectorize tensors
     (c_vals, c_vals_shape) = np_utils.vectorize_tensor(c_vals, axis=-1)
     shifts = shifts.reshape((c_vals.shape[0],))
     h_rec = np.zeros(c_vals.shape, dtype=template.dtype)
-    for i in range(shifts.size): h_rec[i, :] = np.roll(template, shift=shifts[i], axis=-1)
+    for i in range(shifts.size):
+        h_rec[i, :] = np.roll(template, shift=shifts[i], axis=-1)
     c_vals = c_vals.reshape(c_vals_shape)
     recon = h_rec.reshape(c_vals_shape)
     depths = np.argmax(recon, axis=-1) * tbin_depth_res
-
     return depths, recon
 
 def zncc_decoding(coded_vals, coding_matrix, tbin_depth_res):
