@@ -10,6 +10,7 @@ from utils.tof_utils import build_coding_matrix_from_correlations, get_simulated
 # -----------------------------------------------------------------------------
 EXP_PATH = 'exp_2'
 N_TBINS = 1500
+NUM_TRIALS = 10
 
 #PLotting utils for visualization
 MEDIAN_FILTER_SIZE = 5
@@ -107,8 +108,8 @@ if __name__ == '__main__':
         coded_vals_path = os.path.join(capture_folder, make_capture_filename(r['capture_type'], r['k'], r['freq_mhz'],
                                              r['mV'], r['mA'],  r['duty'], r['int_time'], False))
 
-        gt_coded_vals_path = os.path.join(capture_folder, make_capture_filename(r['capture_type'], r['k'], r['freq_mhz'],
-                                             r['mV'], r['mA'],  r['duty'], r['int_time'], True))
+        # gt_coded_vals_path = os.path.join(capture_folder, make_capture_filename(r['capture_type'], r['k'], r['freq_mhz'],
+        #                                      r['mV'], r['mA'],  r['duty'], r['int_time'], True))
 
         correlations_total = np.load(corr_path, allow_pickle=True)['correlations']
 
@@ -127,6 +128,8 @@ if __name__ == '__main__':
         cfg = capture_file['cfg'].item()
         coded_vals = capture_file['coded_vals']
         im_width = cfg['im_width']
+        int_time = cfg['int_time']
+        ground_truth_int_time = cfg['ground_truth_int_time']
 
         (rep_tau, rep_freq,tbin_res,
          t_domain,max_depth,tbin_depth_res,)= calculate_tof_domain_params(args.n_tbins, cfg['rep_tau'])
@@ -134,8 +137,10 @@ if __name__ == '__main__':
         # -----------------------------------------------------------------
         # decode to depth map
         # -----------------------------------------------------------------
+        total_trials = coded_vals.shape[0]
+        trials = min(total_trials, cfg.num_trials)
         depth_map, zncc = decode_depth_map(
-            coded_vals,
+            coded_vals[:trials, ...],
             coding_matrix,
             im_width,
             tbin_depth_res,
@@ -159,20 +164,14 @@ if __name__ == '__main__':
             depth_map = depth_map[20:450, :]
             mask = None
 
-        try:
-            coded_vals_gt = np.load(gt_coded_vals_path, allow_pickle=True)['coded_vals']
-            gt_depth_map, zncc = decode_depth_map(
-                coded_vals_gt,
-                coding_matrix,
-                im_width,
-                tbin_depth_res,
-                args.use_full_correlations,
-            )
-            gt_depth_map = filter_hot_pixels(gt_depth_map, hot_mask)
-        except FileNotFoundError:
-            print('Could not find ground truth depth map.')
-            gt_depth_map = None
-
+        gt_depth_map, zncc = decode_depth_map(
+            coded_vals,
+            coding_matrix,
+            im_width,
+            tbin_depth_res,
+            args.use_full_correlations,
+        )
+        gt_depth_map = filter_hot_pixels(gt_depth_map, hot_mask)
 
 
 

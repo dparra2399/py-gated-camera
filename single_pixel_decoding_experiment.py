@@ -14,7 +14,7 @@ import numpy as np
 # -----------------------------------------------------------------------------
 # CONFIG (capitalized)
 # ----------------------------------------------------------------------------
-EXP_PATH = os.path.join('timeslicing_k8_HIGHSNR')
+EXP_PATH = os.path.join('timeslicing_k16_HIGHSNR')
 N_TBINS = 1500
 
 #PLotting utils for visualization
@@ -131,9 +131,10 @@ if __name__ == '__main__':
             SINGLE_PIXEL_COORDS['x'],
             n_pixels=100
         )
+        
 
         gt_depths, zncc_gt, _ = decode_single_pixel_experiment(
-            capture_type,
+            capture_type + "s",
             #coded_vals_gt,
             coded_vals,
             coding_matrix,
@@ -142,6 +143,8 @@ if __name__ == '__main__':
             SINGLE_PIXEL_COORDS['x'],
             n_pixels=TOTAL_PIXELS
         )
+
+        #if capture_type == 'timeslicing': depths = np.roll(depths, -2, axis=-1)
         # plt.imshow(np.sum(np.sum(coded_vals_gt, axis=0), axis=-1))
         # plt.show()
 

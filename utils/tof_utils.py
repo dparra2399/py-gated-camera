@@ -7,7 +7,8 @@ from felipe_utils.tof_utils_felipe import zero_norm_t
 from utils.global_constants import EPILSON, SPEED_OF_LIGHT, SINGLE_PIXEL_COORDS
 from felipe_utils import tof_utils_felipe
 from felipe_utils import CodingFunctionsFelipe
-from felipe_utils.research_utils.signalproc_ops import gaussian_pulse
+from felipe_utils.research_utils.signalproc_ops import gaussian_pulse, max_gaussian_center_of_mass_mle
+from scipy import signal, interpolate
 
 
 def norm_t(C, axis=-1):
@@ -61,7 +62,7 @@ def get_simulated_coding_matrix(type, n_tbins, k):
             np.fft.fft(irf[..., np.newaxis], axis=0).conj() * np.fft.fft(coding_matrix, axis=0),
             axis=0).real
 
-    elif type=='coarse' or type=="rect":
+    elif type=='coarse' or type=="rect" or type=="timeslicing":
         coding_matrix = np.kron(np.eye(k), np.ones((1, n_tbins //k)))
         irf = gaussian_pulse(np.arange(coding_matrix.shape[-1]), 0, n_tbins // (k + 4), circ_shifted=True)
         #
@@ -205,25 +206,23 @@ def decode_single_pixel_experiment(
         avg_coded_vals = sub[..., idx, :].sum(axis=-2)
 
     if capture_type == 'timeslicing':
-        depths, recon =  matchfilt_reconstruction(avg_coded_vals, tbin_depth_res)
+        depths, recon =  linear_reconstruction(avg_coded_vals, coding_matrix, tbin_depth_res)
     else:
         depths, recon =  zncc_decoding(avg_coded_vals, coding_matrix, tbin_depth_res)
     return depths, recon, n_pixels
 
 
-
-def matchfilt_reconstruction(c_vals, tbin_depth_res, irf_width_tbins=1000):
-    template = gaussian_pulse(np.arange(c_vals.shape[-1]), 0, 12, circ_shifted=True)
-    zn_template = zero_norm_t(template, axis=-1)
-    zn_c_vals = zero_norm_t(c_vals, axis=-1)
-    shifts = signalproc_ops.circular_matched_filter(zn_c_vals, zn_template)
-    (c_vals, c_vals_shape) = np_utils.vectorize_tensor(c_vals, axis=-1)
-    shifts = shifts.reshape((c_vals.shape[0],))
-    h_rec = np.zeros(c_vals.shape, dtype=template.dtype)
-    for i in range(shifts.size):
-        h_rec[i, :] = np.roll(template, shift=shifts[i], axis=-1)
-    c_vals = c_vals.reshape(c_vals_shape)
-    recon = h_rec.reshape(c_vals_shape)
+def linear_reconstruction(c_vals, coding_matrix, tbin_depth_res):
+    gate_len = int(coding_matrix.shape[0] / c_vals.shape[-1])
+    x_fullres = np.arange(0, coding_matrix.shape[0])
+    # Create a circular x axis by concatenating the first element to the end and the last element to the begining
+    circular_x_lres = np.arange((0.5 * gate_len) - 0.5 - gate_len, coding_matrix.shape[0] + gate_len,
+                                gate_len)
+    circular_c_vals = np.concatenate((c_vals[..., -1][..., np.newaxis], c_vals, c_vals[..., 0][..., np.newaxis]),
+                                     axis=-1)
+    f = interpolate.interp1d(circular_x_lres, circular_c_vals, axis=-1, kind='linear')
+    recon = f(x_fullres)
+    #depths = max_gaussian_center_of_mass_mle(recon, sigma_tbins=12) * tbin_depth_res
     depths = np.argmax(recon, axis=-1) * tbin_depth_res
     return depths, recon
 

@@ -127,19 +127,20 @@ if __name__ == '__main__':
         # mx = coding_matrix.max()
         # coding_matrix = (coding_matrix - mn) / (mx - mn)
 
-
         (rep_tau, rep_freq,tbin_res,
-         t_domain,max_depth,tbin_depth_res,)= calculate_tof_domain_params(cfg.n_tbins, rep_tau)
+         t_domain,max_depth,tbin_depth_res,)= calculate_tof_domain_params(args.n_tbins, cfg['rep_tau'])
 
         # -----------------------------------------------------------------
         # decode to depth map
         # -----------------------------------------------------------------
+        total_trials = coded_vals.shape[0]
+        trials = min(total_trials, cfg.num_trials)
         depth_map, zncc = decode_depth_map(
-            coded_vals,
+            coded_vals[:trials, ...],
             coding_matrix,
             im_width,
             tbin_depth_res,
-            cfg.use_full_correlations,
+            args.use_full_correlations,
         )
 
 
@@ -150,21 +151,14 @@ if __name__ == '__main__':
             coded_vals_filt[:, :, i] = filter_hot_pixels(coded_vals[..., i], hot_mask)
 
 
-
-        try:
-            coded_vals_gt = np.load(gt_coded_vals_path, allow_pickle=True)['coded_vals']
-            gt_depth_map, zncc = decode_depth_map(
-                coded_vals_gt,
-                coding_matrix,
-                im_width,
-                tbin_depth_res,
-                args.use_full_correlations,
-            )
-            gt_depth_map = filter_hot_pixels(gt_depth_map, hot_mask)
-        except FileNotFoundError:
-            print('GT Depth Map not found, Using Captured Depth Map Instead')
-            gt_depth_map = np.copy(depth_map)
-
+        gt_depth_map, zncc = decode_depth_map(
+            coded_vals,
+            coding_matrix,
+            im_width,
+            tbin_depth_res,
+            args.use_full_correlations,
+        )
+        gt_depth_map = filter_hot_pixels(gt_depth_map, hot_mask)
 
         # optional crop for master
         if cfg.correct_master is False:
