@@ -642,4 +642,6 @@ def get_string_name(capture_type, k):
         return 'Trapezoidal (Rect.)' + " K=" + str(k)
     elif capture_type == 'ham':
         return 'SiP Hamiltonian' + " K=" + str(k)
+    elif capture_type == 'timeslicing':
+        return 'Time-Slicing ' + " K=" + str(k)
     return None

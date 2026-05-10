@@ -16,7 +16,7 @@ import numpy as np
 # -----------------------------------------------------------------------------
 # CONFIG (capitalized)
 # ----------------------------------------------------------------------------
-EXP_PATH = os.path.join('timeslicing_k8_HIGHSNR')
+EXP_PATH = os.path.join('timeslicing_HIGHSNR')
 N_TBINS = 1500
 
 #Which correlation functions to use
@@ -29,7 +29,7 @@ SHIFT_SIZE = None #None if no shifting
 TOTAL_PIXELS = ((SINGLE_PIXEL_COORDS['y'][1] - SINGLE_PIXEL_COORDS['y'][0])
                 * (SINGLE_PIXEL_COORDS['x'][1] - SINGLE_PIXEL_COORDS['x'][0]))
 #Not apart of the defaults
-N_PIXELS = np.arange(2, TOTAL_PIXELS//3, 5)
+N_PIXELS = np.arange(1, TOTAL_PIXELS, 5)
 
 # -----------------------------------------------------------------------------
 # MAIN
@@ -108,21 +108,18 @@ if __name__ == '__main__':
                                                                 None, True))
 
 
-        if capture_type == "timeslicing":
-            coding_matrix = None
-        else:
-            correlations_total = np.load(corr_path, allow_pickle=True)['correlations']
+        correlations_total = np.load(corr_path, allow_pickle=True)['correlations']
 
-            if cfg.simulated_correlations:
-                coding_matrix = get_simulated_coding_matrix(capture_type, cfg.n_tbins, k)
-            else:
-                coding_matrix = build_coding_matrix_from_correlations(
-                    correlations_total,
-                    False,
-                    cfg.smooth_sigma,
-                    cfg.shift,
-                    cfg.n_tbins,
-                )
+        if cfg.simulated_correlations:
+            coding_matrix = get_simulated_coding_matrix(capture_type, cfg.n_tbins, k)
+        else:
+            coding_matrix = build_coding_matrix_from_correlations(
+                correlations_total,
+                False,
+                cfg.smooth_sigma,
+                cfg.shift,
+                cfg.n_tbins,
+            )
 
         n_tbins = cfg.n_tbins if cfg.n_tbins is not None else coding_matrix.shape[0]
         (rep_tau, rep_freq,tbin_res,
@@ -137,7 +134,7 @@ if __name__ == '__main__':
         #coded_vals_gt = np.load(gt_coded_vals_path, allow_pickle=True)['coded_vals']
 
         gt_depths, recon_gt, _ = decode_single_pixel_experiment(
-            capture_type,
+            capture_type + "s",
             coded_vals,
             coding_matrix,
             tbin_depth_res,
@@ -147,6 +144,7 @@ if __name__ == '__main__':
             pixel_order=pixel_order,
 
         )
+
         for i, n in enumerate(N_PIXELS):
 
             depths, recon, num_pixels = decode_single_pixel_experiment(
@@ -160,13 +158,15 @@ if __name__ == '__main__':
                 pixel_order=pixel_order
             )
 
+            if capture_type == 'timeslicing': depths = np.roll(depths, -2, axis=-1)
+
             phase_shifts = params['phase_shifts']#[2:-2]
             #depths = depths[:, 2:-2]
             #gt_depths = gt_depths[:, 2:-2]
 
             mae = np.nanmean(np.abs(depths - gt_depths)) * 1000
             rmse = np.sqrt(np.nanmean((depths - gt_depths) ** 2))* 1000
-            if mae < 1000:
+            if mae < 100000:
                 mae_list.append(mae)
                 rmse_list.append(rmse)
                 int_times.append(num_pixels * int_time)

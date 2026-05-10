@@ -13,7 +13,7 @@ from utils.tof_utils import calculate_tof_domain_params
 K = 4
 N_TBINS = 992
 TRIALS = 100
-PHOTON_COUNT = 500
+PHOTON_COUNT = 100
 SBR = 0.1
 
 REP_RATE = 5e6
@@ -81,17 +81,17 @@ ham_decoded_depth, ham_rmse, ham_mae = decode_simulation_depths(
 # =========================
 # COARSE
 # =========================
-illum, coarse_demodfs, coarse_cm = get_coarse_code(8, N_TBINS)
+illum, coarse_demodfs, coarse_cm = get_coarse_code(16, N_TBINS)
 
 _, coarse_cv = simulate_counts_shared_illum(
     illum=illum,
     coding_matrix=coarse_demodfs,
     depths=depths,
-    photon_count=PHOTON_COUNT // 8,
+    photon_count=PHOTON_COUNT // 16,
     sbr=SBR,
     tbin_depth_res=tbin_depth_res,
     n_tbins=N_TBINS,
-    k=8,
+    k=16,
 )
 
 

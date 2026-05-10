@@ -14,7 +14,7 @@ import numpy as np
 # -----------------------------------------------------------------------------
 # CONFIG (capitalized)
 # ----------------------------------------------------------------------------
-EXP_PATH = os.path.join('timeslicing_k16_HIGHSNR')
+EXP_PATH = os.path.join('timeslicing_HIGHSNR')
 N_TBINS = 1500
 
 #PLotting utils for visualization
@@ -112,8 +112,8 @@ if __name__ == '__main__':
                 cfg.n_tbins,
             )
 
-        plt.plot(coding_matrix)
-        plt.show()
+        # plt.plot(coding_matrix)
+        # plt.show()
 
         n_tbins = cfg.n_tbins if cfg.n_tbins is not None else coding_matrix.shape[0]
         (rep_tau, rep_freq,tbin_res,
@@ -144,7 +144,7 @@ if __name__ == '__main__':
             n_pixels=TOTAL_PIXELS
         )
 
-        #if capture_type == 'timeslicing': depths = np.roll(depths, -2, axis=-1)
+        if capture_type == 'timeslicing': depths = np.roll(depths, -2, axis=-1)
         # plt.imshow(np.sum(np.sum(coded_vals_gt, axis=0), axis=-1))
         # plt.show()
 
