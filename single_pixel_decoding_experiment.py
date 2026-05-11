@@ -99,7 +99,7 @@ if __name__ == '__main__':
                                           make_capture_filename(capture_type, k, freq_mhz, mV, mA, duty,
                                                                 None, True))
 
-        correlations_total = np.load(corr_path, allow_pickle=True)['correlations']
+        correlations_total = load_correlation_npz(corr_path)['correlations']
 
         if cfg.simulated_correlations:
             coding_matrix = get_simulated_coding_matrix(capture_type, cfg.n_tbins, k)

@@ -645,3 +645,11 @@ def get_string_name(capture_type, k):
     elif capture_type == 'timeslicing':
         return 'Time-Slicing ' + " K=" + str(k)
     return None
+
+def get_single_pixel_title(paths):
+    for path in paths:
+        if "LOWSNR" in path:
+            return "Low SBR"
+        elif "HIGHSNR" in path:
+            return "High SBR"
+    return None

@@ -1,3 +1,5 @@
+import sys
+
 import numpy as np
 from scipy.interpolate import interp1d
 from scipy.ndimage import gaussian_filter, gaussian_filter1d, median_filter
@@ -64,7 +66,7 @@ def get_simulated_coding_matrix(type, n_tbins, k):
 
     elif type=='coarse' or type=="rect" or type=="timeslicing":
         coding_matrix = np.kron(np.eye(k), np.ones((1, n_tbins //k)))
-        irf = gaussian_pulse(np.arange(coding_matrix.shape[-1]), 0, n_tbins // (k + 4), circ_shifted=True)
+        irf = gaussian_pulse(np.arange(coding_matrix.shape[-1]), 0, n_tbins // (k + 7), circ_shifted=True)
         #
         # import matplotlib.pyplot as plt
         # coding_matrix_plot = np.transpose(coding_matrix / np.sum(coding_matrix, axis=-1, keepdims=True))
@@ -328,15 +330,22 @@ def get_ham_code(k, n_tbins):
     return modfs, demodfs, coding_matrix
 
 
-def get_coarse_code(k, n_tbins):
+def _make_illum(n_tbins, k, add, use_rect):
+    width = n_tbins // (k + add)
+    if use_rect:
+        width = n_tbins // k
+        pulse = np.zeros(n_tbins)
+        half = width // 2
+        pulse[np.arange(-half, width - half) % n_tbins] = 1.0
+        pulse /= pulse.sum()
+        return pulse
+    return gaussian_pulse(np.arange(n_tbins), 0, width, circ_shifted=True)
+
+def get_coarse_code(k, n_tbins, use_rect=False):
     coding_matrix = np.kron(np.eye(k), np.ones((1, n_tbins // k)))
 
-    illum = gaussian_pulse(
-        np.arange(coding_matrix.shape[-1]),
-        0,
-        n_tbins // (k + 4),
-        circ_shifted=True,
-    )
+    add = 7 if k in (3, 4) else 0
+    illum = _make_illum(n_tbins, k, add, use_rect)
 
     filtered_coding_matrix = np.fft.ifft(
         np.fft.fft(illum[..., np.newaxis], axis=0).conj()
@@ -346,6 +355,40 @@ def get_coarse_code(k, n_tbins):
 
     return illum, np.transpose(coding_matrix), filtered_coding_matrix
 
+def get_trap_code(k, n_tbins, use_rect=False):
+    coding_matrix = np.zeros((k, n_tbins))
+
+    step = n_tbins // k
+    block_len = 2 * step
+
+    for i in range(k):
+        start = i * step
+        cols = (np.arange(start, start + block_len) % n_tbins)
+        coding_matrix[i, cols] = 1
+
+    add = 7 if k in (3, 4) else 0
+    illum = _make_illum(n_tbins, k, add, use_rect)
+
+    filtered_coding_matrix = np.fft.ifft(
+        np.fft.fft(illum[..., np.newaxis], axis=0).conj()
+        * np.fft.fft(coding_matrix.T, axis=0),
+        axis=0,
+    ).real
+
+    return illum, np.transpose(coding_matrix), filtered_coding_matrix
+
+def get_code(type, k, n_tbins):
+    use_rect = 'rect' in type
+    if type == 'coarse' or type == 'rect' or type == 'timeslicing':
+        name = 'coarse'
+    elif type == 'trapcoarse' or type == 'traprect':
+        name = 'trap'
+    elif type == 'ham':
+        name = 'ham'
+    else:
+        assert False, 'type must be coarse, rect, trapcoarse, traprect, or ham'
+    func = getattr(sys.modules[__name__], f"get_{name}_code")
+    return func(k, n_tbins) if name == 'ham' else func(k, n_tbins, use_rect=use_rect)
 
 def simulate_counts(waveform, demodfs, depths, photon_count, sbr, tbin_depth_res, n_tbins, k):
     shifted_waveforms = np.zeros((depths.shape[0], n_tbins, k))

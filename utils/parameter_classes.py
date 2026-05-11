@@ -61,6 +61,7 @@ class Config:
 class DecodeConfig:
     # Experiment
     exp_path: Optional[str] = None
+    exp_paths: Optional[str] = None
 
     # Domain / decoding
     n_tbins: Optional[int] = None

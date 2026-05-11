@@ -40,11 +40,26 @@ def filter_capture_files(npz_files):
             filtered.append(f)
     return filtered
 
+def load_correlation_npz(path: str):
+    if os.path.exists(path):
+        return np.load(path, allow_pickle=True)
+
+    zip_path = os.path.splitext(path)[0] + '.zip'
+    if os.path.exists(zip_path):
+        extract_dir = os.path.dirname(path)
+        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+            zip_ref.extractall(extract_dir)
+        atexit.register(os.remove, path)
+        return np.load(path, allow_pickle=True)
+
+    raise FileNotFoundError(f'Correlation file not found as .npz or .zip: {path}')
+
 def get_capture_folder(path, delete_unzipped=True):
     if os.path.isdir(path):
         return path
 
-    if zipfile.is_zipfile(path):
+    if zipfile.is_zipfile(path + ".zip"):
+        path = path + ".zip"
         unzip_folder = os.path.splitext(path)[0]
         os.makedirs(unzip_folder, exist_ok=True)
 

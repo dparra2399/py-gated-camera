@@ -6,7 +6,7 @@ sys.path.append('.')
 
 from plot_scripts.plot_utils import plot_correlation_functions, plot_correlation_comparison, \
     plot_correlation_comparison_seperate
-from utils.file_utils import make_correlation_filename, get_data_folder
+from utils.file_utils import make_correlation_filename, get_data_folder, load_correlation_npz
 from utils.global_constants import *
 from utils.tof_utils import build_coding_matrix_from_correlations, get_simulated_coding_matrix
 import numpy as np
@@ -15,11 +15,11 @@ import pprint
 
 
 
-#filename =  'coarsek3_10mhz_420mV_16mA_30duty_correlations.npz'
+filename =  'coarsek3_10mhz_420mV_16mA_30duty_correlations.npz'
 
 #filename =  'hamk3_10mhz_500mV_16mA_20duty_correlations.npz'
 
-#filename =  'coarsek4_10mhz_4000mV_50mA_23duty_correlations.npz'
+#filename =  'coarsek4_10mhz_540mV_16mA_23duty_correlations.npz'
 
 #filename =  'hamk4_10mhz_770mV_16mA_15duty_correlations.npz'
 
@@ -33,27 +33,26 @@ import pprint
 
 #filename = "hamk4_10mhz_770mV_16mA_15duty_correlations.npz"
 
-filename = "trapcoarsek3_10mhz_420mV_16mA_30duty_correlations.npz"
+#filename = "trapcoarsek3_10mhz_420mV_16mA_30duty_correlations.npz"
 
 #filename = "traprectk3_10mhz_230mV_16mA_30duty_correlations.npz"
 
-filename = "traprectk4_10mhz_420mV_16mA_23duty_correlations.npz"
+#filename = "traprectk4_10mhz_420mV_16mA_23duty_correlations.npz"
 
-filename = "trapcoarsek4_10mhz_540mV_16mA_23duty_correlations.npz"
+#filename = "trapcoarsek4_10mhz_540mV_16mA_23duty_correlations.npz"
 
-filename = "timeslicingk16_10mhz_1200mV_16mA_12duty_correlations.npz"
+#filename = "timeslicingk16_10mhz_1200mV_16mA_12duty_correlations.npz"
 
 SMOOTH_SIGMA = 1
 N_TBINS_DEFAULT = 1000
 SHIFT = None #-8 # -4
-OTHER_SHIFT = -80 #-390 #-30 #-80
+OTHER_SHIFT = -140 #-390 #-30 #-80
 
 if __name__ == "__main__":
     folder = get_data_folder(READ_PATH_CORRELATIONS_MAC, READ_PATH_CORRELATIONS_WINDOWS)
     path = os.path.join(folder, filename)
 
-
-    file = np.load(path, allow_pickle=True)
+    file = load_correlation_npz(path)
     cfg = file["cfg"].item()
     correlations_total = file["correlations"]
     K = cfg["k"]
@@ -83,7 +82,7 @@ if __name__ == "__main__":
             SMOOTH_SIGMA
     )
 
-    if K>=3:
+    if K<3:
         plot_correlation_comparison(
                 measured_coding_matrix,
                 coding_matrix,
