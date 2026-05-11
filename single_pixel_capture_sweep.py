@@ -29,7 +29,7 @@ phase_shifts = np.arange(20, 340, 30).tolist()  # <-- set whatever you want (deg
 print(phase_shifts)
 print(len(phase_shifts))
 
-run_id = 1
+run_id = 0
 
 # INNER LOOP = capture types share the SAME run_id folder
 for typ in capture_types:
@@ -43,7 +43,7 @@ for typ in capture_types:
     #illum_typ = "square" if typ == "ham" else "gaussian"
     #illum_typ = "gaussian" if typ == "trapcoarse" else "pulse"
     illum_typ = "gaussian"
-    gate_shrinkage = "1" #"25" #"25" if typ == "ham" else "10"
+    gate_shrinkage = "0" #"25" #"25" if typ == "ham" else "10"
     #duty = "15" if typ == "ham" else "23" #"30"
     #duty = "20" if typ == "ham" else "30"  # "30"
     duty = "12"

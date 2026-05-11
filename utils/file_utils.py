@@ -123,7 +123,7 @@ def make_correlation_filename(capture_type, k, freq_mhz, mV, mA, duty):
     return make_filename(capture_type, k, freq_mhz, mV, mA, duty) + '_correlations.npz'
 
 def make_capture_filename(capture_type, k, freq_mhz, mV, mA, duty, int_time, ground_truth):
-    ground_truth_tag = '_gt' if ground_truth else f'_{int_time}ms'
+    ground_truth_tag = '_gt' if ground_truth else f'_{int_time:.0f}ms'
     return (make_filename(capture_type, k, freq_mhz, mV, mA, duty) +
             ground_truth_tag +
             '_capture.npz')

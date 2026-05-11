@@ -19,21 +19,21 @@ BIT_DEPTH = 12
 
 # Capture parameters
 SPLIT_ACQUISITION = False
-INT_TIME = 10 # integration time
-BURST_TIME = 10
-K = 16  # number of time bins
-GATE_STEP_SIZE = 300 #Steps in picoseconds
+INT_TIME = 200 # integration time
+BURST_TIME = 200
+K = 3  # number of time bins
+GATE_STEP_SIZE = 1250 #Steps in picoseconds
 GATE_SHRINKAGE = 5 #In NS
-CAPTURE_TYPE = 'timeslicing'
+CAPTURE_TYPE = 'ham'
 
 # Illumination Parameters:
-HIGH_LEVEL_AMPLITUDE = 1.2 #in Vpp
+HIGH_LEVEL_AMPLITUDE = 0.5 #in Vpp
 LOW_LEVEL_AMPLITUDE = -0.5
 CURRENT = 16 #in mA
 EDGE = 6 * 1e-9 #Edge rate for pulse wave
-DUTY = 12 # In percentage
+DUTY = 20 # In percentage
 REP_RATE = 10 * 1e6 #in HZ
-ILLUM_TYPE = 'gaussian'
+ILLUM_TYPE = 'square'
 
 #Plot Parameters
 PLOT_CORRELATIONS = True
@@ -120,7 +120,7 @@ if __name__ == "__main__":
     cfg.int_time = cfg.int_time/total_count if cfg.split_acquisition else cfg.int_time
 
 
-    time.sleep(20)
+    time.sleep(45)
     needed = {k: v for k, v in asdict(cfg).items() if k in correlation_capture.__code__.co_varnames}
     correlations = correlation_capture(SPAD1, gate_starts=gate_starts, gate_widths=gate_widths, **needed)
 

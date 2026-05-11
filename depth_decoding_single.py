@@ -8,9 +8,9 @@ from utils.tof_utils import build_coding_matrix_from_correlations, get_simulated
 # -----------------------------------------------------------------------------
 # CONFIG (capitalized)
 # -----------------------------------------------------------------------------
-EXP_PATH = 'exp_2'
+EXP_PATH = 'exp_44'
 N_TBINS = 1500
-NUM_TRIALS = 10
+NUM_TRIALS = 1
 
 #PLotting utils for visualization
 MEDIAN_FILTER_SIZE = 5
@@ -37,11 +37,11 @@ Format:
 capture_type, k , freq_mhz , mV , mA , duty , int_time
 
 Example:
-ham,3,5,100,50,10
+ham,3,5,10,50,1
 """
 
 DEFAULT_RUNS = [
-    "ham,3,5, 4000,50,20, 1000" ,
+    "ham,3,10, 500,16,20, 1" ,
 ]
 
 EPSILON = 1e-12
@@ -58,6 +58,8 @@ def parse_args():
 
     # decode / processing params (CONFIG -> CLI)
     p.add_argument("--n_tbins", type=int, default=N_TBINS)
+    p.add_argument("--num_trials", type=int, default=NUM_TRIALS)
+
 
     p.add_argument("--vmin", type=float, default=VMIN)
     p.add_argument("--vmax", type=float, default=VMAX)
@@ -134,38 +136,27 @@ if __name__ == '__main__':
         (rep_tau, rep_freq,tbin_res,
          t_domain,max_depth,tbin_depth_res,)= calculate_tof_domain_params(args.n_tbins, cfg['rep_tau'])
 
-        # -----------------------------------------------------------------
-        # decode to depth map
-        # -----------------------------------------------------------------
+
         total_trials = coded_vals.shape[0]
-        trials = min(total_trials, cfg.num_trials)
+        trials = min(total_trials, args.num_trials)
+        coded_vals_trials = np.sum(coded_vals[:trials, ...], axis=0)
+        coded_vals_total = np.sum(coded_vals, axis=0)
         depth_map, zncc = decode_depth_map(
-            coded_vals[:trials, ...],
+            coded_vals_trials,
             coding_matrix,
             im_width,
             tbin_depth_res,
             args.use_full_correlations,
         )
 
-
         depth_map = filter_hot_pixels(depth_map, hot_mask)
 
-        coded_vals_filt = np.zeros_like(coded_vals)
-        for i in range(coded_vals.shape[-1]):
-            coded_vals_filt[:, :, i] = filter_hot_pixels(coded_vals[..., i], hot_mask)
-
-
-        # optional crop for master
-        if args.correct_master is False:
-            depth_map = depth_map[:, : im_width // 2]
-            coded_vals = coded_vals[:, : im_width // 2]
-
-        if args.mask_background_pixels:
-            depth_map = depth_map[20:450, :]
-            mask = None
+        coded_vals_filt = np.zeros_like(coded_vals_trials)
+        for i in range(coded_vals_trials.shape[-1]):
+            coded_vals_filt[:, :, i] = filter_hot_pixels(coded_vals_trials[..., i], hot_mask)
 
         gt_depth_map, zncc = decode_depth_map(
-            coded_vals,
+            coded_vals_total,
             coding_matrix,
             im_width,
             tbin_depth_res,
@@ -173,7 +164,16 @@ if __name__ == '__main__':
         )
         gt_depth_map = filter_hot_pixels(gt_depth_map, hot_mask)
 
+        # optional crop for master
+        if args.correct_master is False:
+            depth_map = depth_map[:, : im_width // 2]
+            gt_depth_map = gt_depth_map[:, : im_width // 2]
+            coded_vals_trials = coded_vals_trials[:, : im_width // 2]
 
+        if args.mask_background_pixels:
+            depth_map = depth_map[40:450, :]
+            gt_depth_map = gt_depth_map[40:450, :]
+            mask = None
 
         # ------------------------------------------------------------------
         # Diagnostics plots (coding vs coded at a few points)
@@ -191,7 +191,7 @@ if __name__ == '__main__':
 
 
         plot_sample_points(
-                coded_vals,
+                coded_vals_trials,
                 coding_matrix,
                 points,
                 depth_map,
@@ -202,7 +202,7 @@ if __name__ == '__main__':
         )
 
         plot_sample_points_simple(
-                coded_vals,
+                coded_vals_trials,
                 coding_matrix,
                 points,
                 depth_map,

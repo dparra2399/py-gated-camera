@@ -249,28 +249,27 @@ def plot_capture_comparison(depths_maps_dict, x=20, y=20, width=220, height=320,
     gs = gridspec.GridSpec(len(depths_maps_dict), 4, height_ratios=[1] * len(depths_maps_dict))
 
     for i, coded_vals_path in enumerate(depths_maps_dict):
-        if type(vmins) == list:
-            assert len(vmins) == len(depths_maps_dict)
-            vmin = vmins[i]
-        elif vmins is not None:
-            vmin = vmins
-        else:
-            vmin = None
-
-        if type(vmaxs) == list:
-            assert len(vmaxs) == len(depths_maps_dict)
-            vmax = vmaxs[i]
-        elif vmaxs is not None:
-            vmax = vmaxs
-        else:
-            vmax = None
-
-
         inner_dict = depths_maps_dict[coded_vals_path]
 
         depth_map = inner_dict['depth_map']
         gt_depth_map = inner_dict['gt_depth_map']
         name = inner_dict['capture_type']
+
+        if type(vmins) == list:
+            assert len(vmins) == len(depths_maps_dict)
+            vmin = max(vmins[i], depth_map.min())
+        elif vmins is not None:
+            vmin = max(vmins, depth_map.min())
+        else:
+            vmin = None
+
+        if type(vmaxs) == list:
+            assert len(vmaxs) == len(depths_maps_dict)
+            vmax = min(vmaxs[i], depth_map.max())
+        elif vmaxs is not None:
+            vmax = min(vmaxs, depth_map.max())
+        else:
+            vmax = None
 
 
         depth_map_plot = depth_map - np.mean(depth_map) if normalize_depth_maps else np.copy(depth_map)

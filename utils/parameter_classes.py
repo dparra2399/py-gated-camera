@@ -39,6 +39,7 @@ class Config:
     #Capture only parameters
     ground_truth: Optional[bool] = None #only used for captures
     ground_truth_int_time: Optional[float] = None #only used for dual capture
+    max_trials: Optional[int] = None
 
     #Singe-pixel only parameters
     phase_shifts: Optional[str] = None
@@ -65,6 +66,7 @@ class DecodeConfig:
 
     # Domain / decoding
     n_tbins: Optional[int] = None
+    num_trials: Optional[int] = None
 
     # Plot limits
     vmins: Optional[float] = None

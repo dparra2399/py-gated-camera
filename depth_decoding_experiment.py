@@ -9,14 +9,15 @@ from utils.parameter_classes import DecodeConfig
 # -----------------------------------------------------------------------------
 # CONFIG (capitalized)
 # -----------------------------------------------------------------------------
-EXP_PATH = os.path.join('exp_3')
+EXP_PATH = os.path.join('exp_0')
 N_TBINS = 1500
+NUM_TRIALS = 100
 
 #PLotting utils for visualization
 PLOT_DEPTH_MAPS = True
-VMINS =  None #[7.5, 7] * 1#None if no min depth value just choose smallest
-VMAXS =  None #[8.5, 8] * 1#none if no max depth value just choose largest
-MEDIAN_FILTER_SIZE = 7
+VMINS = 11 # [13.5, 13] * 1#None if no min depth value just choose smallest
+VMAXS = 13 # [14, 14] * 1#none if no max depth value just choose largest
+MEDIAN_FILTER_SIZE = 3
 
 #Masking or normalizing depth maps
 NORMALIZE_DEPTH_MAPS = False
@@ -45,6 +46,7 @@ if __name__ == '__main__':
             exp_path=EXP_PATH,
 
             n_tbins=N_TBINS,
+            num_trials=NUM_TRIALS,
 
             vmins=VMINS,
             vmaxs=VMAXS,
@@ -128,15 +130,17 @@ if __name__ == '__main__':
         # coding_matrix = (coding_matrix - mn) / (mx - mn)
 
         (rep_tau, rep_freq,tbin_res,
-         t_domain,max_depth,tbin_depth_res,)= calculate_tof_domain_params(args.n_tbins, cfg['rep_tau'])
+         t_domain,max_depth,tbin_depth_res,)= calculate_tof_domain_params(cfg.n_tbins, params['rep_tau'])
 
         # -----------------------------------------------------------------
         # decode to depth map
         # -----------------------------------------------------------------
         total_trials = coded_vals.shape[0]
         trials = min(total_trials, cfg.num_trials)
+        coded_vals_trials = np.sum(coded_vals[:trials, ...], axis=0)
+        coded_vals_total = np.sum(coded_vals, axis=0)
         depth_map, zncc = decode_depth_map(
-            coded_vals[:trials, ...],
+            coded_vals_trials,
             coding_matrix,
             im_width,
             tbin_depth_res,
@@ -146,13 +150,13 @@ if __name__ == '__main__':
 
         depth_map = filter_hot_pixels(depth_map, hot_mask)
 
-        coded_vals_filt = np.zeros_like(coded_vals)
-        for i in range(coded_vals.shape[-1]):
-            coded_vals_filt[:, :, i] = filter_hot_pixels(coded_vals[..., i], hot_mask)
+        coded_vals_filt = np.zeros_like(coded_vals_trials)
+        for i in range(coded_vals_trials.shape[-1]):
+            coded_vals_filt[:, :, i] = filter_hot_pixels(coded_vals_trials[..., i], hot_mask)
 
 
         gt_depth_map, zncc = decode_depth_map(
-            coded_vals,
+            coded_vals_total,
             coding_matrix,
             im_width,
             tbin_depth_res,
@@ -164,11 +168,11 @@ if __name__ == '__main__':
         if cfg.correct_master is False:
             depth_map = depth_map[:, : im_width // 2]
             gt_depth_map = gt_depth_map[:, : im_width // 2]
-            coded_vals = coded_vals[:, : im_width // 2]
+            coded_vals_trials = coded_vals_trials[:, : im_width // 2]
 
         if cfg.mask_background_pixels:
-            depth_map = depth_map[60:450, :]
-            gt_depth_map = gt_depth_map[60:450, :]
+            depth_map = depth_map[40:450, :]
+            gt_depth_map = gt_depth_map[40:450, :]
             mask = None
 
         mae = np.nanmean(np.abs(depth_map - gt_depth_map))

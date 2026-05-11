@@ -15,10 +15,11 @@ IM_WIDTH = 512  # image width
 BIT_DEPTH = 12
 
 # Capture parameters
-SPLIT_ACQUISITION = False
-INT_TIME = 10  #burst integration time
-GROUND_TRUTH_INT_TIME = 800_000 #total integration time
-BURST_TIME = 4800 #burst time so that we dont over flow
+SPLIT_ACQUISITION = True
+INT_TIME = 1  #burst integration time
+GROUND_TRUTH_INT_TIME = 2_0 #total integration time
+BURST_TIME = 1 #burst time so that we dont over flow
+MAX_TRIALS = 100
 K = 3  # number of time bins
 
 GATE_SHRINKAGE = 5 #In NS
@@ -29,7 +30,7 @@ HIGH_LEVEL_AMPLITUDE = 0.5 #in Vpp
 LOW_LEVEL_AMPLITUDE = -0.5
 CURRENT = 16 #in mA
 EDGE = 6 * 1e-9 #Edge rate for pulse wave
-PHASE = 30
+PHASE = 90
 DUTY = 20 # In percentage
 REP_RATE = 10 * 1e6 #in HZ
 ILLUM_TYPE = 'square'
@@ -37,7 +38,7 @@ ILLUM_TYPE = 'square'
 # Save Parameters
 SAVE_INTO_FILE = True
 SAVE_PATH = SAVE_PATH_CAPTURE
-EXP_PATH = "exp_0"
+EXP_PATH = "exp_1"
 
 ###### Non-Editable Parameters #####
 ITERATIONS = 1
@@ -65,6 +66,7 @@ if __name__ == "__main__":
             split_acquisition=SPLIT_ACQUISITION,
             ground_truth_int_time=GROUND_TRUTH_INT_TIME,
             burst_time=BURST_TIME,
+            max_trials=MAX_TRIALS,
             k=K,
             gate_shrinkage=GATE_SHRINKAGE,
             capture_type=CAPTURE_TYPE,
@@ -98,7 +100,6 @@ if __name__ == "__main__":
 
     cfg = Config(**vars(args))
     cfg = apply_defaults(cfg)
-    cfg.int_time = cfg.int_time/cfg.k if cfg.split_acquisition else cfg.int_time
 
 
     SPAD1 = set_up_spad512()
@@ -110,31 +111,46 @@ if __name__ == "__main__":
     ldc220 = NIDAQ_LDC220(max_amps=40)
     ldc220.set_current(0)
 
+
     sdg.set_waveform_and_trigger(cfg.illum_type, cfg.duty, cfg.rep_rate,
-                                 cfg.high_level_amplitude, cfg.low_level_amplitude, cfg.phase, cfg.edge)
+                                 cfg.high_level_amplitude, cfg.low_level_amplitude, 0, cfg.edge)
+
+    def phase_shift_helper(phase_shift, rep_rate, illum_type):
+        if illum_type == "pulse":
+            delay_ns = phase_shift / 360 * (1 / rep_rate)
+            sdg.set_delay(delay_ns)
+        else:
+            sdg.set_phase_shift(phase_shift)
+
+    phase_shift_helper(cfg.phase, cfg.rep_rate, cfg.illum_type)
+
     sdg.turn_both_channels_on()
 
     ldc220.set_current(cfg.current)
 
     gate_widths, gate_starts = get_gate_shifts(cfg.capture_type, cfg.rep_rate, cfg.k)
 
-    time.sleep(14)
+    time.sleep(45)
 
-    trials = int(cfg.int_time // cfg.ground_truth_int_time)
+    trials_calc = int(cfg.ground_truth_int_time // cfg.int_time)
+    trials = max(trials_calc, cfg.max_trials)
     needed = {k: v for k, v in asdict(cfg).items() if k in depth_map_capture.__code__.co_varnames}
 
     trial_runs = []
     for i in range(trials):
-        if cfg.capture_type == "timeslicing":
-            needed = {k: v for k, v in asdict(cfg).items() if k in burst_capture.__code__.co_varnames}
-            gate_width = gate_widths[0][0]
-            needed["gate_step_size"] = gate_width * 1e3
-            needed["gate_steps"] = cfg.k
-            needed["gate_offset"] = 0
-            coded_vals = burst_capture(SPAD1, gate_width=gate_width, **needed)
+        if i > cfg.max_trials:
+            pass
         else:
-            coded_vals = depth_map_capture(SPAD1, gate_starts=gate_starts, gate_widths=gate_widths,
-                                           int_time=cfg.int_time, **needed)
+            if cfg.capture_type == "timeslicing":
+                needed = {k: v for k, v in asdict(cfg).items() if k in burst_capture.__code__.co_varnames}
+                gate_width = gate_widths[0][0]
+                needed["gate_step_size"] = gate_width * 1e3
+                needed["gate_steps"] = cfg.k
+                needed["gate_offset"] = 0
+                coded_vals = burst_capture(SPAD1, gate_width=gate_width, **needed)
+            else:
+                coded_vals = depth_map_capture(SPAD1, gate_starts=gate_starts, gate_widths=gate_widths,
+                                               **needed)
 
         trial_runs.append(coded_vals)
     depth_map_coded_vals = np.stack([x.astype(np.float32) for x in trial_runs])
@@ -143,6 +159,7 @@ if __name__ == "__main__":
     sdg.turn_both_channels_off()
 
     if cfg.save_into_file:
-        save_capture_data(save_path=cfg.save_path, cfg_dict=asdict(cfg),coded_vals=depth_map_coded_vals)
+        save_capture_and_gt_data(save_path=cfg.save_path, cfg_dict=asdict(cfg),coded_vals=depth_map_coded_vals,
+                                 gt_coded_vals=None)
 
 

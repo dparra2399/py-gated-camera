@@ -8,22 +8,22 @@ BASE = [
     "python", SCRIPT,
     "--k", "3",
     "--im_width", "512",
-    "--burst_time", "100",
     "--bit_depth", "12",
-    "--int_time", "500",
-    "--ground_truth_int_time", "10000",
+    "--int_time", "10",
+    "--burst_time", "10",
+    "--ground_truth_int_time", "2000",
     "--ground_truth", "1",
     "--rep_rate", "10000000",
     "--save_into_file", "1",
     "--iterations", "1",
-    "--current", "50"
+    "--current", "16"
 ]
 
 # sweeps
 capture_types = ["coarse", "ham"]
-phases = [180]   # <-- set whatever you want (degrees or whatever your script expects)
+phases = [60]   # <-- set whatever you want
 
-run_id = 3
+run_id = 1
 
 # OUTER LOOP = things that define a "run folder"
 for phase in phases:
@@ -32,8 +32,8 @@ for phase in phases:
     # INNER LOOP = capture types share the SAME run_id folder
     for typ in capture_types:
 
-        high_level_amp=  "4.0" if typ == "ham" else "3.4"
-        low_level_amps = "-4.0"
+        high_level_amp=  "0.5" if typ == "ham" else "0.42"
+        low_level_amps = "-0.5"
         illum_typ = "square" if typ == "ham" else "gaussian"
         gate_shrinkage = "5" #20" if typ == "ham" else "10"
         duty = "20" if typ == "ham" else "30"
