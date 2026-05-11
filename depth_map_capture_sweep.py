@@ -9,8 +9,9 @@ BASE = [
     "--k", "3",
     "--im_width", "512",
     "--bit_depth", "12",
-    "--int_time", "10",
-    "--burst_time", "10",
+    "--int_time", "1",
+    "--burst_time", "100",
+    "--max_trials", "100",
     "--ground_truth_int_time", "2000",
     "--ground_truth", "1",
     "--rep_rate", "10000000",
@@ -23,7 +24,7 @@ BASE = [
 capture_types = ["coarse", "ham"]
 phases = [60]   # <-- set whatever you want
 
-run_id = 1
+run_id = 0
 
 # OUTER LOOP = things that define a "run folder"
 for phase in phases:

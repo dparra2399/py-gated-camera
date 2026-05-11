@@ -135,24 +135,29 @@ if __name__ == "__main__":
     trials_calc = int(cfg.ground_truth_int_time // cfg.int_time)
     trials = max(trials_calc, cfg.max_trials)
     needed = {k: v for k, v in asdict(cfg).items() if k in depth_map_capture.__code__.co_varnames}
+    needed.pop('int_time')
 
     trial_runs = []
-    for i in range(trials):
-        if i > cfg.max_trials:
-            pass
+
+    current_int_time = 0
+    i = 0
+    while current_int_time < cfg.ground_truth_int_time:
+        int_time = cfg.int_time if i < cfg.max_trials else cfg.burst_time
+        if cfg.capture_type == "timeslicing":
+            ts_needed = {k: v for k, v in asdict(cfg).items() if k in burst_capture.__code__.co_varnames}
+            gate_width = gate_widths[0][0]
+            ts_needed["gate_step_size"] = gate_width * 1e3
+            ts_needed["gate_steps"] = cfg.k
+            ts_needed["gate_offset"] = 0
+            ts_needed["int_time"] = int_time
+            coded_vals = burst_capture(SPAD1, gate_width=gate_width, **ts_needed)
         else:
-            if cfg.capture_type == "timeslicing":
-                needed = {k: v for k, v in asdict(cfg).items() if k in burst_capture.__code__.co_varnames}
-                gate_width = gate_widths[0][0]
-                needed["gate_step_size"] = gate_width * 1e3
-                needed["gate_steps"] = cfg.k
-                needed["gate_offset"] = 0
-                coded_vals = burst_capture(SPAD1, gate_width=gate_width, **needed)
-            else:
-                coded_vals = depth_map_capture(SPAD1, gate_starts=gate_starts, gate_widths=gate_widths,
-                                               **needed)
+            coded_vals = depth_map_capture(SPAD1, gate_starts=gate_starts, gate_widths=gate_widths,
+                                           int_time=int_time, **needed)
 
         trial_runs.append(coded_vals)
+        current_int_time += int_time
+        i += 1
     depth_map_coded_vals = np.stack([x.astype(np.float32) for x in trial_runs])
 
     ldc220.set_current(0)

@@ -344,7 +344,13 @@ def _make_illum(n_tbins, k, add, use_rect):
 def get_coarse_code(k, n_tbins, use_rect=False):
     coding_matrix = np.kron(np.eye(k), np.ones((1, n_tbins // k)))
 
-    add = 7 if k in (3, 4) else 0
+    # kron truncates when k doesn't divide n_tbins evenly — interpolate back to n_tbins
+    if coding_matrix.shape[-1] != n_tbins:
+        f = interp1d(np.linspace(0, 1, coding_matrix.shape[-1]), coding_matrix,
+                     kind='nearest', axis=-1)
+        coding_matrix = f(np.linspace(0, 1, n_tbins))
+
+    add = 7 if k in (3, 4) else 20
     illum = _make_illum(n_tbins, k, add, use_rect)
 
     filtered_coding_matrix = np.fft.ifft(
@@ -379,12 +385,15 @@ def get_trap_code(k, n_tbins, use_rect=False):
 
 def get_code(type, k, n_tbins):
     use_rect = 'rect' in type
-    if type == 'coarse' or type == 'rect' or type == 'timeslicing':
+    if type == 'coarse' or type == 'rect':
         name = 'coarse'
     elif type == 'trapcoarse' or type == 'traprect':
         name = 'trap'
     elif type == 'ham':
         name = 'ham'
+    elif type == 'timeslicing':
+        name = 'coarse'
+        k = 16
     else:
         assert False, 'type must be coarse, rect, trapcoarse, traprect, or ham'
     func = getattr(sys.modules[__name__], f"get_{name}_code")

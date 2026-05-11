@@ -16,7 +16,7 @@ import numpy as np
 # -----------------------------------------------------------------------------
 # CONFIG (capitalized)
 # ----------------------------------------------------------------------------
-EXP_PATHS = [['k3_HIGHSNR'], ['k3_LOWSNR']]
+EXP_PATHS = [["k4_LOWSNR", 'timeslicing_LOWSNR']]
 N_TBINS = 1500
 
 #Which correlation functions to use
@@ -146,7 +146,7 @@ if __name__ == '__main__':
                 for i, n in enumerate(N_PIXELS):
 
                     depths, recon, num_pixels = decode_single_pixel_experiment(
-                        capture_type,
+                        capture_type + "s",
                         coded_vals,
                         coding_matrix,
                         tbin_depth_res,
@@ -156,7 +156,7 @@ if __name__ == '__main__':
                         pixel_order=pixel_order
                     )
 
-                    if capture_type == 'timeslicing': depths = np.roll(depths, -2, axis=-1)
+                    #if capture_type == 'timeslicing': depths = np.roll(depths, -2, axis=-1)
 
                     phase_shifts = params['phase_shifts']#[2:-2]
                     #depths = depths[:, 2:-2]
