@@ -186,12 +186,15 @@ class SDG5162_GATED_PROJECT:
     def turn_both_channels_on(self):
         self.turn_channel_on(0)
         self.turn_channel_on(1)
+        self.turn_channel_on(2)
 
     def turn_both_channels_off(self):
         self.turn_channel_off(0)
         self.turn_channel_off(1)
         self.turn_channel_off(0)
         self.turn_channel_off(1)
+        self.turn_channel_off(2)
+        self.turn_channel_off(2)
 
     def read_parameters(self, channel):
         resp =  self.sdg.query(f'C{channel}:BSWV?')
@@ -220,6 +223,10 @@ sdg = SDG5162_GATED_PROJECT(
 )
 
 sdg.turn_both_channels_off()
+#sdg.turn_both_channels_on()
+
+
+
 #
 ni_daq = NIDAQ_LDC220(zero_set=0, max_amps=40)
 ni_daq.set_current(0)

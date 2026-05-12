@@ -9,13 +9,13 @@ from utils.parameter_classes import DecodeConfig
 # -----------------------------------------------------------------------------
 # CONFIG (capitalized)
 # -----------------------------------------------------------------------------
-EXP_PATH = os.path.join('exp_0')
+EXP_PATH = os.path.join('k3_LOWSNR')
 N_TBINS = 1500
-NUM_TRIALS = 100
+NUM_TRIALS = 1
 
 #PLotting utils for visualization
 PLOT_DEPTH_MAPS = True
-VMINS = 11 # [13.5, 13] * 1#None if no min depth value just choose smallest
+VMINS = 12 # [13.5, 13] * 1#None if no min depth value just choose smallest
 VMAXS = 13 # [14, 14] * 1#none if no max depth value just choose largest
 MEDIAN_FILTER_SIZE = 3
 

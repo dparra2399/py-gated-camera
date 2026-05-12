@@ -125,10 +125,14 @@ if __name__ == "__main__":
     phase_shift_helper(cfg.phase, cfg.rep_rate, cfg.illum_type)
 
     sdg.turn_both_channels_on()
+    sdg.turn_both_channels_on()
+    sdg.turn_both_channels_on()
+    sdg.turn_both_channels_on()
 
     ldc220.set_current(cfg.current)
 
     gate_widths, gate_starts = get_gate_shifts(cfg.capture_type, cfg.rep_rate, cfg.k)
+    total_count = sum(len(sublist) for sublist in gate_widths)
 
     time.sleep(45)
 
@@ -143,6 +147,8 @@ if __name__ == "__main__":
     i = 0
     while current_int_time < cfg.ground_truth_int_time:
         int_time = cfg.int_time if i < cfg.max_trials else cfg.burst_time
+        int_time = int_time / total_count if cfg.split_acquisition else int_time
+        if i == 0 or i == cfg.max_trials: print('int_time:', int_time)
         if cfg.capture_type == "timeslicing":
             ts_needed = {k: v for k, v in asdict(cfg).items() if k in burst_capture.__code__.co_varnames}
             gate_width = gate_widths[0][0]

@@ -8,7 +8,7 @@ from utils.tof_utils import build_coding_matrix_from_correlations, get_simulated
 # -----------------------------------------------------------------------------
 # CONFIG (capitalized)
 # -----------------------------------------------------------------------------
-EXP_PATH = 'exp_44'
+EXP_PATH = 'exp_2'
 N_TBINS = 1500
 NUM_TRIALS = 1
 
@@ -153,7 +153,7 @@ if __name__ == '__main__':
 
         coded_vals_filt = np.zeros_like(coded_vals_trials)
         for i in range(coded_vals_trials.shape[-1]):
-            coded_vals_filt[:, :, i] = filter_hot_pixels(coded_vals_trials[..., i], hot_mask)
+            coded_vals_filt[:, :, i] = filter_hot_pixels(coded_vals_total[..., i], hot_mask)
 
         gt_depth_map, zncc = decode_depth_map(
             coded_vals_total,
@@ -191,7 +191,7 @@ if __name__ == '__main__':
 
 
         plot_sample_points(
-                coded_vals_trials,
+                coded_vals_total,
                 coding_matrix,
                 points,
                 depth_map,
