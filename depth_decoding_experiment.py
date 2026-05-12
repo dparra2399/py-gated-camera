@@ -11,7 +11,7 @@ from utils.parameter_classes import DecodeConfig
 # -----------------------------------------------------------------------------
 EXP_PATH = os.path.join('k3_LOWSNR')
 N_TBINS = 1500
-NUM_TRIALS = 1
+NUM_TRIALS = 20
 
 #PLotting utils for visualization
 PLOT_DEPTH_MAPS = True
@@ -171,8 +171,8 @@ if __name__ == '__main__':
             coded_vals_trials = coded_vals_trials[:, : im_width // 2]
 
         if cfg.mask_background_pixels:
-            depth_map = depth_map[40:450, :]
-            gt_depth_map = gt_depth_map[40:450, :]
+            depth_map = depth_map[100:250, :]
+            gt_depth_map = gt_depth_map[100:250, :]
             mask = None
 
         mae = np.nanmean(np.abs(depth_map - gt_depth_map))
@@ -185,8 +185,8 @@ if __name__ == '__main__':
         depth_map_dict[coded_vals_path] = cfg_dict
 
 
-        plt.plot(coding_matrix)
-        plt.show()
+        #plt.plot(coding_matrix)
+        #plt.show()
 
     if cfg.plot_depth_maps:
         plot_capture_comparison(depth_map_dict, vmins=cfg.vmins, vmaxs=cfg.vmaxs,

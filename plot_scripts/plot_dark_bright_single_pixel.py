@@ -16,7 +16,7 @@ import numpy as np
 # -----------------------------------------------------------------------------
 # CONFIG (capitalized)
 # ----------------------------------------------------------------------------
-EXP_PATHS = [["k4_LOWSNR", 'timeslicing_LOWSNR']]
+EXP_PATHS = [['k4_LOWSNR', 'timeslicing_LOWSNR']]
 N_TBINS = 1500
 
 #Which correlation functions to use

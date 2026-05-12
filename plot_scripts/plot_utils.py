@@ -630,20 +630,36 @@ def plot_depth_error_distribution(results):
     plt.show()
 
 
-def get_string_name(capture_type, k):
-    if capture_type == 'coarse':
-        return 'Triangle (Gauss.)' + " K=" + str(k)
-    elif capture_type == 'trapcoarse':
-        return 'Trapezoidal (Gauss.)' + " K=" + str(k)
-    elif capture_type == 'rect':
-        return 'Triangle (Rect.)' + " K=" + str(k)
-    elif capture_type == 'traprect':
-        return 'Trapezoidal (Rect.)' + " K=" + str(k)
-    elif capture_type == 'ham':
-        return 'SiP Hamiltonian' + " K=" + str(k)
-    elif capture_type == 'timeslicing':
-        return 'Time-Slicing ' + " K=" + str(k)
-    return None
+def get_string_name(capture_type, k, short=False):
+    if short:
+        if capture_type == 'coarse':
+            return 'Triangle' + " K=" + str(k)
+        elif capture_type == 'trapcoarse':
+            return 'Trapezoidal' + " K=" + str(k)
+        elif capture_type == 'rect':
+            return 'Triangle' + " K=" + str(k)
+        elif capture_type == 'traprect':
+            return 'Trapezoidal' + " K=" + str(k)
+        elif capture_type == 'ham':
+            return 'SiP Ham.' + " K=" + str(k)
+        elif capture_type == 'timeslicing':
+            return 'Time-Slicing ' + " K=" + str(k)
+        return None
+    else:
+
+        if capture_type == 'coarse':
+            return 'Triangle (Gauss.)' + " K=" + str(k)
+        elif capture_type == 'trapcoarse':
+            return 'Trapezoidal (Gauss.)' + " K=" + str(k)
+        elif capture_type == 'rect':
+            return 'Triangle (Rect.)' + " K=" + str(k)
+        elif capture_type == 'traprect':
+            return 'Trapezoidal (Rect.)' + " K=" + str(k)
+        elif capture_type == 'ham':
+            return 'SiP Hamiltonian' + " K=" + str(k)
+        elif capture_type == 'timeslicing':
+            return 'Time-Slicing ' + " K=" + str(k)
+        return None
 
 def get_single_pixel_title(paths):
     for path in paths:

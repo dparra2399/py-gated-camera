@@ -8,9 +8,9 @@ from utils.tof_utils import build_coding_matrix_from_correlations, get_simulated
 # -----------------------------------------------------------------------------
 # CONFIG (capitalized)
 # -----------------------------------------------------------------------------
-EXP_PATH = 'exp_2'
+EXP_PATH = 'k3_LOWSNR'
 N_TBINS = 1500
-NUM_TRIALS = 1
+NUM_TRIALS = 20
 
 #PLotting utils for visualization
 MEDIAN_FILTER_SIZE = 5
@@ -35,13 +35,12 @@ CORRECT_MASTER = False
 """
 Format:
 capture_type, k , freq_mhz , mV , mA , duty , int_time
-
-Example:
-ham,3,5,10,50,1
 """
 
 DEFAULT_RUNS = [
-    "ham,3,10, 500,16,20, 1" ,
+    #"ham,3,10, 500,16,20, 3" ,
+    "coarse,3,10, 420,16,30, 3",
+
 ]
 
 EPSILON = 1e-12

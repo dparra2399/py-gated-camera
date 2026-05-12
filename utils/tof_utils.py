@@ -350,7 +350,7 @@ def get_coarse_code(k, n_tbins, use_rect=False):
                      kind='nearest', axis=-1)
         coding_matrix = f(np.linspace(0, 1, n_tbins))
 
-    add = 7 if k in (3, 4) else 20
+    add = 4 if k in (3, 4) else 20
     illum = _make_illum(n_tbins, k, add, use_rect)
 
     filtered_coding_matrix = np.fft.ifft(
@@ -372,7 +372,7 @@ def get_trap_code(k, n_tbins, use_rect=False):
         cols = (np.arange(start, start + block_len) % n_tbins)
         coding_matrix[i, cols] = 1
 
-    add = 7 if k in (3, 4) else 0
+    add = 4 if k in (3, 4) else 0
     illum = _make_illum(n_tbins, k, add, use_rect)
 
     filtered_coding_matrix = np.fft.ifft(
@@ -393,7 +393,6 @@ def get_code(type, k, n_tbins):
         name = 'ham'
     elif type == 'timeslicing':
         name = 'coarse'
-        k = 16
     else:
         assert False, 'type must be coarse, rect, trapcoarse, traprect, or ham'
     func = getattr(sys.modules[__name__], f"get_{name}_code")
