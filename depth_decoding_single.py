@@ -8,9 +8,9 @@ from utils.tof_utils import build_coding_matrix_from_correlations, get_simulated
 # -----------------------------------------------------------------------------
 # CONFIG (capitalized)
 # -----------------------------------------------------------------------------
-EXP_PATH = 'k3_LOWSNR'
+EXP_PATH = 'exp_1'
 N_TBINS = 1500
-NUM_TRIALS = 20
+NUM_TRIALS = 100
 
 #PLotting utils for visualization
 MEDIAN_FILTER_SIZE = 5
@@ -22,7 +22,7 @@ MASK_BACKGROUND_PIXELS = True
 
 #Which correlation functions to use
 SIMULATED_CORRELATIONS = False
-USE_FULL_CORRELATIONS = False
+USE_FULL_CORRELATIONS = True
 
 #Smoothing or shifting the correlation functions
 SIGMA_SIZE = None #None if no smoothing
@@ -35,10 +35,13 @@ CORRECT_MASTER = False
 """
 Format:
 capture_type, k , freq_mhz , mV , mA , duty , int_time
+
+Example:
+ham,3,5,10,50,1
 """
 
 DEFAULT_RUNS = [
-    #"ham,3,10, 500,16,20, 3" ,
+    "ham,3,10, 500,16,20, 3" ,
     "coarse,3,10, 420,16,30, 3",
 
 ]
@@ -152,7 +155,7 @@ if __name__ == '__main__':
 
         coded_vals_filt = np.zeros_like(coded_vals_trials)
         for i in range(coded_vals_trials.shape[-1]):
-            coded_vals_filt[:, :, i] = filter_hot_pixels(coded_vals_total[..., i], hot_mask)
+            coded_vals_filt[:, :, i] = filter_hot_pixels(coded_vals_trials[..., i], hot_mask)
 
         gt_depth_map, zncc = decode_depth_map(
             coded_vals_total,
@@ -190,7 +193,8 @@ if __name__ == '__main__':
 
 
         plot_sample_points(
-                coded_vals_total,
+                #coded_vals_total,
+                coded_vals_trials,
                 coding_matrix,
                 points,
                 depth_map,

@@ -16,9 +16,9 @@ BIT_DEPTH = 12
 
 # Capture parameters
 SPLIT_ACQUISITION = True
-INT_TIME = 1  #burst integration time
-GROUND_TRUTH_INT_TIME = 2_0 #total integration time
-BURST_TIME = 1 #burst time so that we dont over flow
+INT_TIME = 100  #burst integration time
+GROUND_TRUTH_INT_TIME = 200 #total integration time
+BURST_TIME = 100 #burst time so that we dont over flow
 MAX_TRIALS = 100
 K = 3  # number of time bins
 
@@ -33,12 +33,12 @@ EDGE = 6 * 1e-9 #Edge rate for pulse wave
 PHASE = 90
 DUTY = 20 # In percentage
 REP_RATE = 10 * 1e6 #in HZ
-ILLUM_TYPE = 'square'
+ILLUM_TYPE = 'pulse'
 
 # Save Parameters
 SAVE_INTO_FILE = True
 SAVE_PATH = SAVE_PATH_CAPTURE
-EXP_PATH = "exp_1"
+EXP_PATH = "exp_2"
 
 ###### Non-Editable Parameters #####
 ITERATIONS = 1
@@ -146,8 +146,8 @@ if __name__ == "__main__":
     current_int_time = 0
     i = 0
     while current_int_time < cfg.ground_truth_int_time:
-        int_time = cfg.int_time if i < cfg.max_trials else cfg.burst_time
-        int_time = int_time / total_count if cfg.split_acquisition else int_time
+        int_time_tmp = cfg.int_time if i < cfg.max_trials else cfg.burst_time
+        int_time = int_time_tmp / total_count if cfg.split_acquisition else int_time_tmp
         if i == 0 or i == cfg.max_trials: print('int_time:', int_time)
         if cfg.capture_type == "timeslicing":
             ts_needed = {k: v for k, v in asdict(cfg).items() if k in burst_capture.__code__.co_varnames}
@@ -162,7 +162,7 @@ if __name__ == "__main__":
                                            int_time=int_time, **needed)
 
         trial_runs.append(coded_vals)
-        current_int_time += int_time
+        current_int_time += int_time * cfg.k
         i += 1
     depth_map_coded_vals = np.stack([x.astype(np.float32) for x in trial_runs])
 

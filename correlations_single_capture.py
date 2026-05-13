@@ -19,10 +19,10 @@ BIT_DEPTH = 12
 
 # Capture parameters
 SPLIT_ACQUISITION = False
-INT_TIME = 200 # integration time
-BURST_TIME = 200
+INT_TIME = 1000 # integration time
+BURST_TIME = 100
 K = 3  # number of time bins
-GATE_STEP_SIZE = 1250 #Steps in picoseconds
+GATE_STEP_SIZE = 600 #Steps in picoseconds
 GATE_SHRINKAGE = 5 #In NS
 CAPTURE_TYPE = 'ham'
 
@@ -83,7 +83,7 @@ if __name__ == "__main__":
             overlap=OVERLAP,
             timeout=TIMEOUT,
             pileup=PILEUP,
-            gate_steps= int(((1 / REP_RATE)*1e12) // GATE_STEP_SIZE),
+            gate_steps=None,
             gate_step_arbitrary=GATE_STEP_ARBITRARY,
             gate_step_size=GATE_STEP_SIZE,
             gate_direction=GATE_DIRECTION,
@@ -98,6 +98,7 @@ if __name__ == "__main__":
 
     cfg = Config(**vars(args))
     cfg = apply_defaults(cfg)
+    cfg.gate_steps = int(((1 / cfg.rep_rate)*1e12) // cfg.gate_step_size)
 
     SPAD1 = set_up_spad512()
 
@@ -114,11 +115,12 @@ if __name__ == "__main__":
 
     ldc220.set_current(cfg.current)
 
+    exit(0)
+
 
     gate_widths, gate_starts = get_gate_shifts(cfg.capture_type, cfg.rep_rate, cfg.k)
     total_count = sum(len(sublist) for sublist in gate_widths)
     cfg.int_time = cfg.int_time/total_count if cfg.split_acquisition else cfg.int_time
-
 
     time.sleep(45)
     needed = {k: v for k, v in asdict(cfg).items() if k in correlation_capture.__code__.co_varnames}

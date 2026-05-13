@@ -15,7 +15,7 @@ import pprint
 
 
 
-filename =  'coarsek3_10mhz_420mV_16mA_30duty_correlations.npz'
+#filename =  'coarsek3_10mhz_420mV_16mA_30duty_correlations.npz'
 
 #filename =  'hamk3_10mhz_500mV_16mA_20duty_correlations.npz'
 
@@ -25,7 +25,6 @@ filename =  'coarsek3_10mhz_420mV_16mA_30duty_correlations.npz'
 
 #filename = "coarsek8_10mhz_1200mV_16mA_12duty_correlations.npz"
 
-#filename = "coarsek3_10mhz_500mV_16mA_30duty_correlations.npz"
 
 #filename = "rectk3_10mhz_230mV_16mA_30duty_correlations.npz"
 
@@ -33,7 +32,7 @@ filename =  'coarsek3_10mhz_420mV_16mA_30duty_correlations.npz'
 
 #filename = "hamk4_10mhz_770mV_16mA_15duty_correlations.npz"
 
-#filename = "trapcoarsek3_10mhz_420mV_16mA_30duty_correlations.npz"
+filename = "trapcoarsek3_10mhz_420mV_16mA_30duty_correlations.npz"
 
 #filename = "traprectk3_10mhz_230mV_16mA_30duty_correlations.npz"
 
@@ -82,7 +81,7 @@ if __name__ == "__main__":
             SMOOTH_SIGMA
     )
 
-    if K<3:
+    if K<=3:
         plot_correlation_comparison(
                 measured_coding_matrix,
                 coding_matrix,

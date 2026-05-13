@@ -5,35 +5,39 @@ import subprocess
 
 BASE = [
     "python", "correlations_single_capture.py",
-    "--k", "3",
+    "--k", "4",
     "--im_width", "512",
     "--burst_time", "100",
     "--bit_depth", "12",
-    "--int_time", "500",
-    "--gate_step_size", "300",
+    "--int_time", "1000",
+    "--gate_step_size", "600",
     "--rep_rate", "10000000",
     "--plot_correlations", "false",
     "--save_into_file", "true",
     "--timeout", "0",
-    "--current", "50",
-    "--low_level_amplitude", "-4.0",
+    "--current", "16",
+    "--low_level_amplitude", "-0.5",
 
 ]
 
-for typ in ["coarse", "ham"]:
-        illum_typ = 'square' if typ == 'ham' else 'gaussian'
+for typ in ["coarse", "ham", "trapcoarse"]:
+        illum_typ = 'pulse' if typ == 'ham' else 'gaussian'
         gate_shrinkage = '5' #'20' if typ == 'ham' else '10'
-        duty = '20' if typ == 'ham' else '30'
-        high_lvl_tmp = '4.0' if typ == 'ham' else '3.4'
+        #duty = '20' if typ == 'ham' else '30'
+        duty = "15" if typ == "ham" else "23" #"30"
+        high_level_amp=  "0.77" if typ == "ham" else "0.54"
+        #high_level_amp=  "0.5" if typ == "ham" else "0.42"
+
+
         cmd = BASE + [
             "--capture_type", typ,
             "--gate_shrinkage", gate_shrinkage,
             "--duty", duty,
             "--illum_type", illum_typ,
-            "--high_level_amplitude", str(high_lvl_tmp),
+            "--high_level_amplitude", str(high_level_amp),
         ]
         print("==============================================================")
-        print(f"type={typ}  amp={high_lvl_tmp}")
+        print(f"type={typ}  amp={high_level_amp}")
         print("==============================================================")
 
         subprocess.run(cmd)

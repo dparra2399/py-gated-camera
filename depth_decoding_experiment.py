@@ -9,14 +9,14 @@ from utils.parameter_classes import DecodeConfig
 # -----------------------------------------------------------------------------
 # CONFIG (capitalized)
 # -----------------------------------------------------------------------------
-EXP_PATH = os.path.join('k3_LOWSNR')
-N_TBINS = 1500
-NUM_TRIALS = 20
+EXP_PATH = os.path.join('exp_4')
+N_TBINS = 3000
+NUM_TRIALS = 60
 
 #PLotting utils for visualization
 PLOT_DEPTH_MAPS = True
-VMINS = 12 # [13.5, 13] * 1#None if no min depth value just choose smallest
-VMAXS = 13 # [14, 14] * 1#none if no max depth value just choose largest
+VMINS = 11 # [13.5, 13] * 1#None if no min depth value just choose smallest
+VMAXS = None # [14, 14] * 1#none if no max depth value just choose largest
 MEDIAN_FILTER_SIZE = 3
 
 #Masking or normalizing depth maps
@@ -28,12 +28,12 @@ SIMULATED_CORRELATIONS = False
 USE_FULL_CORRELATIONS = False
 
 #Smoothing or shifting the correlation functions
-SIGMA_SIZE = None #None if no smoothing
+SIGMA_SIZE = 1 #None if no smoothing
 SHIFT_SIZE = None #None if no shifting
 
 #Corrections to depth map
 CORRECT_DEPTH_DISTORTION = False
-CORRECT_MASTER = False
+CORRECT_MASTER = True
 
 
 # -----------------------------------------------------------------------------
@@ -137,8 +137,15 @@ if __name__ == '__main__':
         # -----------------------------------------------------------------
         total_trials = coded_vals.shape[0]
         trials = min(total_trials, cfg.num_trials)
-        coded_vals_trials = np.sum(coded_vals[:trials, ...], axis=0)
+        perm = np.random.permutation(min(params['max_trials'], trials))[:trials]
+        coded_vals_trials = np.sum(coded_vals[perm, ...], axis=0)
         coded_vals_total = np.sum(coded_vals, axis=0)
+
+        print(f'Trials {total_trials} for capture type {capture_type}')
+        print(f'Max count {np.max(coded_vals)} for {capture_type}')
+        print(f'Max count EST {np.max(coded_vals_trials)} for {capture_type}')
+        print(f'Max count GT {np.max(coded_vals_total)} for {capture_type}')
+
         depth_map, zncc = decode_depth_map(
             coded_vals_trials,
             coding_matrix,
@@ -171,8 +178,8 @@ if __name__ == '__main__':
             coded_vals_trials = coded_vals_trials[:, : im_width // 2]
 
         if cfg.mask_background_pixels:
-            depth_map = depth_map[100:250, :]
-            gt_depth_map = gt_depth_map[100:250, :]
+            depth_map = depth_map[40:450, :]
+            gt_depth_map = gt_depth_map[40:450, :]
             mask = None
 
         mae = np.nanmean(np.abs(depth_map - gt_depth_map))
