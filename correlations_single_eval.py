@@ -17,7 +17,7 @@ from utils.tof_utils import (
 # =============================
 # Defaults
 # =============================
-PHOTON_COUNT = 1000
+PHOTON_COUNT = 30000
 SBR = 1.0
 TRIALS = 100
 N_TBINS = 999

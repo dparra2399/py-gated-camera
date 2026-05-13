@@ -509,11 +509,17 @@ class SPAD512S:
                 img_index = (i+1)*self.row*im_width*2
                 if img_index - img_index_old > 10:
                     np_data = np.asarray(data[img_index_old:img_index])
-                    array_262144_even = np_data[::2].astype(np.uint8)
-                    array_262144_odd = np_data[1::2].astype(np.uint8)
-                    new_array = (array_262144_odd.astype(np.uint32) * (2 ** (bitDepth - 8))) + (array_262144_even.astype(np.uint32) >> (16 - bitDepth))
-                    #new_array = (array_262144_odd * (2**8)) + (array_262144_even)
-                    img[:,:,i] = new_array.reshape((512, 512))                    
+                    array_262144_even = np_data[::2].astype(np.uint16)
+                    array_262144_odd = np_data[1::2].astype(np.uint16)
+                    new_array = (array_262144_odd << 8) | array_262144_even
+                    img[:,:,i] = new_array.reshape((512, 512))
+
+                    # np_data = np.asarray(data[img_index_old:img_index])
+                    # array_262144_even = np_data[::2].astype(np.uint8)
+                    # array_262144_odd = np_data[1::2].astype(np.uint8)
+                    # new_array = (array_262144_odd.astype(np.uint32) * (2 ** (bitDepth - 8))) + (array_262144_even.astype(np.uint32) >> (16 - bitDepth))
+                    # #new_array = (array_262144_odd * (2**8)) + (array_262144_even)
+                    # img[:,:,i] = new_array.reshape((512, 512))
                 
         else :
             while 1:
@@ -537,11 +543,16 @@ class SPAD512S:
                     img_index = (i+1)*self.row*im_width*2
                     if img_index - img_index_old > 10:
                         np_data = np.asarray(data[img_index_old:img_index])
-                        array_262144_even = np_data[::2].astype(np.uint8)
-                        array_262144_odd = np_data[1::2].astype(np.uint8)
-                        new_array = (array_262144_odd.astype(np.uint32) * (2 ** (bitDepth - 8))) + (array_262144_even.astype(np.uint32) >> (16 - bitDepth))
-                        #new_array = (array_262144_odd * (2**8)) + (array_262144_even)
-                        img[:,:,i] = new_array.reshape((512, 512))
+                        array_262144_even = np_data[::2].astype(np.uint16)
+                        array_262144_odd = np_data[1::2].astype(np.uint16)
+                        new_array = (array_262144_odd << 8) | array_262144_even
+                        img[:,:,i] = new_array.reshape((self.row, im_width))
+
+                        # array_262144_even = np_data[::2].astype(np.uint8)
+                        # array_262144_odd = np_data[1::2].astype(np.uint8)
+                        # new_array = (array_262144_odd.astype(np.uint32) * (2 ** (bitDepth - 8))) + (array_262144_even.astype(np.uint32) >> (16 - bitDepth))
+                        # #new_array = (array_262144_odd * (2**8)) + (array_262144_even)
+                        # img[:,:,i] = new_array.reshape((512, 512))
         return img
     
     def set_arbitrary_steps(self, steps):
