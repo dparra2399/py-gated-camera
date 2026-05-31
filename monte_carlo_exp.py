@@ -27,6 +27,7 @@ DEPTH_MARGIN = 3.0
 REP_RATE = 5 * 1e6
 DEPTH_SAMPLE = 0.01
 SPLIT_ACQUISITION = True  # if True, scale photon count by acquisition splits per capture type/k
+TRIAL_CHUNK = 500         # trials processed at once per worker — keeps memory bounded
 DEFAULT_RUNS = [
     {'type': 'ham',        'k': 3},
     {'type': 'coarse',     'k': 3},
@@ -83,15 +84,30 @@ def run_one(idx, cap_type, k, photon_count_base, sbr, x, y,
             k=k,
         )
 
-    _, rmse, mae = decode_simulation_depths(
-        coding_matrix=coding_matrix,
-        coded_values=coded_values,
-        depths=depths,
-        trials=trials,
-        tbin_depth_res=tbin_depth_res,
-    )
+    # chunk trials to keep per-worker memory bounded
+    sum_abs_err = 0.0
+    sum_sq_err  = 0.0
+    n_total     = 0
+    remaining   = trials
+    while remaining > 0:
+        chunk = min(TRIAL_CHUNK, remaining)
+        decoded_chunk, _, _ = decode_simulation_depths(
+            coding_matrix=coding_matrix,
+            coded_values=coded_values,
+            depths=depths,
+            trials=chunk,
+            tbin_depth_res=tbin_depth_res,
+        )
+        errors = decoded_chunk - depths        # (chunk, n_depths)
+        sum_abs_err += np.sum(np.abs(errors))
+        sum_sq_err  += np.sum(errors ** 2)
+        n_total     += errors.size
+        remaining   -= chunk
 
-    return idx, x, y, mae * 1000, rmse * 1000
+    mae  = (sum_abs_err / n_total) * 1000
+    rmse = np.sqrt(sum_sq_err / n_total) * 1000
+
+    return idx, x, y, mae, rmse
 
 
 def parse_args():
