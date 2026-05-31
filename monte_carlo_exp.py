@@ -153,7 +153,7 @@ if __name__ == "__main__":
     ]
 
     print(f"Running {len(tasks)} tasks in parallel...")
-    results = Parallel(n_jobs=40, verbose=10)(tasks)
+    results = Parallel(n_jobs=20, verbose=10)(tasks)
 
     for idx, x, y, mae, rmse in results:
         mae_results[idx, x, y]  = mae
