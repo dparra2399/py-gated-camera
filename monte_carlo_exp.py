@@ -19,7 +19,7 @@ from utils.tof_utils import (
 # =============================
 PHOTON_COUNTS = np.linspace(300, 3000, 10).tolist()
 SBRS = np.linspace(0.1, 10, 10).tolist()
-TRIALS = 100
+TRIALS = 5000
 N_TBINS = 999
 SMOOTH_SIGMA = 1
 SHIFT = None
@@ -153,13 +153,13 @@ if __name__ == "__main__":
     ]
 
     print(f"Running {len(tasks)} tasks in parallel...")
-    results = Parallel(n_jobs=10, verbose=10)(tasks)
+    results = Parallel(n_jobs=40, verbose=10)(tasks)
 
     for idx, x, y, mae, rmse in results:
         mae_results[idx, x, y]  = mae
         rmse_results[idx, x, y] = rmse
 
-    save_dir = "/Users/davidparra/PycharmProjects/py-gated-camera/data/monte_carlo_exp"
+    save_dir = "/home/deparra/projects/py-gated-camera/plot_scripts/data/monte_carlo_exp"
     os.makedirs(save_dir, exist_ok=True)
 
     def _label(r):
