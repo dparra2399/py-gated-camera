@@ -46,15 +46,18 @@ for j, (capture_type, k) in enumerate(zip(TYPES, KS)):
     # --- col 0: modfs ---
     ax = fig.add_subplot(gs_main[j, 0])
     if modfs.ndim == 1:
-        ax.plot(np.roll(modfs, MODF_SHIFT), color=ILLUM_COLOR)
+        ax.plot(np.roll(modfs, MODF_SHIFT), linewidth=2.5,color=ILLUM_COLOR)
     else:
-        ax.plot(np.roll(modfs[:, 0], MODF_SHIFT), color=ILLUM_COLOR)
+        ax.plot(np.roll(modfs[:, 0], MODF_SHIFT), linewidth=2.5, color=ILLUM_COLOR)
     ax.axvline(x=MODF_SHIFT, color='k', linestyle='--', linewidth=1)
-    ax.set_ylabel(get_string_name(capture_type, k, short=True), fontsize=12)
-    ax.set_xticks([])
+    ax.set_ylabel(get_string_name(capture_type, k, short=True), fontsize=14)
+    ax.set_xticks([N_TBINS - 1])
+    ax.set_xticklabels([r'$\tau$'] if j == n_types - 1 else [''])
     ax.set_yticks([])
     if j == 0:
-        ax.set_title(r'$s(t)$', fontsize=12)
+        ax.set_title('Illum. ' + r'$s(t)$', fontsize=14, fontweight='bold')
+    if j == n_types - 1:
+        ax.set_xlabel('Time', fontsize=14, labelpad=-10)
 
     # --- col 1: demodfs — one sub-row per k, k=0 at bottom ---
     if k > 2 * SHOW_K:
@@ -67,11 +70,12 @@ for j, (capture_type, k) in enumerate(zip(TYPES, KS)):
         for idx in range(SHOW_K):
             ki = idx
             ax = fig.add_subplot(gs_d[idx])
-            ax.plot(demodfs[:, ki], color=KI_COLORS[ki % len(KI_COLORS)])
-            ax.set_xticks([])
+            ax.plot(demodfs[:, ki], linewidth=2.5, color=KI_COLORS[ki % len(KI_COLORS)])
+            ax.set_xticks([N_TBINS - 1])
+            ax.set_xticklabels([''])
             ax.set_yticks([])
             if j == 0 and idx == 0:
-                ax.set_title(r'$g(t)$', fontsize=12)
+                ax.set_title('Gate Functions ' + r'$g(t)$', fontsize=14, fontweight='bold')
         # ellipsis
         ax = fig.add_subplot(gs_d[SHOW_K])
         ax.text(0.5, 0.5, '⋮', ha='center', va='center', fontsize=14,
@@ -81,18 +85,24 @@ for j, (capture_type, k) in enumerate(zip(TYPES, KS)):
         for idx in range(SHOW_K):
             ki = k - SHOW_K + idx
             ax = fig.add_subplot(gs_d[SHOW_K + 1 + idx])
-            ax.plot(demodfs[:, ki], color=KI_COLORS[ki % len(KI_COLORS)])
-            ax.set_xticks([])
+            ax.plot(demodfs[:, ki], linewidth=2.5, color=KI_COLORS[ki % len(KI_COLORS)])
+            ax.set_xticks([N_TBINS - 1])
+            ax.set_xticklabels([r'$\tau$'] if (idx == SHOW_K - 1 and j == n_types - 1) else [''])
             ax.set_yticks([])
+            if idx == SHOW_K - 1 and j == n_types - 1:
+                ax.set_xlabel('Time', fontsize=14, labelpad=-10)
     else:
         gs_d = gridspec.GridSpecFromSubplotSpec(k, 1, subplot_spec=gs_main[j, 1], hspace=0.05)
         for ki in range(k):
             ax = fig.add_subplot(gs_d[ki])   # ki=0 at top
-            ax.plot(demodfs[:, ki], color=KI_COLORS[ki % len(KI_COLORS)])
-            ax.set_xticks([])
+            ax.plot(demodfs[:, ki], linewidth=2.5, color=KI_COLORS[ki % len(KI_COLORS)])
+            ax.set_xticks([N_TBINS - 1])
+            ax.set_xticklabels([r'$\tau$'] if (ki == k - 1 and j == n_types - 1) else [''])
             ax.set_yticks([])
+            if ki == k - 1 and j == n_types - 1:
+                ax.set_xlabel('Time', fontsize=14, labelpad=-10)
             if j == 0 and ki == 0:
-                ax.set_title(r'$g(t)$', fontsize=12)
+                ax.set_title('Gate Functions ' + r'$g(t)$', fontsize=14, fontweight='bold')
 
     # --- col 2: coding matrix — one sub-row per k, k=0 at bottom ---
     if capture_type == 'timeslicing':
@@ -102,13 +112,22 @@ for j, (capture_type, k) in enumerate(zip(TYPES, KS)):
         gs_c = gridspec.GridSpecFromSubplotSpec(k, 1, subplot_spec=gs_main[j, 2], hspace=0.05)
         for ki in range(k):
             ax = fig.add_subplot(gs_c[ki])   # ki=0 at top
-            ax.plot(cm[:, ki], color=KI_COLORS[ki % len(KI_COLORS)])
+            ax.plot(cm[:, ki], linewidth=2.5, color=KI_COLORS[ki % len(KI_COLORS)])
             ax.set_yticks([])
+            ax.set_xticks([])
             if ki == k - 1 and j == n_types - 1:
-                ax.set_xlabel('Time Bins', fontsize=10)
+                ax.set_xlabel('Depth', fontsize=14, labelpad=7)
             else:
                 ax.set_xticks([])
             if j == 0 and ki == 0:
-                ax.set_title(r'$F(d)$', fontsize=12)
+                ax.set_title('Correlations ' + r'$F(d)$', fontsize=14, fontweight='bold')
 
+for ax in fig.get_axes():
+    for spine in ax.spines.values():
+        spine.set_linewidth(0.3)
+        spine.set_edgecolor('black')
+        spine.set_alpha(0.5)
+
+
+plt.savefig('figures/coding_schemes.pdf', bbox_inches='tight')
 plt.show()

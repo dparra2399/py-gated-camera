@@ -3,138 +3,127 @@ import matplotlib.pyplot as plt
 
 from plot_scripts.plot_utils import plot_results_summary, plot_coding_curve, plot_correlations_one_plot, \
     plot_coding_error
-from utils.tof_utils import get_ham_code, get_coarse_code, simulate_counts, simulate_counts_shared_illum, decode_simulation_depths
-from utils.tof_utils import calculate_tof_domain_params
+from utils.tof_utils import (
+    get_code,
+    simulate_counts,
+    simulate_counts_shared_illum,
+    decode_simulation_depths,
+    calculate_tof_domain_params,
+)
 
-
-# =========================
-# Parameters
-# =========================
-K = 4
-N_TBINS = 992
-TRIALS = 100
-PHOTON_COUNT = 100
-SBR = 0.1
+# =============================================================================
+# Global parameters
+# =============================================================================
+N_TBINS      = 992
+TRIALS       = 100
+PHOTON_COUNT = 2000
+SBR          = 0.1
 
 REP_RATE = 5e6
-REP_TAU = float(1 / REP_RATE)
+REP_TAU  = float(1 / REP_RATE)
 
 DEPTH_SAMPLE = 0.01
 
-rng = np.random.default_rng()
+# =============================================================================
+# Coding schemes to evaluate
+# Add / remove / reorder entries freely — everything else is automatic.
+# Each entry:
+#   type          : 'ham' | 'coarse' | 'rect' | 'trapcoarse' | 'traprect'
+#   k             : number of codes
+#   photon_count  : photons per measurement (tune per scheme as needed)
+#   simulated     : passed through to results dict (used by some plot helpers)
+# =============================================================================
+RUNS = [
+    {'type': 'ham',       'k': 4,  'photon_count': PHOTON_COUNT // 6,  'simulated': True},
+    {'type': 'coarse',    'k': 4, 'photon_count': PHOTON_COUNT // 4, 'simulated': True},
+    # {'type': 'trapcoarse','k': 8,  'photon_count': PHOTON_COUNT // 8,  'simulated': True},
+    # {'type': 'rect',      'k': 8,  'photon_count': PHOTON_COUNT // 8,  'simulated': True},
+    # {'type': 'traprect',  'k': 8,  'photon_count': PHOTON_COUNT // 8,  'simulated': True},
+]
 
-
-# =========================
+# =============================================================================
 # ToF domain
-# =========================
-(
-    rep_tau,
-    rep_freq,
-    tbin_res,
-    t_domain,
-    max_depth,
-    tbin_depth_res,
-) = calculate_tof_domain_params(N_TBINS, REP_TAU)
+# =============================================================================
+(rep_tau, rep_freq, tbin_res,
+ t_domain, max_depth, tbin_depth_res) = calculate_tof_domain_params(N_TBINS, REP_TAU)
 
 depths = np.arange(3.0, max_depth - 3.0, DEPTH_SAMPLE)
 
 
-
-
-
 def print_example_counts(name, depths, coded_values):
     print(f"{name}")
-    print(f"depth: {depths[0]}")
-    print(f"counts: {coded_values[0]}")
-    print(f"total counts: {np.sum(coded_values[0])}")
+    print(f"  depth:        {depths[0]}")
+    print(f"  counts:       {coded_values[0]}")
+    print(f"  total counts: {np.sum(coded_values[0])}")
     print()
 
 
+# =============================================================================
+# Run each scheme
+# =============================================================================
+results = []
 
-# =========================
-# HAM
-# =========================
-ham_modfs, ham_demodfs, ham_cm = get_ham_code(K, N_TBINS)
+for run in RUNS:
+    cap_type     = run['type']
+    k            = run['k']
+    photon_count = run['photon_count']
+    label        = f"{cap_type}_k{k}"
 
-_, ham_cv = simulate_counts(
-    waveform=ham_modfs,
-    demodfs=ham_demodfs,
-    depths=depths,
-    photon_count=PHOTON_COUNT // 4,
-    sbr=SBR,
-    tbin_depth_res=tbin_depth_res,
-    n_tbins=N_TBINS,
-    k=K,
-)
+    print(f"--- {label} ---")
 
-print_example_counts("HAM", depths, ham_cv)
+    # get_code returns (modfs_or_illum, demodfs_or_coding_matrix_T, coding_matrix)
+    waveform_or_illum, demodfs_or_cm, coding_matrix = get_code(cap_type, k, N_TBINS)
 
-ham_decoded_depth, ham_rmse, ham_mae = decode_simulation_depths(
-    coding_matrix=ham_cm,
-    coded_values=ham_cv,
-    depths=depths,
-    trials=TRIALS,
-    tbin_depth_res=tbin_depth_res,
-)
+    if cap_type == 'ham':
+        _, coded_values = simulate_counts(
+            waveform=waveform_or_illum,
+            demodfs=demodfs_or_cm,
+            depths=depths,
+            photon_count=photon_count,
+            sbr=SBR,
+            tbin_depth_res=tbin_depth_res,
+            n_tbins=N_TBINS,
+            k=k,
+        )
+    else:
+        _, coded_values = simulate_counts_shared_illum(
+            illum=waveform_or_illum,
+            coding_matrix=demodfs_or_cm,
+            depths=depths,
+            photon_count=photon_count,
+            sbr=SBR,
+            tbin_depth_res=tbin_depth_res,
+            n_tbins=N_TBINS,
+            k=k,
+        )
 
+    print_example_counts(label, depths, coded_values)
 
-# =========================
-# COARSE
-# =========================
-illum, coarse_demodfs, coarse_cm = get_coarse_code(16, N_TBINS)
+    decoded_depth, rmse, mae = decode_simulation_depths(
+        coding_matrix=coding_matrix,
+        coded_values=coded_values,
+        depths=depths,
+        trials=TRIALS,
+        tbin_depth_res=tbin_depth_res,
+    )
 
-_, coarse_cv = simulate_counts_shared_illum(
-    illum=illum,
-    coding_matrix=coarse_demodfs,
-    depths=depths,
-    photon_count=PHOTON_COUNT // 16,
-    sbr=SBR,
-    tbin_depth_res=tbin_depth_res,
-    n_tbins=N_TBINS,
-    k=16,
-)
+    print(f"  MAE={mae * 1000:.3f} mm  |  RMSE={rmse * 1000:.3f} mm\n")
 
+    results.append({
+        'name':          label,
+        'coding_matrix': coded_values,
+        'waveform':      waveform_or_illum if waveform_or_illum.ndim > 1
+                         else np.tile(waveform_or_illum[:, None], (1, k)),
+        'rmse':          rmse * 1000,
+        'mae':           mae  * 1000,
+        'depths':        depths,
+        'simulated':     run.get('simulated', True),
+    })
 
-print_example_counts("COARSE", depths, coarse_cv)
-
-coarse_decoded_depth, coarse_rmse, coarse_mae = decode_simulation_depths(
-    coding_matrix=coarse_cm,
-    coded_values=coarse_cv,
-    depths=depths,
-    trials=TRIALS,
-    tbin_depth_res=tbin_depth_res,
-)
-
-#print(ham_cv.shape)
-#print(np.mean(ham_cv / coarse_cv, axis=0))
-
-# =========================
-# Summary
-# =========================
-print(f"HAM    → MAE={ham_mae * 1000:.3f} | RMSE={ham_rmse * 1000:.3f}")
-print(f"COARSE → MAE={coarse_mae * 1000:.3f} | RMSE={coarse_rmse * 1000:.3f}")
-
-
-results = [
-    {
-        "name": "ham",
-        "coding_matrix": ham_cv,
-        "waveform": ham_modfs,
-        "rmse": ham_rmse * 1000,
-        "mae": ham_mae * 1000,
-        "depths": depths
-    },
-    {
-        "name": "coarse",
-        "coding_matrix": coarse_cv,
-        "waveform": np.tile(illum[:, None], (1, K)),
-        "rmse": coarse_rmse * 1000,
-        "mae": coarse_mae * 1000,
-        "depths": depths
-
-    },
-]
-#plot_correlations_one_plot(results)
-#plot_coding_error(results)
+# =============================================================================
+# Plot
+# =============================================================================
+# plot_correlations_one_plot(results)
+# plot_coding_error(results)
 plot_results_summary(results)
 # plot_coding_curve(results)

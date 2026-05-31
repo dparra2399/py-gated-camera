@@ -6,18 +6,19 @@ from matplotlib import pyplot as plt
 from spad_lib.spad512utils import get_gate_shifts
 from utils.file_utils import *
 from plot_scripts.plot_utils import plot_single_pixel_dist, plot_single_pixel_corr, plot_single_pixel_depth_pairs, \
-    get_string_name, get_single_pixel_title
+    get_string_name, get_single_pixel_title, get_cap_color
 from utils.global_constants import *
+from utils.parameter_classes import DecodeConfig
 from utils.tof_utils import build_coding_matrix_from_correlations, get_simulated_coding_matrix, \
     calculate_tof_domain_params, decode_single_pixel_experiment
-from utils.parameter_classes import DecodeConfig
 import numpy as np
 
 # -----------------------------------------------------------------------------
 # CONFIG (capitalized)
 # ----------------------------------------------------------------------------
-EXP_PATHS = [['k4_LOWSNR', 'timeslicing_LOWSNR']]
+EXP_PATHS = [['k4_HIGHSNR'], ['k4_LOWSNR']]
 N_TBINS = 1500
+ERROR_TYPE = "MAE"
 
 #Which correlation functions to use
 SIMULATED_CORRELATIONS = False
@@ -75,6 +76,7 @@ if __name__ == '__main__':
             capture_paths = [p for p in capture_paths if os.path.isfile(os.path.join(capture_folder, p))]
             capture_paths = filter_capture_files(capture_paths)
 
+
             for i, coded_vals_name in enumerate(capture_paths):
                 if coded_vals_name.startswith('.'):
                     continue
@@ -93,6 +95,7 @@ if __name__ == '__main__':
                 freq_mhz = freq * 1e-6
                 duty = params['duty']
                 rep_tau = params['rep_tau']
+
 
                 gate_widths, gate_starts = get_gate_shifts(capture_type, freq, k)
                 total_count = sum(len(sublist) for sublist in gate_widths)
@@ -162,12 +165,18 @@ if __name__ == '__main__':
                     #depths = depths[:, 2:-2]
                     #gt_depths = gt_depths[:, 2:-2]
 
-                    mae = np.nanmean(np.abs(depths - gt_depths)) * 1000
+                    mae = np.nanmean(np.abs(depths - gt_depths), axis=0) * 1000
                     rmse = np.sqrt(np.nanmean((depths - gt_depths) ** 2))* 1000
+
+                    # mae[3] = np.nan
+                    # mae[7] = np.nan
+
+                    mae = np.nanmean(mae)
+
                     if mae < 100000:
                         mae_list.append(mae)
                         rmse_list.append(rmse)
-                        int_times.append(num_pixels * int_time)
+                        int_times.append(num_pixels * int_time / 1000)
 
                 cfg_dict = asdict(cfg)
                 cfg_dict.update({'depths': depths, 'gt_depths': gt_depths,
@@ -195,24 +204,41 @@ if __name__ == '__main__':
             capture_type = inner_dict['capture_type']
             k = inner_dict['k']
 
+            if ERROR_TYPE == "MAE":
+                error = mae
+            elif ERROR_TYPE == "RMSE":
+                error = rmse
+            else:
+                raise ValueError(f"Unknown error type {ERROR_TYPE}")
             ax.plot(
                 int_times,
-                mae,
+                error,
                 marker='o',
+                linewidth=2,
                 markerfacecolor='none',
                 markeredgewidth=2,
-                label=get_string_name(capture_type, k),
+                label=get_string_name(capture_type, None, True),
+                color=get_cap_color(capture_type, None)
             )
             #ax.set_ylim(0, 200)
-
-        ax.set_title(get_single_pixel_title(exp_paths[j]), fontsize=16)
-        ax.legend(fontsize=12, framealpha=1, facecolor='white', edgecolor='black')
-        ax.set_xlabel('Integration Time (ms)', fontsize=20)
-        ax.set_ylabel('Depth Error (mm)', fontsize=20)
+            ax.set_xlim(-0.2, max(int_times)+0.2)
+        ax.set_title(get_single_pixel_title(exp_paths[j]) + f" K ={k}", fontsize=24, fontweight='bold')
+        ax.legend(fontsize=16, framealpha=1, facecolor='white', edgecolor='black')
+        ax.set_xlabel('Total Integration Time (seconds)', fontsize=22)
+        if ERROR_TYPE == "MAE":
+            ax.set_ylabel('Mean Depth Error (mm)', fontsize=22)
+        elif ERROR_TYPE == "RMSE":
+            ax.set_ylabel('Mean Squared Depth Error (mm)', fontsize=22)
+        else:
+            raise ValueError(f"Unknown error type {ERROR_TYPE}")
         ax.tick_params(axis='both', labelsize=18)
-        ax.grid(True)
+        ax.grid(True, alpha=0.5)
+        for spine in ax.spines.values():
+            spine.set_linewidth(2)
+            spine.set_edgecolor('black')
 
     #plt.rcParams['svg.fonttype'] = 'path'
-    #plt.savefig('single_pixel_decoding_exposure_plot.pdf', dpi=300)
+    #timeslicing = if
+    plt.savefig(f'figures/single_pixel_k{k}.pdf', dpi=300, bbox_inches='tight', pad_inches=0.1)
     plt.show()
     print(len(all_depths_dicts))

@@ -1,3 +1,5 @@
+import numpy as np
+
 from spad_lib.spad512utils import *
 from utils.file_utils import *
 from plot_scripts.plot_utils import *
@@ -9,15 +11,22 @@ from utils.parameter_classes import DecodeConfig
 # -----------------------------------------------------------------------------
 # CONFIG (capitalized)
 # -----------------------------------------------------------------------------
-EXP_PATH = os.path.join('horse_results', 'k4_HIGHSNR_3')
+EXP_PATH = os.path.join('horse_results', 'k4_HIGHSNR_1')
+SNR_LABEL     = "highsnr" if "highsnr" in EXP_PATH.lower() else "lowsnr"
+FIGURES_DIR   = "figures"   # where 3d_recon_single.py saved its PNGs
+VMAX_ERROR    = 0.1  # metres; None = auto (95th percentile across runs)
+PLOT_POINT_CLOUD = False  # True = show point cloud PNG in top row; False = show depth map instead
+ALIGN_DEPTHS = True       # shift each run's depth map so all medians match the first run
 N_TBINS = 3000
-NUM_TRIALS = 150
+NUM_TRIALS = 70
+
+BAD_ROWS = None #[(230, 260), (80, 95)]
 
 #PLotting utils for visualization
 PLOT_DEPTH_MAPS = True
-VMINS = None # [13.5, 13] * 1#None if no min depth value just choose smallest
-VMAXS = None # [14, 14] * 1#none if no max depth value just choose largest
-MEDIAN_FILTER_SIZE = 3
+VMINS = None
+VMAXS = None
+MEDIAN_FILTER_SIZE = 1
 
 #Masking or normalizing depth maps
 NORMALIZE_DEPTH_MAPS = False
@@ -29,7 +38,7 @@ USE_FULL_CORRELATIONS = False
 
 #Smoothing or shifting the correlation functions
 SIGMA_SIZE = None #None if no smoothing
-SHIFT_SIZE = 200 #None if no shifting
+SHIFT_SIZE = 70 #None if no shifting
 
 #Corrections to depth map
 CORRECT_DEPTH_DISTORTION = False
@@ -90,6 +99,7 @@ if __name__ == '__main__':
     depth_map_dict = {}
 
     for i, coded_vals_name in enumerate(capture_paths):
+        if coded_vals_name.startswith('.'): continue
         coded_vals_path = os.path.join(capture_folder, coded_vals_name)
         capture_file = np.load(coded_vals_path, allow_pickle=True)
         params = capture_file['cfg'].item()
@@ -171,11 +181,21 @@ if __name__ == '__main__':
             coded_vals_trials = coded_vals_trials[:, : im_width // 2]
 
         if cfg.mask_background_pixels:
-            depth_map = depth_map[40:450, 20:-20]
-            gt_depth_map = gt_depth_map[40:450, 20:-20]
+            if "horse" in coded_vals_path:
+                tmp = np.sum(coded_vals_total, axis=-1)
+                depth_map[tmp < 1e4] = np.nan
+
+            else:
+                depth_map = depth_map[40:450, 20:-20]
+                gt_depth_map = gt_depth_map[40:450, 20:-20]
             depth_map[depth_map == 0] = np.nan
             gt_depth_map[gt_depth_map == 0] = np.nan
             mask = None
+
+        if BAD_ROWS is not None and type(BAD_ROWS) == list:
+            depth_map = depth_map.astype(float)
+            for BAD_ROW in BAD_ROWS:
+                depth_map[BAD_ROW[0]:BAD_ROW[1] + 1, :] = np.nan
 
         mae = np.nanmean(np.abs(depth_map - gt_depth_map))
         rmse = np.sqrt(np.nanmean((depth_map - gt_depth_map) ** 2))
@@ -190,7 +210,45 @@ if __name__ == '__main__':
         #plt.plot(coding_matrix)
         #plt.show()
 
-    if cfg.plot_depth_maps:
-        plot_capture_comparison(depth_map_dict, vmins=cfg.vmins, vmaxs=cfg.vmaxs,
-                                normalize_depth_maps=cfg.normalize_depth_maps,
-                                median_filter_size=cfg.median_filter_size)
+    # --- median-align all depth maps to the first run ---
+    if ALIGN_DEPTHS:
+        ref_median = None
+        for d in depth_map_dict.values():
+            med = np.nanmedian(d['depth_map'])
+            if ref_median is None:
+                ref_median = med
+            else:
+                shift = ref_median - med
+                d['depth_map']    = d['depth_map']    + shift
+                d['gt_depth_map'] = d['gt_depth_map'] + shift
+            print(f"  {d['capture_type']} k={d['k']}: median={med:.3f} m  shift={ref_median - med:.3f} m")
+
+
+    # --- clip depth maps to VMINS / VMAXS ---
+    for d in depth_map_dict.values():
+        vmin_clip = VMINS if VMINS is not None else np.nanmin(d['depth_map'])
+        vmax_clip = VMAXS if VMAXS is not None else np.nanmax(d['depth_map'])
+        d['depth_map']    = np.clip(d['depth_map'],    vmin_clip, vmax_clip)
+        d['gt_depth_map'] = np.clip(d['gt_depth_map'], vmin_clip, vmax_clip)
+
+    # --- 3-D recon comparison panel ---
+    recon_runs = []
+    for coded_vals_path, d in depth_map_dict.items():
+        recon_runs.append({
+            'capture_type': d['capture_type'],
+            'k':            d['k'],
+            'snr_label':    SNR_LABEL,
+            'depth_map':    d['depth_map'],
+            'gt_depth_map': d['gt_depth_map'],
+        })
+
+
+    save_panel = os.path.join(FIGURES_DIR, f"3d_recon_panel_{SNR_LABEL}_k{d['k']}.pdf")
+    plot_3d_recon_comparison(
+        recon_runs,
+        snr_label=SNR_LABEL,
+        vmax_error=VMAX_ERROR,
+        figures_dir=FIGURES_DIR,
+        save_path=save_panel,
+        plot_point_cloud=PLOT_POINT_CLOUD,
+    )

@@ -25,6 +25,136 @@ def intrinsics_from_pixel_pitch(W, H, f_mm, pitch_um):
     return fx, fy, cx, cy
 
 
+def correct_spherical_distortion(depth_map, f_mm=None, pitch_um=None, fx=None, fy=None, cx=None, cy=None):
+    """
+    Correct spherical (radial) depth distortion from a ToF/LiDAR sensor.
+
+    A ToF sensor measures the radial distance r along each ray. This converts
+    it to the planar z-depth (perpendicular distance to the image plane):
+
+        z = r * cos(theta)  =  r / sqrt(1 + ((u-cx)/fx)^2 + ((v-cy)/fy)^2)
+
+    Parameters
+    ----------
+    depth_map : np.ndarray (H, W)
+        Raw depth map containing radial distances.
+    f_mm : float, optional
+        Focal length in mm. Used with pitch_um to derive fx/fy.
+    pitch_um : float, optional
+        Pixel pitch in micrometres. Used with f_mm to derive fx/fy.
+    fx, fy : float, optional
+        Focal lengths in pixels. If provided, f_mm and pitch_um are ignored.
+    cx, cy : float, optional
+        Principal point in pixels. Defaults to image centre if not provided.
+
+    Returns
+    -------
+    np.ndarray (H, W)
+        Corrected planar depth map.
+    """
+    H, W = depth_map.shape
+
+    if fx is None or fy is None:
+        if f_mm is None or pitch_um is None:
+            raise ValueError("Provide either (fx, fy) or (f_mm, pitch_um).")
+        fx, fy, _cx, _cy = intrinsics_from_pixel_pitch(W, H, f_mm, pitch_um)
+        if cx is None: cx = _cx
+        if cy is None: cy = _cy
+    else:
+        if cx is None: cx = W / 2.0
+        if cy is None: cy = H / 2.0
+
+    u, v = np.meshgrid(np.arange(W, dtype=np.float64),
+                        np.arange(H, dtype=np.float64))
+
+    # cos(theta) = 1 / sqrt(1 + ((u-cx)/fx)^2 + ((v-cy)/fy)^2)
+    cos_theta = 1.0 / np.sqrt(1.0 + ((u - cx) / fx) ** 2 + ((v - cy) / fy) ** 2)
+
+    return depth_map * cos_theta
+
+
+def correct_bistatic_distortion(depth_map, baseline, f_mm=None, pitch_um=None,
+                                 fx=None, fy=None, cx=None, cy=None):
+    """
+    Correct for bistatic (offset transmitter/receiver) geometry AND spherical
+    distortion in a single pass.
+
+    A co-located (monostatic) ToF sensor measures the radial distance r from
+    the sensor to the point.  When the laser is offset from the detector by a
+    baseline vector b (in metres), the measured quantity is the bistatic range:
+
+        r_meas = (|LP| + |PD|) / 2
+
+    Inverting the ellipsoid equation gives the true radial distance t from the
+    detector centre to the point:
+
+        t = (4·r² − |b|²) / (2·(2·r − n̂·b))
+
+    where n̂ is the unit ray direction for each pixel and b is the laser
+    position relative to the detector.  The planar z-depth is then:
+
+        z = t · cos(θ)
+
+    When baseline=(0,0,0) this reduces to the monostatic spherical correction.
+
+    Parameters
+    ----------
+    depth_map : np.ndarray (H, W)
+        Raw depth map (bistatic range r_meas per pixel, in metres).
+    baseline : array-like, shape (3,)
+        Laser position relative to detector centre in metres.
+        E.g. (0.10, 0, 0) for a 10 cm horizontal offset to the right.
+    f_mm : float, optional
+        Focal length in mm. Used with pitch_um to derive fx/fy.
+    pitch_um : float, optional
+        Pixel pitch in micrometres. Used with f_mm to derive fx/fy.
+    fx, fy : float, optional
+        Focal lengths in pixels. Overrides f_mm / pitch_um if provided.
+    cx, cy : float, optional
+        Principal point in pixels. Defaults to image centre.
+
+    Returns
+    -------
+    np.ndarray (H, W)
+        Corrected planar depth map (z-depth, in metres).
+    """
+    H, W = depth_map.shape
+
+    if fx is None or fy is None:
+        if f_mm is None or pitch_um is None:
+            raise ValueError("Provide either (fx, fy) or (f_mm, pitch_um).")
+        fx, fy, _cx, _cy = intrinsics_from_pixel_pitch(W, H, f_mm, pitch_um)
+        if cx is None: cx = _cx
+        if cy is None: cy = _cy
+    else:
+        if cx is None: cx = W / 2.0
+        if cy is None: cy = H / 2.0
+
+    baseline = np.asarray(baseline, dtype=np.float64)
+    b_sq = float(np.dot(baseline, baseline))   # |b|²
+
+    u, v = np.meshgrid(np.arange(W, dtype=np.float64),
+                        np.arange(H, dtype=np.float64))
+
+    # unnormalised ray direction: (dx, dy, 1) in camera coordinates
+    dx = (u - cx) / fx
+    dy = (v - cy) / fy
+    ray_norm = np.sqrt(dx ** 2 + dy ** 2 + 1.0)   # ||(dx, dy, 1)||
+
+    # n̂ · b  (projection of baseline onto each unit ray)
+    n_dot_b = (dx * baseline[0] + dy * baseline[1] + baseline[2]) / ray_norm
+
+    # cos(θ) = 1 / ray_norm  (same as monostatic spherical correction)
+    cos_theta = 1.0 / ray_norm
+
+    r = depth_map.astype(np.float64)
+
+    # true radial distance from detector: t = (4r² - |b|²) / (2*(2r - n̂·b))
+    t = (4.0 * r ** 2 - b_sq) / (2.0 * (2.0 * r - n_dot_b))
+
+    return t * cos_theta
+
+
 def get_hamk3_gate_shifts(freq, k=3):
     assert k == 3
     tau = float(1 / freq) #repition tau

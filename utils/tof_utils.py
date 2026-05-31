@@ -57,39 +57,56 @@ def get_simulated_coding_matrix(type, n_tbins, k):
         (modfs, demodfs) = func(N=n_tbins)
         #Dt = demodfs.sum(axis=1)
         #print(Dt.min(), Dt.max(), Dt.mean(), Dt.std())
-        irf = gaussian_pulse(np.arange(n_tbins), 0, 20, circ_shifted=True)
+        irf = gaussian_pulse(np.arange(n_tbins), 0, 1, circ_shifted=True)
         coding_matrix = np.fft.ifft(np.fft.fft(modfs, axis=0).conj() * np.fft.fft(demodfs, axis=0), axis=0).real
 
         coding_matrix = np.fft.ifft(
             np.fft.fft(irf[..., np.newaxis], axis=0).conj() * np.fft.fft(coding_matrix, axis=0),
             axis=0).real
 
-    elif type=='coarse' or type=="rect" or type=="timeslicing":
-        coding_matrix = np.kron(np.eye(k), np.ones((1, n_tbins //k)))
-        irf = gaussian_pulse(np.arange(coding_matrix.shape[-1]), 0, n_tbins // (k + 7), circ_shifted=True)
-        #
-        # import matplotlib.pyplot as plt
-        # coding_matrix_plot = np.transpose(coding_matrix / np.sum(coding_matrix, axis=-1, keepdims=True))
-        # irf_plot = irf / np.sum(irf, axis=-1, keepdims=True)
-        # plt.plot(coding_matrix_plot)
-        # plt.plot(np.roll(irf_plot, shift=n_tbins // 2))
-        # plt.show()
-
+    elif type=='coarse' or type=="timeslicing":
+        coding_matrix = np.kron(np.eye(k), np.ones((1, n_tbins // k)))
+        width = (n_tbins // (k)) / (2 * np.sqrt(np.log(2))) * 0.75
+        irf = gaussian_pulse(np.arange(coding_matrix.shape[-1]), 0, width, circ_shifted=True)
         coding_matrix = np.fft.ifft(
             np.fft.fft(irf[..., np.newaxis], axis=0).conj() * np.fft.fft(np.transpose(coding_matrix), axis=0),
             axis=0).real
 
-    elif type=='trapcoarse' or type=="traprect":
-        coding_matrix = np.kron(np.eye(k), np.ones((1, 2 * n_tbins //k)))
-        irf = gaussian_pulse(np.arange(coding_matrix.shape[-1]), 0, n_tbins // (k + 4), circ_shifted=True)
-        #
-        # import matplotlib.pyplot as plt
-        # coding_matrix_plot = np.transpose(coding_matrix / np.sum(coding_matrix, axis=-1, keepdims=True))
-        # irf_plot = irf / np.sum(irf, axis=-1, keepdims=True)
-        # plt.plot(coding_matrix_plot)
-        # plt.plot(np.roll(irf_plot, shift=n_tbins // 2))
-        # plt.show()
+    elif type == "rect":
+        coding_matrix = np.kron(np.eye(k), np.ones((1, n_tbins // k)))
+        pulse_width = n_tbins // (k)
+        irf = np.zeros(n_tbins)
+        half = pulse_width // 2
+        irf[:pulse_width - half] = 1   # right half at start
+        irf[n_tbins - half:] = 1       # left half wrapped at end (circ-shifted square pulse)
+        coding_matrix = np.fft.ifft(
+            np.fft.fft(irf[..., np.newaxis], axis=0).conj() * np.fft.fft(np.transpose(coding_matrix), axis=0),
+            axis=0).real
 
+    elif type == 'trapcoarse':
+        gate_width = 2 * n_tbins // k
+        step = n_tbins // k
+        coding_matrix = np.zeros((k, n_tbins))
+        for i in range(k):
+            indices = np.arange(i * step, i * step + gate_width) % n_tbins
+            coding_matrix[i, indices] = 1
+        irf = gaussian_pulse(np.arange(coding_matrix.shape[-1]), 0, n_tbins // (k + 5), circ_shifted=True)
+        coding_matrix = np.fft.ifft(
+            np.fft.fft(irf[..., np.newaxis], axis=0).conj() * np.fft.fft(np.transpose(coding_matrix), axis=0),
+            axis=0).real
+
+    elif type == "traprect":
+        gate_width = 2 * n_tbins // k
+        step = n_tbins // k
+        coding_matrix = np.zeros((k, n_tbins))
+        for i in range(k):
+            indices = np.arange(i * step, i * step + gate_width) % n_tbins
+            coding_matrix[i, indices] = 1
+        pulse_width = n_tbins // (k)
+        irf = np.zeros(n_tbins)
+        half = pulse_width // 2
+        irf[:pulse_width - half] = 1   # right half at start
+        irf[n_tbins - half:] = 1       # left half wrapped at end (circ-shifted square pulse)
         coding_matrix = np.fft.ifft(
             np.fft.fft(irf[..., np.newaxis], axis=0).conj() * np.fft.fft(np.transpose(coding_matrix), axis=0),
             axis=0).real
@@ -110,7 +127,7 @@ def build_coding_matrix_from_correlations(
         # correlations_total: (H, W, n_tbins, K)
         coding_matrix = gaussian_filter(
             correlations_total.swapaxes(-1, -2),  # -> (H,W,K,n_tbins)
-            sigma=(1, 1, 1, 0),
+            sigma=(3, 3, 0, 0),
         )
         # roll along time
         if shift_size is not None:
@@ -331,7 +348,8 @@ def get_ham_code(k, n_tbins):
 
 
 def _make_illum(n_tbins, k, add, use_rect):
-    width = n_tbins // (k + add)
+    #width = n_tbins // (k + add)
+    width = (n_tbins // (k)) / (2 * np.sqrt(np.log(2))) * 0.86 #make it FWHM
     if use_rect:
         width = n_tbins // k
         pulse = np.zeros(n_tbins)
@@ -350,7 +368,8 @@ def get_coarse_code(k, n_tbins, use_rect=False):
                      kind='nearest', axis=-1)
         coding_matrix = f(np.linspace(0, 1, n_tbins))
 
-    add = 4 if k in (3, 4) else 20
+    #add = 4 if k in (3, 4) else 4
+    add = 0
     illum = _make_illum(n_tbins, k, add, use_rect)
 
     filtered_coding_matrix = np.fft.ifft(
@@ -372,7 +391,8 @@ def get_trap_code(k, n_tbins, use_rect=False):
         cols = (np.arange(start, start + block_len) % n_tbins)
         coding_matrix[i, cols] = 1
 
-    add = 4 if k in (3, 4) else 0
+    #add = 4 if k in (3, 4) else 4
+    add = 0
     illum = _make_illum(n_tbins, k, add, use_rect)
 
     filtered_coding_matrix = np.fft.ifft(

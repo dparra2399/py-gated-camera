@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from plot_scripts.plot_utils import plot_coding_curve, plot_coding_error, plot_correlations_one_plot, \
     plot_results_summary, plot_depth_error_distribution
 from utils.global_constants import *
-from utils.file_utils import get_data_folder, make_correlation_filename, corr_parse_run
+from utils.file_utils import get_data_folder, make_correlation_filename, corr_parse_run, load_correlation_npz
 from utils.tof_utils import (
     build_coding_matrix_from_correlations,
     decode_from_correlations,
@@ -17,10 +17,10 @@ from utils.tof_utils import (
 # =============================
 # Defaults
 # =============================
-PHOTON_COUNT = 1000
-SBR = 1.0
-TRIALS = 100
-N_TBINS = 999
+PHOTON_COUNT = 500
+SBR = 5.0
+TRIALS = 1000
+N_TBINS = 996
 SMOOTH_SIGMA = 1
 SHIFT = None
 DEPTH_MARGIN = 3.0
@@ -35,16 +35,16 @@ ham,3,5,100,50,10,False
 """
 
 DEFAULT_RUNS = [
-    # "ham,3,10,500,16,20,False",
+    #"ham,3,10,500,16,20,False",
     # "ham,3,10,500,16,20,True",
-    # "coarse,3,10,420,16,30,False",
-    # "trapcoarse,3,10,420,16,30,False",
+    # "coarse,3,10,420,16,30,True",
+    # "rect,3,10,230,16,30,True",
+
 
     "ham,4,10,770,16,15,False",
     "ham,4,10,770,16,15,True",
-    "coarse,4,10,540,16,23,False",
-    #"coarse,3,10,500,16,30,False",
-
+    # "coarse,4,10,540,16,23,False",
+    "rect,4,10,420,16,23,True"
     #"coarse,4,10,1200,16,12,False",
 
     #"ham,3,5, 4000,50,20",
@@ -130,9 +130,9 @@ if __name__ == "__main__":
         if r["simulated_correlations"]:
             coding_matrix = get_simulated_coding_matrix(name, args.n_tbins, r["k"])
         else:
-            file = np.load(path, allow_pickle=True)
+            file = load_correlation_npz(path)
             cfg = file["cfg"].item()
-            correlations_total = file["correlations"]
+            correlations_total = file['correlations']
             coding_matrix = build_coding_matrix_from_correlations(
                 correlations_total,
                 False,

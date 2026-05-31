@@ -14,7 +14,7 @@ import numpy as np
 # -----------------------------------------------------------------------------
 # CONFIG (capitalized)
 # ----------------------------------------------------------------------------
-EXP_PATH = os.path.join('timeslicing_HIGHSNR')
+EXP_PATH = os.path.join('tmp')
 N_TBINS = 1500
 
 #PLotting utils for visualization

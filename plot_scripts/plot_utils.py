@@ -101,10 +101,10 @@ def plot_sample_points(
         # Label in compact form (e.g., 1.2k instead of 1200)
         axs[0, i].bar_label(
             bars,
-            labels=[f"{val/1e3:.5f}k" if val > 999 else f"{val:.0f}" for val in coded_vals_save[y, x, :]],
+            labels=[f"{val/1e3:.1f}k" if val > 999 else f"{val:.0f}" for val in coded_vals_save[y, x, :]],
             padding=2, fontsize=8)
         axs[0, i].ticklabel_format(style="sci", axis="y", scilimits=(3, 3))
-        axs[0, i].set_title(f'Intensity Values \n Count = {np.sum(coded_vals_save[y, x, :]) / 1000:.5f}k')
+        axs[0, i].set_title(f'Intensity Values \n Count = {np.sum(coded_vals_save[y, x, :]) / 1000:.1f}k')
 
     plt.show()
     return
@@ -140,45 +140,44 @@ def plot_sample_points_simple(
 
 def plot_correlation_functions(
         point_list: list,
-        correlations: np.ndarray,
+        correlations,           # np.ndarray  OR  list of np.ndarray (one per column)
         n_tbins = None,
         smooth_sigma: float = None,
+        labels: list = None,    # optional column titles when correlations is a list
 ):
-    #average_correlation = np.transpose(np.mean(np.mean(correlations[20:-20, 20:correlations.shape[1]//2, :], axis=0), axis=0))
-    average_correlation = np.transpose(np.mean(np.mean(correlations[280:300, 140:150, :], axis=0), axis=0))
-    if smooth_sigma is not None:
-        average_correlation = gaussian_filter1d(average_correlation, sigma=smooth_sigma, axis=0)
+    # normalise to a list so the rest of the code is uniform
+    if isinstance(correlations, np.ndarray):
+        correlations_list = [correlations]
+    else:
+        correlations_list = list(correlations)
 
-    if n_tbins is not None:
-        original_len = average_correlation.shape[0]
-        f = interp1d(
-            np.linspace(0, 1, original_len),
-            average_correlation,
-            kind='cubic',
-            axis=0,
-            fill_value='extrapolate'
-        )
-        average_correlation = f(np.linspace(0, 1, n_tbins))
-
-    fig, axs = plt.subplots(1, len(point_list)+2, figsize=(15, 8))
-    axs[-1].imshow(np.sum(correlations[:,:,:,0], axis=-1))
-    axs[-1].set_title('Intensity Image')
-
-    axs[-2].plot(average_correlation)
-    axs[-2].set_title('Corrfs \n (averaged)')
+    n_cols = len(correlations_list)
     colors = ['red', 'blue', 'orange', 'green', 'purple', 'brown']
-    correlations_tmp = correlations.swapaxes(-1, -2)
-    if smooth_sigma is not None:
-        correlations_tmp = gaussian_filter(correlations_tmp, sigma=(1, 1, 1, 0))
-    for i, item in enumerate(point_list):
-        x, y = item
+
+    fig, axs = plt.subplots(1, n_cols, figsize=(5 * n_cols, 5))
+    if n_cols == 1:
+        axs = [axs]
+
+    for col, corr in enumerate(correlations_list):
+        ax = axs[col]
+
+        corr_tmp = corr.swapaxes(-1, -2)   # shape: (H, W, T, K) → same convention as before
         if smooth_sigma is not None:
-            corr_func = gaussian_filter1d(correlations_tmp[y, x, :, :], sigma=smooth_sigma, axis=0)
-        else:
-            corr_func = correlations_tmp[y, x, :, :]
-        axs[i].plot(corr_func)
-        axs[-1].plot(x, y, 'o', color=colors[i % len(colors)])
-        axs[i].set_title(f'Corrfs \n ({colors[i % len(colors)]} pixel)')
+            corr_tmp = gaussian_filter(corr_tmp, sigma=(1, 1, 1, 0))
+
+        for i, (x, y) in enumerate(point_list):
+            if smooth_sigma is not None:
+                corr_func = gaussian_filter1d(corr_tmp[y, x, :, :], sigma=smooth_sigma, axis=0)
+            else:
+                corr_func = corr_tmp[y, x, :, :]
+            ax.plot(corr_func, color=colors[i % len(colors)],
+                    label=f'({x},{y})')
+
+        col_label = labels[col] if (labels is not None and col < len(labels)) else f'Corr {col + 1}'
+        ax.set_title(col_label)
+        ax.legend(fontsize=8)
+
+    plt.tight_layout()
     plt.show()
 
 
@@ -213,31 +212,66 @@ def plot_correlation_comparison(
 
 
 def plot_correlation_comparison_seperate(
-        measured_coding_matrix: np.ndarray,
-        coding_matrix: np.ndarray,
-        shift: int = None,
+        measured_coding_matrix,   # np.ndarray  OR  list of np.ndarray
+        coding_matrix,            # np.ndarray  OR  list of np.ndarray
+        shifts: list = None,
+        save_fig: bool = False,
+        labels: list = None,      # optional column titles when passing lists
 ):
-    mins = measured_coding_matrix.min()
-    maxs = measured_coding_matrix.max()
-    measured_coding_matrix = (measured_coding_matrix - mins) / (maxs - mins)
-    mins = coding_matrix.min()
-    maxs = coding_matrix.max()
-    coding_matrix = (coding_matrix - mins) / (maxs - mins)
+    # normalise to lists so the rest of the code is uniform
+    if isinstance(measured_coding_matrix, np.ndarray):
+        measured_list = [measured_coding_matrix]
+    else:
+        measured_list = list(measured_coding_matrix)
 
-    if shift is not None:
-        for i in range(coding_matrix.shape[-1]):
-            coding_matrix[:, i] = np.roll(coding_matrix[:, i], shift)
+    if isinstance(coding_matrix, np.ndarray):
+        coding_list = [coding_matrix]
+    else:
+        coding_list = list(coding_matrix)
 
-    n_cols = coding_matrix.shape[1]  # 3
-    fig, axs = plt.subplots(n_cols, 1, figsize=(8, 4 * n_cols))
+    assert len(measured_list) == len(coding_list), "measured and coding lists must be the same length"
 
-    for i in range(n_cols):
-        axs[i].plot(measured_coding_matrix[:, i], label='Measured')
-        axs[i].plot(coding_matrix[:, i], linestyle='dashed', label='Ideal')
-        axs[i].set_title(f'Row {i} - Measured vs. Ideal Gate Profiles')
-        axs[i].legend()
+    n_matrices = len(measured_list)
+    n_rows = measured_list[0].shape[1]   # K (number of sub-correlations per matrix)
 
+    fig, axs = plt.subplots(n_rows, n_matrices, figsize=(6 * n_matrices, 2 * n_rows),
+                            squeeze=False)
+
+    for col, (meas, ideal) in enumerate(zip(measured_list, coding_list)):
+        # normalise each matrix independently
+        meas  = (meas  - meas.min())  / (meas.max()  - meas.min()  + 1e-8)
+        ideal = (ideal - ideal.min()) / (ideal.max() - ideal.min() + 1e-8)
+
+        if shifts is not None:
+            for i in range(ideal.shape[-1]):
+                ideal[:, i] = np.roll(ideal[:, i], shifts[col])
+
+        for row in range(n_rows):
+            ax = axs[row, col]
+            ax.plot(meas[:, row],  color='red',   linewidth=3.0, label='Measured')
+            ax.plot(ideal[:, row], color='black', linewidth=3.0, linestyle='dashed', label='Ideal')
+            ax.set_yticks([0, 1])
+            ax.tick_params(axis='both', labelsize=12)
+
+            for spine in ax.spines.values():
+                spine.set_linewidth(0.3)
+                spine.set_edgecolor('black')
+                spine.set_alpha(0.5)
+
+            if row < n_rows - 1:
+                ax.set_xticks([])
+            if row == 0:
+                col_title = labels[col] if (labels is not None and col < len(labels)) else f'Matrix {col + 1}'
+                ax.set_title(col_title, fontsize=14, fontweight='bold')
+            if col == 0:
+                ax.legend(fontsize=10, framealpha=1, facecolor='white', edgecolor='black')
+            else:
+                ax.set_yticks([])
+
+    fig.subplots_adjust(wspace=0.01, hspace=0.01)
     plt.tight_layout()
+    if save_fig:
+        plt.savefig(f'figures/correlation_comparison.pdf', dpi=300, bbox_inches='tight', pad_inches=0.1)
     plt.show()
 
 def plot_capture_comparison(depths_maps_dict, x=20, y=20, width=220, height=320,
@@ -308,7 +342,7 @@ def plot_capture_comparison(depths_maps_dict, x=20, y=20, width=220, height=320,
         # Error map -------------------------------------------------------
         ax4 = fig.add_subplot(gs[i, 3])
         error_map = np.abs(depth_map - gt_depth_map)
-        im4 = ax4.imshow(error_map, vmin=0, vmax=max(0.5, np.min(error_map)))
+        im4 = ax4.imshow(error_map, vmin=0, vmax=0.01)
         fig.colorbar(im4, ax=ax4, fraction=0.046, pad=0.04, label="Absolute Error (m)")
         ax4.set_title("Error Map")
 
@@ -631,35 +665,36 @@ def plot_depth_error_distribution(results):
 
 
 def get_string_name(capture_type, k, short=False):
+    name = ''
     if short:
         if capture_type == 'coarse':
-            return 'Triangle' + " K=" + str(k)
+            name = 'Triangle'
         elif capture_type == 'trapcoarse':
-            return 'Trapezoidal' + " K=" + str(k)
+            name = 'Trapezoidal'
         elif capture_type == 'rect':
-            return 'Triangle' + " K=" + str(k)
+            name = 'Triangle'
         elif capture_type == 'traprect':
-            return 'Trapezoidal' + " K=" + str(k)
+            name = 'Trapezoidal'
         elif capture_type == 'ham':
-            return 'SiP Ham.' + " K=" + str(k)
+            name = 'SiP Ham.'
         elif capture_type == 'timeslicing':
-            return 'Time-Slicing ' + " K=" + str(k)
-        return None
+            name = 'Time-Slicing '
     else:
 
         if capture_type == 'coarse':
-            return 'Triangle (Gauss.)' + " K=" + str(k)
+            name = 'Triangle (Gauss.)'
         elif capture_type == 'trapcoarse':
-            return 'Trapezoidal (Gauss.)' + " K=" + str(k)
+            name = 'Trapezoidal (Gauss.)'
         elif capture_type == 'rect':
-            return 'Triangle (Rect.)' + " K=" + str(k)
+            name = 'Triangle (Rect.)'
         elif capture_type == 'traprect':
-            return 'Trapezoidal (Rect.)' + " K=" + str(k)
+            name = 'Trapezoidal (Rect.)'
         elif capture_type == 'ham':
-            return 'SiP Hamiltonian' + " K=" + str(k)
+            name = 'SiP Hamiltonian'
         elif capture_type == 'timeslicing':
-            return 'Time-Slicing ' + " K=" + str(k)
-        return None
+            name=  'Time-Slicing '
+    if k is not None: name += " K=" + str(k)
+    return name
 
 def get_single_pixel_title(paths):
     for path in paths:
@@ -667,4 +702,126 @@ def get_single_pixel_title(paths):
             return "Low SBR"
         elif "HIGHSNR" in path:
             return "High SBR"
+    return ''
+
+def plot_3d_recon_comparison(runs, snr_label="", vmax_error=None,
+                              figures_dir="plot_scripts/figures", save_path=None,
+                              plot_point_cloud=True):
+    n = len(runs)
+    fig, axes = plt.subplots(2, n, figsize=(4.5 * n, 8))
+    if n == 1:
+        axes = axes.reshape(2, 1)
+
+    # compute global vmax_error if not given
+    if vmax_error is None:
+        all_errors = [np.abs(r['depth_map'] - r['gt_depth_map']) for r in runs]
+        vmax_error = float(np.nanpercentile(np.concatenate([e.ravel() for e in all_errors]), 95))
+
+    # shared depth scale for the top row when showing depth maps
+    if not plot_point_cloud:
+        all_depths = np.concatenate([r['depth_map'].ravel() for r in runs])
+        depth_vmin = float(np.nanmin(all_depths))
+        depth_vmax = float(np.nanmax(all_depths))
+
+    for j, r in enumerate(runs):
+        color = get_cap_color(r['capture_type'], r['k'])
+        title = get_string_name(r['capture_type'], r['k'], short=True)
+        tag   = f"{r['capture_type']}_k{r['k']}_{r.get('snr_label', snr_label)}"
+
+        # ── Row 0: point-cloud PNG  OR  depth map ─────────────────────────
+        ax_top = axes[0, j]
+        if plot_point_cloud:
+            png_path = os.path.join(figures_dir, f"recon_{tag}_pcd.png")
+            if os.path.isfile(png_path):
+                if "high" in snr_label:
+                    img = plt.imread(png_path)[290:, 500:-450, :]
+                else:
+                    img = plt.imread(png_path)[100:, 400:-400, :]
+                ax_top.imshow(img)
+            else:
+                ax_top.text(0.5, 0.5, f'No image\n({png_path})',
+                            ha='center', va='center', transform=ax_top.transAxes, fontsize=8)
+            top_row_label = 'Point Cloud Reconstruction'
+        else:
+            ax_top.imshow(r['depth_map'], vmin=depth_vmin, vmax=depth_vmax)
+            top_row_label = 'Depth Map'
+
+        ax_top.set_title(title, fontsize=12, fontweight='bold', color=color)
+        ax_top.set_xticks([])
+        ax_top.set_yticks([])
+        for spine in ax_top.spines.values():
+            spine.set_visible(False)
+        # Right-side row label on the last column only
+        if j == n - 1:
+            ax_top.yaxis.set_label_position('right')
+            ax_top.set_ylabel(top_row_label, fontsize=10, rotation=270, labelpad=14, va='bottom')
+
+
+        # ── Row 1: error map ───────────────────────────────────────────────
+        ax_err = axes[1, j]
+        error_map = np.abs(r['depth_map'] - r['gt_depth_map'])
+        mae_mm    = np.nanmean(error_map) * 1000
+        rmse_mm   = np.sqrt(np.nanmean(error_map ** 2)) * 1000
+        im = ax_err.imshow(error_map / 10, vmin=0, vmax=vmax_error)
+        ax_err.set_xticks([])
+        ax_err.set_yticks([])
+        for spine in ax_err.spines.values():
+            spine.set_visible(True)
+            spine.set_edgecolor(color)
+            spine.set_linewidth(2)
+        #ax_err.set_xlabel(f'MAE {mae_mm:.1f} mm  |  RMSE {rmse_mm:.1f} mm', fontsize=9)
+        ax_err.text(
+            2, 2,  # x, y pixel coordinates
+            f"MAE: {mae_mm/ 10:.2f} cm \nRMSE {rmse_mm/ 10: .2f} cm",  # your text
+            color='white',
+            fontsize=15,
+            ha='left', va='top',  # align text relative to point
+            bbox=dict(facecolor='black', alpha=0.8, pad=2)  # optional background box
+        )
+    # Finalize layout first so axis positions are set, then manually add a
+    # shared colorbar in the right margin — this keeps all subplots the same size.
+    plt.tight_layout()
+    fig.subplots_adjust(right=0.88)   # reserve ~12 % on the right for the colorbar
+
+    # Use the finalised positions of the bottom-row axes to place the colorbar
+    y0  = axes[1, 0].get_position().y0
+    y1  = axes[1, 0].get_position().y1
+    x1  = axes[1, -1].get_position().x1
+    cbar_ax = fig.add_axes([x1 + 0.015, y0, 0.018, y1 - y0])
+    fig.colorbar(im, cax=cbar_ax, label='Depth Error (cm)')
+
+    #if snr_label:
+    #    fig.suptitle(snr_label.replace('snr', ' SNR').upper(), fontsize=14, fontweight='bold')
+
+    if save_path:
+        os.makedirs(os.path.dirname(save_path) or '.', exist_ok=True)
+        plt.savefig(save_path, bbox_inches='tight', dpi=150)
+        print(f'Saved to {save_path}')
+    plt.show()
+
+
+def get_cap_color(capture_type, k):
+    if capture_type == 'coarse':
+        return 'orange'
+    elif capture_type == 'trapcoarse':
+        return 'red'
+    elif capture_type == 'rect':
+        return 'limegreen'
+    elif capture_type == 'traprect':
+        return 'green'
+    elif capture_type == 'ham':
+        if k is not None:
+            if k == 4:
+                return 'lightblue'
+            else:
+                return 'navy'
+        else:
+            return 'blue'
+    elif capture_type == 'timeslicing':
+        if k == 8:
+            return 'pink'
+        elif k == 12:
+            return 'purple'
+        else:
+            return 'violet'
     return None
