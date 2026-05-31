@@ -47,9 +47,17 @@ def scale_photon_count(photon_count, capture_type, k):
 
 
 def run_one(idx, cap_type, k, photon_count_base, sbr, x, y,
-            waveform_or_illum, demodfs_or_cm, coding_matrix,
-            depths, trials, n_tbins, tbin_depth_res):
-    """Single (photon_count, sbr) evaluation — runs in a worker process."""
+            trials, n_tbins, tbin_depth_res, depth_margin, depth_sample):
+    """Single (photon_count, sbr) evaluation — runs in a worker process.
+    All large arrays are recomputed locally to avoid pickling overhead / OOM."""
+    import numpy as np
+    from utils.tof_utils import (get_code, simulate_counts,
+                                  simulate_counts_shared_illum,
+                                  decode_simulation_depths)
+
+    depths = np.arange(depth_margin, (n_tbins * tbin_depth_res) - depth_margin, depth_sample)
+    waveform_or_illum, demodfs_or_cm, coding_matrix = get_code(cap_type, k, n_tbins)
+
     photon_count = scale_photon_count(photon_count_base, cap_type, k) if SPLIT_ACQUISITION else photon_count_base
 
     if cap_type == 'ham':
@@ -107,25 +115,18 @@ if __name__ == "__main__":
     if args.rep_rate is not None:
         (rep_tau, rep_freq, tbin_res,
          t_domain, max_depth, tbin_depth_res,) = calculate_tof_domain_params(args.n_tbins, 1. / args.rep_rate)
-        depths = np.arange(args.depth_margin, max_depth - args.depth_margin, args.depth_sample)
     else:
-        depths = np.arange(args.depth_margin, args.n_tbins - args.depth_margin, 1)
+        tbin_depth_res = 1.0
     mae_results  = np.zeros((len(DEFAULT_RUNS), len(args.photon_counts), len(args.sbrs)))
     rmse_results = np.zeros((len(DEFAULT_RUNS), len(args.photon_counts), len(args.sbrs)))
 
-    # pre-compute coding matrices (cheap, do once per run outside workers)
-    codes = []
-    for r in DEFAULT_RUNS:
-        waveform_or_illum, demodfs_or_cm, coding_matrix = get_code(r['type'], r['k'], args.n_tbins)
-        codes.append((waveform_or_illum, demodfs_or_cm, coding_matrix))
-
-    # build flat task list — one task per (run, photon_count, sbr) combo
+    # build flat task list — only scalars passed to each worker, arrays recomputed inside
     tasks = [
         delayed(run_one)(
             idx, r['type'], r['k'],
             photon_count_base, sbr, x, y,
-            codes[idx][0], codes[idx][1], codes[idx][2],
-            depths, args.trials, args.n_tbins, tbin_depth_res,
+            args.trials, args.n_tbins, tbin_depth_res,
+            args.depth_margin, args.depth_sample,
         )
         for idx, r in enumerate(DEFAULT_RUNS)
         for x, photon_count_base in enumerate(args.photon_counts)
