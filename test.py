@@ -8,17 +8,17 @@ from utils.tof_utils import (
     simulate_counts,
     simulate_counts_shared_illum,
     decode_simulation_depths,
-    calculate_tof_domain_params,
+    calculate_tof_domain_params, scale_photon_count,
 )
 
 # =============================================================================
 # Global parameters
 # =============================================================================
-N_TBINS      = 992
+N_TBINS      = 1500
 TRIALS       = 100
 PHOTON_COUNT = 2000
-SBR          = 0.1
-
+SBR          = 1.0
+SPLIT_ACQUISITION = True
 REP_RATE = 5e6
 REP_TAU  = float(1 / REP_RATE)
 
@@ -34,11 +34,14 @@ DEPTH_SAMPLE = 0.01
 #   simulated     : passed through to results dict (used by some plot helpers)
 # =============================================================================
 RUNS = [
-    {'type': 'ham',       'k': 4,  'photon_count': PHOTON_COUNT // 6,  'simulated': True},
-    {'type': 'coarse',    'k': 4, 'photon_count': PHOTON_COUNT // 4, 'simulated': True},
-    # {'type': 'trapcoarse','k': 8,  'photon_count': PHOTON_COUNT // 8,  'simulated': True},
-    # {'type': 'rect',      'k': 8,  'photon_count': PHOTON_COUNT // 8,  'simulated': True},
-    # {'type': 'traprect',  'k': 8,  'photon_count': PHOTON_COUNT // 8,  'simulated': True},
+    {'type': 'ham',      'k': 4, 'photon_count': PHOTON_COUNT, 'simulated': True},
+    {'type': 'coarse',   'k': 4, 'photon_count': PHOTON_COUNT, 'simulated': True},
+    # coarsepw — one entry per pulse width you want to test
+    {'type': 'coarsepw', 'k': 12, 'photon_count': PHOTON_COUNT, 'pulse_width': (N_TBINS // (8)) / (2 * np.sqrt(np.log(2))) * 0.86,  'simulated': True},
+    {'type': 'coarsepw', 'k': 12, 'photon_count': PHOTON_COUNT, 'pulse_width': (N_TBINS // (12)) / (2 * np.sqrt(np.log(2))) * 0.86,  'simulated': True},
+    # {'type': 'coarsepw', 'k': 4, 'photon_count': PHOTON_COUNT // 4, 'pulse_width': N_TBINS // 4,  'simulated': True},
+    # {'type': 'coarsepw', 'k': 4, 'photon_count': PHOTON_COUNT // 4, 'pulse_width': N_TBINS // 2,  'simulated': True},
+    # {'type': 'trapcoarse','k': 8, 'photon_count': PHOTON_COUNT // 8, 'simulated': True},
 ]
 
 # =============================================================================
@@ -66,13 +69,15 @@ results = []
 for run in RUNS:
     cap_type     = run['type']
     k            = run['k']
-    photon_count = run['photon_count']
-    label        = f"{cap_type}_k{k}"
+    photon_count_base = run['photon_count']
+    photon_count = scale_photon_count(photon_count_base, cap_type, k) if SPLIT_ACQUISITION else photon_count_base
+    pulse_width  = run.get('pulse_width', None)
+    label        = f"{cap_type}_k{k}" + (f"_pw{pulse_width}" if pulse_width is not None else "")
 
     print(f"--- {label} ---")
 
     # get_code returns (modfs_or_illum, demodfs_or_coding_matrix_T, coding_matrix)
-    waveform_or_illum, demodfs_or_cm, coding_matrix = get_code(cap_type, k, N_TBINS)
+    waveform_or_illum, demodfs_or_cm, coding_matrix = get_code(cap_type, k, N_TBINS, pulse_width=pulse_width)
 
     if cap_type == 'ham':
         _, coded_values = simulate_counts(

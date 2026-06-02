@@ -11,7 +11,7 @@ from utils.tof_utils import (
     simulate_counts,
     simulate_counts_shared_illum,
     decode_simulation_depths,
-    calculate_tof_domain_params,
+    calculate_tof_domain_params, scale_photon_count,
 )
 
 # =============================
@@ -29,26 +29,21 @@ DEPTH_SAMPLE = 0.01
 SPLIT_ACQUISITION = True  # if True, scale photon count by acquisition splits per capture type/k
 TRIAL_CHUNK = 500         # trials processed at once per worker — keeps memory bounded
 DEFAULT_RUNS = [
-    {'type': 'ham',        'k': 3},
-    {'type': 'coarse',     'k': 3},
+    {'type': 'ham',      'k': 3},
+    {'type': 'coarse',   'k': 3},
+    # coarsepw — one entry per pulse width
+    # {'type': 'coarsepw', 'k': 3, 'pulse_width': N_TBINS // 8},
+    # {'type': 'coarsepw', 'k': 3, 'pulse_width': N_TBINS // 4},
+    # {'type': 'coarsepw', 'k': 3, 'pulse_width': N_TBINS // 2},
     # {'type': 'trapcoarse', 'k': 3},
-    # {'type': 'rect',       'k': 3},
-    # {'type': 'traprect',   'k': 3},
 ]
 
 
 
 
-def scale_photon_count(photon_count, capture_type, k):
-    if capture_type == 'ham':
-        divisor = k if k <= 3 else 6
-    else:
-        divisor = k
-    return photon_count / divisor
-
-
 def run_one(idx, cap_type, k, photon_count_base, sbr, x, y,
-            trials, n_tbins, tbin_depth_res, depth_margin, depth_sample):
+            trials, n_tbins, tbin_depth_res, depth_margin, depth_sample,
+            pulse_width=None):
     """Single (photon_count, sbr) evaluation — runs in a worker process.
     All large arrays are recomputed locally to avoid pickling overhead / OOM."""
     import numpy as np
@@ -57,7 +52,7 @@ def run_one(idx, cap_type, k, photon_count_base, sbr, x, y,
                                   decode_simulation_depths)
 
     depths = np.arange(depth_margin, (n_tbins * tbin_depth_res) - depth_margin, depth_sample)
-    waveform_or_illum, demodfs_or_cm, coding_matrix = get_code(cap_type, k, n_tbins)
+    waveform_or_illum, demodfs_or_cm, coding_matrix = get_code(cap_type, k, n_tbins, pulse_width=pulse_width)
 
     photon_count = scale_photon_count(photon_count_base, cap_type, k) if SPLIT_ACQUISITION else photon_count_base
 
@@ -143,6 +138,7 @@ if __name__ == "__main__":
             photon_count_base, sbr, x, y,
             args.trials, args.n_tbins, tbin_depth_res,
             args.depth_margin, args.depth_sample,
+            r.get('pulse_width', None),
         )
         for idx, r in enumerate(DEFAULT_RUNS)
         for x, photon_count_base in enumerate(args.photon_counts)
@@ -159,7 +155,10 @@ if __name__ == "__main__":
     save_dir = "/Users/davidparra/PycharmProjects/py-gated-camera/data/monte_carlo_exp"
     os.makedirs(save_dir, exist_ok=True)
 
-    run_labels = [f"{r['type']}_k{r['k']}" for r in DEFAULT_RUNS]
+    run_labels = [
+        f"{r['type']}_k{r['k']}" + (f"_pw{r['pulse_width']}" if r.get('pulse_width') is not None else "")
+        for r in DEFAULT_RUNS
+    ]
     photon_min = int(min(args.photon_counts))
     photon_max = int(max(args.photon_counts))
     sbr_min    = f"{min(args.sbrs):.1f}"

@@ -809,6 +809,8 @@ def get_cap_color(capture_type, k):
         return 'limegreen'
     elif capture_type == 'traprect':
         return 'green'
+    elif capture_type == 'coarsepw':
+        return 'darkgreen'
     elif capture_type == 'ham':
         if k is not None:
             if k == 4:

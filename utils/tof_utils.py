@@ -169,6 +169,13 @@ def build_coding_matrix_from_correlations(
     # coding_matrix = (coding_matrix - mins) / (maxs - mins)
     return coding_matrix
 
+def scale_photon_count(photon_count, capture_type, k):
+    if capture_type == 'ham':
+        divisor = k if k <= 3 else 6
+    else:
+        divisor = k   # coarse, trapcoarse, coarsepw all divide by k
+    return photon_count / divisor
+
 
 def decode_depth_map(
     coded_vals: np.ndarray,
@@ -403,9 +410,33 @@ def get_trap_code(k, n_tbins, use_rect=False):
 
     return illum, np.transpose(coding_matrix), filtered_coding_matrix
 
-def get_code(type, k, n_tbins):
+def get_coarse_pw_code(k, n_tbins, pulse_width):
+    """Coarse gating with a custom illumination pulse width (in time bins).
+    The detector gates are identical to get_coarse_code — only the illum width changes."""
+    coding_matrix = np.kron(np.eye(k), np.ones((1, n_tbins // k)))
+    if coding_matrix.shape[-1] != n_tbins:
+        f = interp1d(np.linspace(0, 1, coding_matrix.shape[-1]), coding_matrix,
+                     kind='nearest', axis=-1)
+        coding_matrix = f(np.linspace(0, 1, n_tbins))
+
+    # illumination pulse with the requested width — Gaussian with sigma=pulse_width
+    illum = gaussian_pulse(np.arange(n_tbins), 0, pulse_width, circ_shifted=True)
+
+    filtered_coding_matrix = np.fft.ifft(
+        np.fft.fft(illum[..., np.newaxis], axis=0).conj()
+        * np.fft.fft(coding_matrix.T, axis=0),
+        axis=0,
+    ).real
+
+    return illum, np.transpose(coding_matrix), filtered_coding_matrix
+
+
+def get_code(type, k, n_tbins, pulse_width=None):
     use_rect = 'rect' in type
-    if type == 'coarse' or type == 'rect':
+    if type == 'coarsepw':
+        assert pulse_width is not None, 'pulse_width is required for coarsepw'
+        return get_coarse_pw_code(k, n_tbins, pulse_width)
+    elif type == 'coarse' or type == 'rect':
         name = 'coarse'
     elif type == 'trapcoarse' or type == 'traprect':
         name = 'trap'
@@ -414,7 +445,7 @@ def get_code(type, k, n_tbins):
     elif type == 'timeslicing':
         name = 'coarse'
     else:
-        assert False, 'type must be coarse, rect, trapcoarse, traprect, or ham'
+        assert False, 'type must be coarse, rect, trapcoarse, traprect, ham, or coarsepw'
     func = getattr(sys.modules[__name__], f"get_{name}_code")
     return func(k, n_tbins) if name == 'ham' else func(k, n_tbins, use_rect=use_rect)
 
