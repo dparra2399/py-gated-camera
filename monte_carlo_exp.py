@@ -17,25 +17,26 @@ from utils.tof_utils import (
 # =============================
 # Defaults
 # =============================
-PHOTON_COUNTS = np.linspace(300, 3000, 10).tolist()
-SBRS = np.linspace(0.1, 10, 10).tolist()
+#PHOTON_COUNTS = np.linspace(300, 9000, 25).tolist()
+PHOTON_COUNTS = np.linspace(100, 3000, 25).tolist()
+SBRS = np.linspace(0.1, 10, 25).tolist()
 TRIALS = 5000
-N_TBINS = 999
-SMOOTH_SIGMA = 1
+N_TBINS = 1000
+SMOOTH_SIGMA = None
 SHIFT = None
 DEPTH_MARGIN = 3.0
 REP_RATE = 5 * 1e6
 DEPTH_SAMPLE = 0.01
-SPLIT_ACQUISITION = True  # if True, scale photon count by acquisition splits per capture type/k
-TRIAL_CHUNK = 500         # trials processed at once per worker — keeps memory bounded
+SPLIT_ACQUISITION = False  # if True, scale photon count by acquisition splits per capture type/k
+TRIAL_CHUNK = 100         # trials processed at once per worker — keeps memory bounded
 DEFAULT_RUNS = [
-    {'type': 'ham',      'k': 3},
-    {'type': 'coarse',   'k': 3},
+    {'type': 'ham',      'k': 4},
+    {'type': 'coarse',   'k': 4},
     # coarsepw — one entry per pulse width
     # {'type': 'coarsepw', 'k': 3, 'pulse_width': N_TBINS // 8},
     # {'type': 'coarsepw', 'k': 3, 'pulse_width': N_TBINS // 4},
     # {'type': 'coarsepw', 'k': 3, 'pulse_width': N_TBINS // 2},
-    # {'type': 'trapcoarse', 'k': 3},
+    {'type': 'trapcoarse', 'k': 4},
 ]
 
 
@@ -180,6 +181,7 @@ if __name__ == "__main__":
     sbr_max    = f"{max(args.sbrs):.1f}"
     runs_str   = "_".join(run_labels)
     filename   = f"ntbins{args.n_tbins}_trials{args.trials}_photons{photon_min}-{photon_max}_sbr{sbr_min}-{sbr_max}_{runs_str}.npz"
+    filename = filename + "_split" if SPLIT_ACQUISITION else filename
     save_path  = os.path.join(save_dir, filename)
     np.savez(
         save_path,
