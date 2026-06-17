@@ -17,7 +17,7 @@ from utils.tof_utils import (
 # =============================
 # Defaults
 # =============================
-PHOTON_COUNT = 500
+PHOTON_COUNT = 9000
 SBR = 5.0
 TRIALS = 1000
 N_TBINS = 996
@@ -35,16 +35,18 @@ ham,3,5,100,50,10,False
 """
 
 DEFAULT_RUNS = [
-    #"ham,3,10,500,16,20,False",
-    # "ham,3,10,500,16,20,True",
-    # "coarse,3,10,420,16,30,True",
-    # "rect,3,10,230,16,30,True",
+    "ham,3,10,500,16,20,False",
+    "ham,3,10,500,16,20,True",
+    "coarse,3,10,420,16,30,True",
+    "coarse,8,10,1200,16,12,True",
+    "coarse,8,10,1200,16,12,False",
+    #"rect,3,10,230,16,30,True",
 
 
-    "ham,4,10,770,16,15,False",
-    "ham,4,10,770,16,15,True",
+    # "ham,4,10,770,16,15,False",
+    # "ham,4,10,770,16,15,True",
     # "coarse,4,10,540,16,23,False",
-    "rect,4,10,420,16,23,True"
+    # "rect,4,10,420,16,23,True"
     #"coarse,4,10,1200,16,12,False",
 
     #"ham,3,5, 4000,50,20",

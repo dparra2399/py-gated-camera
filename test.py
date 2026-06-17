@@ -16,7 +16,7 @@ from utils.tof_utils import (
 # =============================================================================
 N_TBINS      = 1500
 TRIALS       = 100
-PHOTON_COUNT = 2000
+PHOTON_COUNT = 500
 SBR          = 1.0
 SPLIT_ACQUISITION = True
 REP_RATE = 5e6
@@ -36,9 +36,16 @@ DEPTH_SAMPLE = 0.01
 RUNS = [
     {'type': 'ham',      'k': 4, 'photon_count': PHOTON_COUNT, 'simulated': True},
     {'type': 'coarse',   'k': 4, 'photon_count': PHOTON_COUNT, 'simulated': True},
+    {'type': 'sliding', 'photon_count': PHOTON_COUNT, "pulse_width":2, "shift":1, "gate_width": 100, 'simulated': True},
+    {'type': 'sliding', 'photon_count': PHOTON_COUNT, "pulse_width": 100, "shift": 1, "gate_width": 100, 'simulated': True},
+    {'type': 'sliding', 'photon_count': PHOTON_COUNT, "pulse_width": 2, "shift": 10, "gate_width": 100,
+     'simulated': True},
+
     # coarsepw — one entry per pulse width you want to test
-    {'type': 'coarsepw', 'k': 12, 'photon_count': PHOTON_COUNT, 'pulse_width': (N_TBINS // (8)) / (2 * np.sqrt(np.log(2))) * 0.86,  'simulated': True},
-    {'type': 'coarsepw', 'k': 12, 'photon_count': PHOTON_COUNT, 'pulse_width': (N_TBINS // (12)) / (2 * np.sqrt(np.log(2))) * 0.86,  'simulated': True},
+    #{'type': 'coarsepw', 'k': 8, 'photon_count': PHOTON_COUNT, 'pulse_width': (N_TBINS // (8)) / (2 * np.sqrt(np.log(2))),  'simulated': True},
+    #{'type': 'coarsepw', 'k': 8, 'photon_count': PHOTON_COUNT, 'pulse_width': (N_TBINS // (12)) / (2 * np.sqrt(np.log(2))),  'simulated': True},
+    #{'type': 'coarsepw', 'k': 8, 'photon_count': PHOTON_COUNT,'pulse_width': (N_TBINS // (16)) / (2 * np.sqrt(np.log(2))), 'simulated': True},
+
     # {'type': 'coarsepw', 'k': 4, 'photon_count': PHOTON_COUNT // 4, 'pulse_width': N_TBINS // 4,  'simulated': True},
     # {'type': 'coarsepw', 'k': 4, 'photon_count': PHOTON_COUNT // 4, 'pulse_width': N_TBINS // 2,  'simulated': True},
     # {'type': 'trapcoarse','k': 8, 'photon_count': PHOTON_COUNT // 8, 'simulated': True},
@@ -67,17 +74,25 @@ def print_example_counts(name, depths, coded_values):
 results = []
 
 for run in RUNS:
-    cap_type     = run['type']
-    k            = run['k']
+    cap_type  = run['type']
+    k  = run.get('k', None)
+    pulse_width  = run.get('pulse_width', None)
+    gate_width = run.get('gate_width', None)
+    shift = run.get('shift', None)
+    k = int(N_TBINS / shift) if k is None else k
+
     photon_count_base = run['photon_count']
     photon_count = scale_photon_count(photon_count_base, cap_type, k) if SPLIT_ACQUISITION else photon_count_base
-    pulse_width  = run.get('pulse_width', None)
-    label        = f"{cap_type}_k{k}" + (f"_pw{pulse_width}" if pulse_width is not None else "")
+
+    label  = f"{cap_type}_k{k}" + (f"_pw{pulse_width}" if pulse_width is not None else "")
 
     print(f"--- {label} ---")
 
     # get_code returns (modfs_or_illum, demodfs_or_coding_matrix_T, coding_matrix)
-    waveform_or_illum, demodfs_or_cm, coding_matrix = get_code(cap_type, k, N_TBINS, pulse_width=pulse_width)
+    waveform_or_illum, demodfs_or_cm, coding_matrix = get_code(cap_type, k, N_TBINS,
+                                                               pulse_width=pulse_width,
+                                                               shift=shift,
+                                                               gate_width=gate_width)
 
     if cap_type == 'ham':
         _, coded_values = simulate_counts(

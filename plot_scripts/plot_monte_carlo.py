@@ -10,7 +10,9 @@ from plot_scripts.plot_utils import get_cap_color
 # CONFIG
 # =============================================================================
 FILENAMES = [
-   "/Users/davidparra/PycharmProjects/py-gated-camera/data/monte_carlo_exp/ntbins1000_trials5000_photons300-3000_sbr0.1-10.0_ham_k4_coarse_k4_trapcoarse_k4.npz"
+   #"/Users/davidparra/PycharmProjects/py-gated-camera/data/monte_carlo_exp/ntbins1000_trials5000_photons300-9000_sbr0.1-10.0_ham_k3_coarse_k3_trapcoarse_k3.npz",
+   "/Users/davidparra/PycharmProjects/py-gated-camera/data/monte_carlo_exp/ntbins1000_trials5000_photons300-9000_sbr0.1-10.0_ham_k4_coarse_k4_trapcoarse_k4.npz"
+
 ]
 
 METRIC     = 'mae'    # 'mae' or 'rmse'
@@ -20,9 +22,9 @@ Z_MAX      = 500     # max z-axis value (mm)
 # Slice edges off the results to zoom into the interesting region.
 # Set to None to keep the full range on that side.
 TRIM_PHOTON_LOW  = 1    # drop this many points from the low-photon end
-TRIM_PHOTON_HIGH = 1    # drop this many points from the high-photon end
+TRIM_PHOTON_HIGH = None    # drop this many points from the high-photon end
 TRIM_SBR_LOW     = 1    # drop this many points from the low-SBR end
-TRIM_SBR_HIGH    = 1    # drop this many points from the high-SBR end
+TRIM_SBR_HIGH    = None    # drop this many points from the high-SBR end
 
 # =============================================================================
 # HELPERS
@@ -150,6 +152,6 @@ if __name__ == "__main__":
         width=650 * n_files,
         height=700,
     )
-    fig.write_image("monte_carlo_plot.svg")
+    fig.write_image("figures/monte_carlo_plot.svg")
     pio.renderers.default = 'browser'
     fig.show()

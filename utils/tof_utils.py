@@ -431,7 +431,32 @@ def get_coarse_pw_code(k, n_tbins, pulse_width):
     return illum, np.transpose(coding_matrix), filtered_coding_matrix
 
 
-def get_code(type, k, n_tbins, pulse_width=None):
+def get_sliding_code(k, n_tbins, pulse_width, shift, gate_width):
+    coding_matrix = np.zeros((k, n_tbins))
+
+    for i in range(k):
+        start = i * shift
+        cols = (np.arange(start, start + gate_width) % n_tbins)
+        coding_matrix[i, cols] = 1
+
+    if coding_matrix.shape[-1] != n_tbins:
+        f = interp1d(np.linspace(0, 1, coding_matrix.shape[-1]), coding_matrix,
+                     kind='nearest', axis=-1)
+        coding_matrix = f(np.linspace(0, 1, n_tbins))
+
+    # illumination pulse with the requested width — Gaussian with sigma=pulse_width
+    illum = gaussian_pulse(np.arange(n_tbins), 0, pulse_width, circ_shifted=True)
+
+    filtered_coding_matrix = np.fft.ifft(
+        np.fft.fft(illum[..., np.newaxis], axis=0).conj()
+        * np.fft.fft(coding_matrix.T, axis=0),
+        axis=0,
+    ).real
+
+    return illum, np.transpose(coding_matrix), filtered_coding_matrix
+
+
+def get_code(type, k, n_tbins, pulse_width=None, shift=None, gate_width=None):
     use_rect = 'rect' in type
     if type == 'coarsepw':
         assert pulse_width is not None, 'pulse_width is required for coarsepw'
@@ -442,12 +467,15 @@ def get_code(type, k, n_tbins, pulse_width=None):
         name = 'trap'
     elif type == 'ham':
         name = 'ham'
-    elif type == 'timeslicing':
-        name = 'coarse'
+    elif type == 'sliding':
+        assert shift is not None, 'shift is required for sliding gate'
+        assert pulse_width is not None, 'pulse_width is required for coarsepw'
+        assert gate_width is not None, 'width is required for coarsepw'
+        return get_sliding_code(k, n_tbins, pulse_width, shift, gate_width)
     else:
         assert False, 'type must be coarse, rect, trapcoarse, traprect, ham, or coarsepw'
     func = getattr(sys.modules[__name__], f"get_{name}_code")
-    return func(k, n_tbins) if name == 'ham' else func(k, n_tbins, use_rect=use_rect)
+    return func(k, n_tbins)  if name == 'ham' else func(k, n_tbins, use_rect=use_rect)
 
 def simulate_counts(waveform, demodfs, depths, photon_count, sbr, tbin_depth_res, n_tbins, k):
     shifted_waveforms = np.zeros((depths.shape[0], n_tbins, k))

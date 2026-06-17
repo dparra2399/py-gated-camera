@@ -14,7 +14,7 @@ import numpy as np
 # -----------------------------------------------------------------------------
 # CONFIG (capitalized)
 # ----------------------------------------------------------------------------
-EXP_PATH = os.path.join('tmp')
+EXP_PATH = os.path.join('k8_k12_LOWSNR')
 N_TBINS = 1500
 
 #PLotting utils for visualization
@@ -62,8 +62,7 @@ if __name__ == '__main__':
     capture_folder = get_data_folder(READ_PATH_SINGLE_PIXEL_MAC, READ_PATH_SINGLE_PIXEL_WINDOWS)
     assert cfg.exp_path is not None, 'Must define exp_num to find folder'
     capture_folder = os.path.join(capture_folder, cfg.exp_path)
-
-
+    capture_folder = get_capture_folder(capture_folder)
 
     capture_paths = os.listdir(capture_folder)
     capture_paths = filter_capture_files(capture_paths)
@@ -129,7 +128,7 @@ if __name__ == '__main__':
             tbin_depth_res,
             SINGLE_PIXEL_COORDS['y'],
             SINGLE_PIXEL_COORDS['x'],
-            n_pixels=100
+            n_pixels=5
         )
         
 
