@@ -17,26 +17,36 @@ from utils.tof_utils import (
 # =============================
 # Defaults
 # =============================
-#PHOTON_COUNTS = np.linspace(300, 9000, 25).tolist()
-PHOTON_COUNTS = np.linspace(100, 3000, 25).tolist()
-SBRS = np.linspace(0.1, 10, 25).tolist()
+PHOTON_COUNTS = np.linspace(300, 9000, 20).tolist()
+#PHOTON_COUNTS = np.linspace(100, 3000, 25).tolist()
+SBRS = np.linspace(0.1, 10, 20).tolist()
 TRIALS = 5000
-N_TBINS = 1000
+N_TBINS = 3000
 SMOOTH_SIGMA = None
 SHIFT = None
 DEPTH_MARGIN = 3.0
 REP_RATE = 5 * 1e6
 DEPTH_SAMPLE = 0.01
-SPLIT_ACQUISITION = False  # if True, scale photon count by acquisition splits per capture type/k
-TRIAL_CHUNK = 100         # trials processed at once per worker — keeps memory bounded
+SPLIT_ACQUISITION = True  # if True, scale photon count by acquisition splits per capture type/k
+TRIAL_CHUNK = 200         # trials processed at once per worker — keeps memory bounded
+
 DEFAULT_RUNS = [
-    {'type': 'ham',      'k': 4},
-    {'type': 'coarse',   'k': 4},
-    # coarsepw — one entry per pulse width
-    # {'type': 'coarsepw', 'k': 3, 'pulse_width': N_TBINS // 8},
-    # {'type': 'coarsepw', 'k': 3, 'pulse_width': N_TBINS // 4},
-    # {'type': 'coarsepw', 'k': 3, 'pulse_width': N_TBINS // 2},
-    {'type': 'trapcoarse', 'k': 4},
+    {'type': 'ham','k': 4, 'pulse_width': 150}, #(N_TBINS // (12)) / (2 * np.sqrt(np.log(2))),},
+    {'type': 'coarse','k': 4, 'simulated': True},
+
+    {'type': 'sliding', "pulse_width": 150, "shift": 3, "gate_width": 150, 'simulated': True},
+    {'type': 'sliding', "pulse_width": 150, "shift": 3, "gate_width": 300, 'simulated': True},
+    {'type': 'sliding', "pulse_width": 150, "shift": 3, "gate_width": 75, 'simulated': True},
+
+
+    # coarsepw — one entry per pulse width you want to test
+    # {'type': 'coarsepw', 'k': 12, 'pulse_width': (N_TBINS // (12)) / (2 * np.sqrt(np.log(2))),  'simulated': True},
+    # {'type': 'coarsepw', 'k': 9, 'pulse_width': (N_TBINS // (12)) / (2 * np.sqrt(np.log(2))), 'simulated': True},
+    # {'type': 'coarsepw', 'k': 6, 'pulse_width': (N_TBINS // (12)) / (2 * np.sqrt(np.log(2))), 'simulated': True},
+
+    # {'type': 'coarsepw', 'k': 4, 'photon_count': PHOTON_COUNT // 4, 'pulse_width': N_TBINS // 4,  'simulated': True},
+    # {'type': 'coarsepw', 'k': 4, 'photon_count': PHOTON_COUNT // 4, 'pulse_width': N_TBINS // 2,  'simulated': True},
+    # {'type': 'trapcoarse','k': 8, 'photon_count': PHOTON_COUNT // 8, 'simulated': True},
 ]
 
 
@@ -154,7 +164,7 @@ if __name__ == "__main__":
     ]
 
     print(f"Running {len(tasks)} tasks in parallel...")
-    results = Parallel(n_jobs=20, verbose=10)(tasks)
+    results = Parallel(n_jobs=10, verbose=10)(tasks)
 
     for idx, x, y, mae, rmse in results:
         mae_results[idx, x, y]  = mae
@@ -179,9 +189,11 @@ if __name__ == "__main__":
     photon_max = int(max(args.photon_counts))
     sbr_min    = f"{min(args.sbrs):.1f}"
     sbr_max    = f"{max(args.sbrs):.1f}"
-    runs_str   = "_".join(run_labels)
-    filename   = f"ntbins{args.n_tbins}_trials{args.trials}_photons{photon_min}-{photon_max}_sbr{sbr_min}-{sbr_max}_{runs_str}.npz"
+    #runs_str   = "_".join(run_labels)
+    runs_str = 'Sliding_exp1'
+    filename   = f"ntbins{args.n_tbins}_trials{args.trials}_photons{photon_min}-{photon_max}_sbr{sbr_min}-{sbr_max}_{runs_str}"
     filename = filename + "_split" if SPLIT_ACQUISITION else filename
+    filename = filename + ".npz"
     save_path  = os.path.join(save_dir, filename)
     np.savez(
         save_path,
