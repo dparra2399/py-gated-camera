@@ -57,7 +57,7 @@ def get_simulated_coding_matrix(type, n_tbins, k):
         (modfs, demodfs) = func(N=n_tbins)
         #Dt = demodfs.sum(axis=1)
         #print(Dt.min(), Dt.max(), Dt.mean(), Dt.std())
-        irf = gaussian_pulse(np.arange(n_tbins), 0, 1, circ_shifted=True)
+        irf = gaussian_pulse(np.arange(n_tbins), 0, 80, circ_shifted=True)
         coding_matrix = np.fft.ifft(np.fft.fft(modfs, axis=0).conj() * np.fft.fft(demodfs, axis=0), axis=0).real
 
         coding_matrix = np.fft.ifft(
@@ -66,7 +66,9 @@ def get_simulated_coding_matrix(type, n_tbins, k):
 
     elif type=='coarse' or type=="timeslicing":
         coding_matrix = np.kron(np.eye(k), np.ones((1, n_tbins // k)))
-        width = (n_tbins // (k)) / (2 * np.sqrt(np.log(2))) * 0.75
+        width = (n_tbins // (k )) / (2 * np.sqrt(np.log(2)))
+        if k < 8:
+            width *= 0.75
         irf = gaussian_pulse(np.arange(coding_matrix.shape[-1]), 0, width, circ_shifted=True)
         coding_matrix = np.fft.ifft(
             np.fft.fft(irf[..., np.newaxis], axis=0).conj() * np.fft.fft(np.transpose(coding_matrix), axis=0),
@@ -333,11 +335,11 @@ def filter_hot_pixels(depth_map: np.ndarray,
 # =========================
 # Helper functions
 # =========================
-def get_ham_code(k, n_tbins):
+def get_ham_code(k, n_tbins, pulse_width=40):
     func = getattr(CodingFunctionsFelipe, f"GetHamK{k}")
     modfs, demodfs = func(N=n_tbins)
 
-    irf = gaussian_pulse(np.arange(n_tbins), 0, 1, circ_shifted=True)
+    irf = gaussian_pulse(np.arange(n_tbins), 0, pulse_width, circ_shifted=True)
 
     modfs = np.fft.ifft(
         np.fft.fft(irf[..., np.newaxis], axis=0).conj()
@@ -475,7 +477,7 @@ def get_code(type, k, n_tbins, pulse_width=None, shift=None, gate_width=None):
     else:
         assert False, 'type must be coarse, rect, trapcoarse, traprect, ham, or coarsepw'
     func = getattr(sys.modules[__name__], f"get_{name}_code")
-    return func(k, n_tbins)  if name == 'ham' else func(k, n_tbins, use_rect=use_rect)
+    return func(k, n_tbins, pulse_width=pulse_width) if name == 'ham' else func(k, n_tbins, use_rect=use_rect)
 
 def simulate_counts(waveform, demodfs, depths, photon_count, sbr, tbin_depth_res, n_tbins, k):
     shifted_waveforms = np.zeros((depths.shape[0], n_tbins, k))

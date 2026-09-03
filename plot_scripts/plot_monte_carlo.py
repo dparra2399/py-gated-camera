@@ -10,19 +10,21 @@ from plot_scripts.plot_utils import get_cap_color
 # CONFIG
 # =============================================================================
 FILENAMES = [
-   #"/Users/davidparra/PycharmProjects/py-gated-camera/data/monte_carlo_exp/ntbins1000_trials5000_photons300-9000_sbr0.1-10.0_ham_k3_coarse_k3_trapcoarse_k3.npz",
-   "/Users/davidparra/PycharmProjects/py-gated-camera/data/monte_carlo_exp/ntbins1000_trials5000_photons300-9000_sbr0.1-10.0_ham_k4_coarse_k4_trapcoarse_k4.npz"
-
+   #"/Users/davidparra/PycharmProjects/py-gated-camera/data/monte_carlo_exp/ntbins1000_trials5000_photons300-9000_sbr0.1-10.0_ham_k3_coarse_k3_trapcoarse_k3_split.npz",
+   #"/Users/davidparra/PycharmProjects/py-gated-camera/data/monte_carlo_exp/ntbins1000_trials5000_photons300-9000_sbr0.1-10.0_ham_k4_coarse_k4_trapcoarse_k4_split.npz"
+    #"/Users/davidparra/PycharmProjects/py-gated-camera/data/monte_carlo_exp/ntbins1000_trials5000_photons100-3000_sbr0.1-10.0_ham_k4_coarse_k4_trapcoarse_k4.npz"
+    "/Users/davidparra/PycharmProjects/py-gated-camera/data/monte_carlo_exp/ntbins3000_trials5000_photons300-9000_sbr0.1-10.0_K12_Decreasing.npz"
 ]
 
+N_TBINS    = 3000     # time bins used in the sweep (from the filename, ntbins*)
 METRIC     = 'mae'    # 'mae' or 'rmse'
 GRID_SIZE  = 7        # number of tick marks on x/y axes
-Z_MAX      = 500     # max z-axis value (mm)
+Z_MAX      = 400     # max z-axis value (mm)
 
 # Slice edges off the results to zoom into the interesting region.
 # Set to None to keep the full range on that side.
 TRIM_PHOTON_LOW  = 1    # drop this many points from the low-photon end
-TRIM_PHOTON_HIGH = None    # drop this many points from the high-photon end
+TRIM_PHOTON_HIGH = None   # drop this many points from the high-photon end
 TRIM_SBR_LOW     = 1    # drop this many points from the low-SBR end
 TRIM_SBR_HIGH    = None    # drop this many points from the high-SBR end
 
@@ -34,17 +36,14 @@ def parse_label(label):
     parts = str(label).split('_')
     cap_type = parts[0]
     k = None
+    pw = None
     for p in parts[1:]:
         if p.startswith('k') and p[1:].isdigit():
             k = int(p[1:])
-            break
-    return cap_type, k
+        if p.startswith('pw'):
+            pw = int(float(p[2:]))
+    return cap_type, k, pw
 
-
-def label_to_color(label):
-    cap_type, k = parse_label(label)
-    color = get_cap_color(cap_type, k)
-    return color if color is not None else '#888888'
 
 # =============================================================================
 # MAIN
@@ -61,6 +60,8 @@ if __name__ == "__main__":
         vertical_spacing=0.1,
         subplot_titles=[f.split('/')[-1] for f in FILENAMES],
     )
+
+    legend_seen = {}  # label -> color, so each entry is added to the legend once
 
     for idx, filename in enumerate(FILENAMES):
         data = np.load(filename, allow_pickle=True)
@@ -90,7 +91,13 @@ if __name__ == "__main__":
         col = idx % n_cols + 1
 
         for j, label in enumerate(run_labels):
-            color = label_to_color(label)
+            cap_type, k, pw = parse_label(label)
+            print(label)
+            color = get_cap_color(cap_type, k)
+            color = color if color is not None else 'blue'
+            print(cap_type, k, pw)
+            if k == 3 or pw == 1 or cap_type == 'coarse':
+                continue
             fig.add_trace(go.Surface(
                 z=results[j],
                 x=X,
@@ -105,6 +112,29 @@ if __name__ == "__main__":
                     y=dict(show=True, color='#4d4d4d', width=2),
                 ),
             ), row=row, col=col)
+
+            # Surfaces don't appear in the legend, so add a dummy legend-only
+            # Scatter3d (renders nothing) once per unique label/color.
+            legend_name = cap_type.capitalize()
+            if k is not None:
+                legend_name += f' K={k}'
+            if pw is not None:
+                # Express pulse width as a multiple of the "matched" width.
+                if cap_type == 'coarsepw' and k:
+                    ref_pw = (N_TBINS // k) / (2 * np.sqrt(np.log(2)))
+                    mult = pw / ref_pw
+                    legend_name += f' ({mult:.1f}x)'
+                else:
+                    legend_name += f' PW={pw}'
+            if legend_name not in legend_seen:
+                legend_seen[legend_name] = color
+                fig.add_trace(go.Scatter3d(
+                    x=[None], y=[None], z=[None],
+                    mode='markers',
+                    marker=dict(size=8, color=color, symbol='square'),
+                    name=legend_name,
+                    showlegend=True,
+                ), row=1, col=1)
 
     # axis ticks based on last loaded file
     xticks = np.round(np.linspace(np.min(X), np.max(X), num=GRID_SIZE), 2)
@@ -148,9 +178,18 @@ if __name__ == "__main__":
         **scene_layouts,
         paper_bgcolor='white',
         plot_bgcolor='white',
-        margin=dict(l=10, r=10, t=40, b=10),
-        width=650 * n_files,
+        margin=dict(l=10, r=180, t=40, b=10),
+        width=650 * n_files + 180,
         height=700,
+        showlegend=True,
+        legend=dict(
+            font=dict(family='serif', size=14, color='black'),
+            bgcolor='rgba(255,255,255,0.8)',
+            bordercolor='lightgray', borderwidth=1,
+            itemsizing='constant',
+            x=1.0, y=0.5,
+            xanchor='left', yanchor='middle',
+        ),
     )
     fig.write_image("figures/monte_carlo_plot.svg")
     pio.renderers.default = 'browser'

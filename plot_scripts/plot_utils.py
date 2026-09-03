@@ -525,8 +525,20 @@ def plot_results_summary(results):
         axs[i, 0].set_title(f"{name} Coding Matrix")
 
         # ---- line plot ----
-        axs[i, 1].plot(cm)
-        axs[i, 1].set_title(f"{name} Coding Matrix")
+        # cm has shape (n_bins, n_codes); each column is one code curve.
+        # If there are too many codes, plotting every column is unreadable,
+        # so only plot an evenly-spaced subset.
+        max_codes = 12
+        n_codes = cm.shape[1] if cm.ndim > 1 else 1
+        if n_codes > max_codes:
+            idxs = np.linspace(0, n_codes - 1, max_codes).astype(int)
+            for c in idxs:
+                axs[i, 1].plot(cm[:, c], label=f"code {c}")
+            axs[i, 1].set_title(f"{name} Coding Matrix "
+                                f"({max_codes} of {n_codes} codes)")
+        else:
+            axs[i, 1].plot(cm)
+            axs[i, 1].set_title(f"{name} Coding Matrix")
 
         # ---- RMSE bar ----
         axs[-2, 2].bar([i], rmse)
@@ -810,7 +822,12 @@ def get_cap_color(capture_type, k):
     elif capture_type == 'traprect':
         return 'green'
     elif capture_type == 'coarsepw':
-        return 'darkgreen'
+        if k == 8:
+            return 'darkgreen'
+        elif k == 12:
+            return 'lightgreen'
+        else:
+            return 'green'
     elif capture_type == 'ham':
         if k is not None:
             if k == 4:
@@ -819,11 +836,11 @@ def get_cap_color(capture_type, k):
                 return 'navy'
         else:
             return 'blue'
-    elif capture_type == 'timeslicing':
+    elif capture_type == 'slicing':
         if k == 8:
             return 'pink'
         elif k == 12:
-            return 'purple'
+            return 'crimson'
         else:
-            return 'violet'
+            return 'purple'
     return None
