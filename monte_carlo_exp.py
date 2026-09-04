@@ -34,9 +34,9 @@ DEFAULT_RUNS = [
     {'type': 'ham','k': 4, 'pulse_width': 150}, #(N_TBINS // (12)) / (2 * np.sqrt(np.log(2))),},
     {'type': 'coarse','k': 4, 'simulated': True},
 
-    {'type': 'sliding', "pulse_width": 150, "shift": 3, "gate_width": 150, 'simulated': True},
-    {'type': 'sliding', "pulse_width": 150, "shift": 3, "gate_width": 300, 'simulated': True},
-    {'type': 'sliding', "pulse_width": 150, "shift": 3, "gate_width": 75, 'simulated': True},
+    {'type': 'sliding', "pulse_width": 150, "shift": 3, "gate_width": 150, 'k': N_TBINS//3, 'simulated': True},
+    {'type': 'sliding', "pulse_width": 150, "shift": 3, "gate_width": 300, 'k': N_TBINS//3,'simulated': True},
+    {'type': 'sliding', "pulse_width": 150, "shift": 3, "gate_width": 75, 'k': N_TBINS//3,'simulated': True},
 
 
     # coarsepw — one entry per pulse width you want to test
