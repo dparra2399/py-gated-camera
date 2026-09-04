@@ -43,7 +43,7 @@ DEFAULT_RUNS = [
 
 def run_one(idx, cap_type, k, photon_count_base, sbr, x, y,
             trials, n_tbins, tbin_depth_res, depth_margin, depth_sample,
-            pulse_width=None):
+            pulse_width=None, shift=None, gate_width=None):
     """Single (photon_count, sbr) evaluation — runs in a worker process.
     All large arrays are recomputed locally to avoid pickling overhead / OOM."""
     import numpy as np
@@ -51,8 +51,13 @@ def run_one(idx, cap_type, k, photon_count_base, sbr, x, y,
                                   simulate_counts_shared_illum,
                                   decode_simulation_depths)
 
+    # sliding derives k from the shift (number of gate positions to sweep n_tbins)
+    if k is None:
+        k = int(n_tbins / shift)
+
     depths = np.arange(depth_margin, (n_tbins * tbin_depth_res) - depth_margin, depth_sample)
-    waveform_or_illum, demodfs_or_cm, coding_matrix = get_code(cap_type, k, n_tbins, pulse_width=pulse_width)
+    waveform_or_illum, demodfs_or_cm, coding_matrix = get_code(
+        cap_type, k, n_tbins, pulse_width=pulse_width, shift=shift, gate_width=gate_width)
 
     photon_count = scale_photon_count(photon_count_base, cap_type, k) if SPLIT_ACQUISITION else photon_count_base
 
@@ -134,11 +139,13 @@ if __name__ == "__main__":
     # build flat task list — only scalars passed to each worker, arrays recomputed inside
     tasks = [
         delayed(run_one)(
-            idx, r['type'], r['k'],
+            idx, r['type'], r.get('k', None),
             photon_count_base, sbr, x, y,
             args.trials, args.n_tbins, tbin_depth_res,
             args.depth_margin, args.depth_sample,
             r.get('pulse_width', None),
+            r.get('shift', None),
+            r.get('gate_width', None),
         )
         for idx, r in enumerate(DEFAULT_RUNS)
         for x, photon_count_base in enumerate(args.photon_counts)
@@ -155,10 +162,18 @@ if __name__ == "__main__":
     save_dir = "/Users/davidparra/PycharmProjects/py-gated-camera/data/monte_carlo_exp"
     os.makedirs(save_dir, exist_ok=True)
 
-    run_labels = [
-        f"{r['type']}_k{r['k']}" + (f"_pw{r['pulse_width']}" if r.get('pulse_width') is not None else "")
-        for r in DEFAULT_RUNS
-    ]
+    def _label(r):
+        k = r.get('k')
+        if k is None and r.get('shift'):
+            k = int(args.n_tbins / r['shift'])
+        return (
+            f"{r['type']}_k{k}"
+            + (f"_pw{r['pulse_width']}" if r.get('pulse_width') is not None else "")
+            + (f"_sh{r['shift']}" if r.get('shift') is not None else "")
+            + (f"_gw{r['gate_width']}" if r.get('gate_width') is not None else "")
+        )
+
+    run_labels = [_label(r) for r in DEFAULT_RUNS]
     photon_min = int(min(args.photon_counts))
     photon_max = int(max(args.photon_counts))
     sbr_min    = f"{min(args.sbrs):.1f}"

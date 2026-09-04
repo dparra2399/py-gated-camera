@@ -16,7 +16,12 @@ import numpy as np
 # -----------------------------------------------------------------------------
 # CONFIG (capitalized)
 # ----------------------------------------------------------------------------
-EXP_PATHS = [['k4_HIGHSNR'], ['k4_LOWSNR']]
+# List of rows; each row is a list of groups (one subplot per group);
+# each group is a list of exp_paths aggregated into that subplot.
+EXP_PATHS = [
+    [['k3_HIGHSNR'], ['k3_LOWSNR']],
+    [['k4_HIGHSNR'], ['k4_LOWSNR']]
+]
 N_TBINS = 1500
 ERROR_TYPE = "MAE"
 
@@ -62,11 +67,14 @@ if __name__ == '__main__':
     correlation_folder = get_data_folder(READ_PATH_CORRELATIONS_MAC, READ_PATH_CORRELATIONS_WINDOWS)
     base_capture_folder = get_data_folder(READ_PATH_SINGLE_PIXEL_MAC, READ_PATH_SINGLE_PIXEL_WINDOWS)
 
-    exp_paths = EXP_PATHS if cfg.exp_path is None else [[cfg.exp_path]]
+    exp_paths = EXP_PATHS if cfg.exp_path is None else [[[cfg.exp_path]]]
 
-    all_depths_dicts = []
+    all_depths_dicts = []  # all_depths_dicts[row][col] -> list of cfg_dicts
 
-    for exp_path_group in exp_paths:
+    for exp_path_row in exp_paths:
+      row_depths_dicts = []
+
+      for exp_path_group in exp_path_row:
         depths_dict = []
 
         for exp_path in exp_path_group:
@@ -188,15 +196,28 @@ if __name__ == '__main__':
 
                 depths_dict.append(cfg_dict)
 
-        all_depths_dicts.append(depths_dict)
+        row_depths_dicts.append(depths_dict)
+
+      all_depths_dicts.append(row_depths_dicts)
 
 
-    n_paths = len(exp_paths)
-    fig, axs = plt.subplots(1, n_paths, figsize=(8 * n_paths, 8))
-    if n_paths == 1:
-        axs = [axs]
+    n_rows = len(exp_paths)
+    n_cols = max(len(row) for row in exp_paths)
+    fig, axs = plt.subplots(n_rows, n_cols,
+                            figsize=(6 * n_cols, 4 * n_rows), squeeze=False)
 
-    for j, (ax, depths_dict) in enumerate(zip(axs, all_depths_dicts)):
+    # per-cell bookkeeping for the shared-axis / shared-title post-pass
+    cell_title = [[None] * n_cols for _ in range(n_rows)]
+    cell_xmax  = [[None] * n_cols for _ in range(n_rows)]
+
+    for i, row_depths_dicts in enumerate(all_depths_dicts):
+      # hide any unused axes in a short row
+      for j in range(len(row_depths_dicts), n_cols):
+          axs[i][j].set_axis_off()
+
+      for j, depths_dict in enumerate(row_depths_dicts):
+        ax = axs[i][j]
+        xmax = 0
         for idx, inner_dict in enumerate(depths_dict):
             rmse = inner_dict['rmse']
             mae = inner_dict['mae']
@@ -217,28 +238,60 @@ if __name__ == '__main__':
                 linewidth=2,
                 markerfacecolor='none',
                 markeredgewidth=2,
-                label=get_string_name(capture_type, None, True),
+                label=get_string_name(capture_type, None, True) + f" (K={k})",
                 color=get_cap_color(capture_type, None)
             )
             #ax.set_ylim(0, 200)
-            ax.set_xlim(-0.2, max(int_times)+0.2)
-        ax.set_title(get_single_pixel_title(exp_paths[j]) + f" K ={k}", fontsize=24, fontweight='bold')
-        ax.legend(fontsize=16, framealpha=1, facecolor='white', edgecolor='black')
-        ax.set_xlabel('Total Integration Time (seconds)', fontsize=22)
+            xmax = max(xmax, max(int_times))
+        ax.set_xlim(-0.2, xmax + 0.2)
+        cell_xmax[i][j]  = round(xmax, 6)
+        cell_title[i][j] = get_single_pixel_title(exp_paths[i][j])
+        ax.legend(fontsize=14, framealpha=1, facecolor='white', edgecolor='black')
+        ax.set_xlabel('Total Integration Time (seconds)', fontsize=16)
         if ERROR_TYPE == "MAE":
-            ax.set_ylabel('Mean Depth Error (mm)', fontsize=22)
+            ax.set_ylabel('Mean Abs. Error (mm)', fontsize=16)
         elif ERROR_TYPE == "RMSE":
-            ax.set_ylabel('Mean Squared Depth Error (mm)', fontsize=22)
+            ax.set_ylabel('Mean Squared Depth Error (mm)', fontsize=16)
         else:
             raise ValueError(f"Unknown error type {ERROR_TYPE}")
-        ax.tick_params(axis='both', labelsize=18)
+        ax.tick_params(axis='both', labelsize=14)
         ax.grid(True, alpha=0.5)
         for spine in ax.spines.values():
             spine.set_linewidth(2)
             spine.set_edgecolor('black')
 
+    # ---- per-column post-pass: shared x-axis + shared column titles ----
+    for j in range(n_cols):
+        rows_present = [i for i in range(n_rows) if cell_xmax[i][j] is not None]
+        if not rows_present:
+            continue
+
+        # Shared x-axis: only when every row in this column spans the same
+        # total integration time. Then link them and drop the redundant
+        # x tick labels / xlabel on all but the bottom populated row.
+        xmaxes = {cell_xmax[i][j] for i in rows_present}
+        if len(xmaxes) == 1 and len(rows_present) > 1:
+            base = axs[rows_present[-1]][j]
+            for i in rows_present[:-1]:
+                axs[i][j].sharex(base)
+                axs[i][j].tick_params(labelbottom=False)
+                axs[i][j].set_xlabel("")
+
+        # Shared title: if all populated rows in the column have the same
+        # title, show it once on the top populated row and clear the rest.
+        titles = {cell_title[i][j] for i in rows_present}
+        if len(titles) == 1:
+            top = rows_present[0]
+            axs[top][j].set_title(cell_title[top][j], fontsize=24, fontweight='bold')
+            for i in rows_present[1:]:
+                axs[i][j].set_title("")
+        else:
+            for i in rows_present:
+                axs[i][j].set_title(cell_title[i][j], fontsize=24, fontweight='bold')
+
     #plt.rcParams['svg.fonttype'] = 'path'
     #timeslicing = if
+    plt.subplots_adjust(wspace=0.2, hspace=0.05)
     plt.savefig(f'figures/single_pixel_k{k}.pdf', dpi=300, bbox_inches='tight', pad_inches=0.1)
     plt.show()
     print(len(all_depths_dicts))
