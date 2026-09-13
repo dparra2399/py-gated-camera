@@ -17,21 +17,21 @@ BIT_DEPTH = 12
 
 # Capture parameters
 SPLIT_ACQUISITION = True
-INT_TIME = 30  # integration time
+INT_TIME = 10  # integration time
 GROUND_TRUTH_INT_TIME = 30
 BURST_TIME = 10 #Maxiumum burst time is 4800 ms
-K = 16  # number of time bins
+K = 3  # number of time bins
 TRIALS = 1
 
 GATE_SHRINKAGE = 5 #In NS
-CAPTURE_TYPE = 'timeslicing'
+CAPTURE_TYPE = 'ham'
 
 # Illumination Parameters:
-HIGH_LEVEL_AMPLITUDE = 1.2 #in Vpp
+HIGH_LEVEL_AMPLITUDE =0.5 #in Vpp
 LOW_LEVEL_AMPLITUDE = -0.5
 CURRENT = 16 #in mA
 EDGE = 6 * 1e-9 #Edge rate for pulse wave
-DUTY = 12 # In percentage
+DUTY = 30 # In percentage
 REP_RATE = 10 * 1e6 #in HZ
 ILLUM_TYPE = 'gaussian'
 
@@ -122,6 +122,7 @@ if __name__ == "__main__":
     sdg.turn_both_channels_on()
 
     ldc220.set_current(cfg.current)
+    #exit(0)
 
     gate_widths, gate_starts = get_gate_shifts(cfg.capture_type, cfg.rep_rate, cfg.k)
 

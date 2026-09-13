@@ -131,7 +131,18 @@ def colorize_mesh_by_depth(mesh):
     mesh.vertex_colors = o3d.utility.Vector3dVector(colors)
     return mesh
 
-
+def show_geometry(geometry, title="Open3D", mesh_back=False):
+    vis = o3d.visualization.Visualizer()
+    vis.create_window(window_name=title)
+    vis.add_geometry(geometry)
+    if mesh_back:
+        vis.get_render_option().mesh_show_back_face = True
+    ctrl = vis.get_view_control()
+    ctrl.set_front([0, 0, -1])   # camera looks in -z direction
+    ctrl.set_up([0, -1, 0])      # y points down in image space
+    ctrl.set_zoom(0.8)
+    vis.run()
+    vis.destroy_window()
 # =============================================================================
 # MAIN
 # =============================================================================
@@ -216,7 +227,7 @@ if __name__ == '__main__':
         pcd = o3d.geometry.PointCloud()
         pcd.points = o3d.utility.Vector3dVector(points)
 
-        o3d.visualization.draw_geometries([pcd], window_name="Point Cloud")
+        show_geometry(pcd, title="Point Cloud")
 
         if len(points) < 10:
             print("Too few points for mesh reconstruction — skipping.")
@@ -233,4 +244,4 @@ if __name__ == '__main__':
 
         mesh = colorize_mesh_by_depth(mesh)
 
-        o3d.visualization.draw_geometries([mesh], mesh_show_back_face=True, window_name="Mesh")
+        show_geometry(mesh, title="Mesh", mesh_back=True)

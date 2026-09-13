@@ -15,7 +15,7 @@ import pprint
 
 
 
-#filename =  'coarsek3_10mhz_420mV_16mA_30duty_correlations.npz'
+filename =  'coarsek3_10mhz_420mV_16mA_30duty_correlations.npz'
 
 #filename =  'hamk3_10mhz_500mV_16mA_20duty_correlations.npz'
 
@@ -32,7 +32,7 @@ import pprint
 
 #filename = "hamk4_10mhz_770mV_16mA_15duty_correlations.npz"
 
-filename = "trapcoarsek3_10mhz_420mV_16mA_30duty_correlations.npz"
+#filename = "trapcoarsek3_10mhz_420mV_16mA_30duty_correlations.npz"
 
 #filename = "traprectk3_10mhz_230mV_16mA_30duty_correlations.npz"
 

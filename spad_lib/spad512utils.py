@@ -67,7 +67,7 @@ def get_hamk4_gate_shifts(freq, k=4):
     return gate_widths, gate_starts
 
 def get_coarse_gate_shifts(freq, k):
-    gate_width = math.ceil((((1/freq)*1e12) // k) * 1e-3 )
+    gate_width = math.floor((((1/freq)*1e12) // k) * 1e-3 )
     gate_starts = [[(gate_width * (gate_step) * 1e3)] for gate_step in range(k)]
     gate_widths = [[gate_width] for i in range(k)]
     return gate_widths, gate_starts
@@ -125,18 +125,29 @@ def burst_capture(
     current_inttime = int_time
 
     while current_inttime > burst_time:
-        counts += spad1.get_gated_intensity(
-            bit_depth, burst_time, iterations, gate_steps, gate_step_size,
-            gate_step_arbitrary, gate_width, gate_offset,
-            gate_direction, gate_trig, overlap, 1, pileup, im_width, timeout
-        )
+        while True:
+            try:
+                counts += spad1.get_gated_intensity(
+                    bit_depth, current_inttime, iterations, gate_steps, gate_step_size,
+                    gate_step_arbitrary, gate_width, gate_offset,
+                    gate_direction, gate_trig, overlap, 1, pileup, im_width, timeout
+                )
+                break  # success — exit the loop
+            except:
+                print("Measurement failed, retrying...")
+
         current_inttime -= burst_time
 
-    counts += spad1.get_gated_intensity(
-        bit_depth, current_inttime, iterations, gate_steps, gate_step_size,
-        gate_step_arbitrary, gate_width, gate_offset,
-        gate_direction, gate_trig, overlap, 1, pileup, im_width, timeout
-    )
+    while True:
+        try:
+            counts += spad1.get_gated_intensity(
+                bit_depth, current_inttime, iterations, gate_steps, gate_step_size,
+                gate_step_arbitrary, gate_width, gate_offset,
+                gate_direction, gate_trig, overlap, 1, pileup, im_width, timeout
+            )
+            break  # success — exit the loop
+        except:
+            print("Measurement failed, retrying...")
 
     return counts
 

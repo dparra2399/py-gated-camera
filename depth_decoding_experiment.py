@@ -1,3 +1,5 @@
+import numpy as np
+
 from spad_lib.spad512utils import *
 from utils.file_utils import *
 from plot_scripts.plot_utils import *
@@ -9,19 +11,19 @@ from utils.parameter_classes import DecodeConfig
 # -----------------------------------------------------------------------------
 # CONFIG (capitalized)
 # -----------------------------------------------------------------------------
-EXP_PATH = os.path.join('exp_4')
+EXP_PATH = os.path.join('exp_6')
 N_TBINS = 3000
-NUM_TRIALS = 60
+NUM_TRIALS = 400
 
 #PLotting utils for visualization
 PLOT_DEPTH_MAPS = True
-VMINS = 11 # [13.5, 13] * 1#None if no min depth value just choose smallest
+VMINS = None # [13.5, 13] * 1#None if no min depth value just choose smallest
 VMAXS = None # [14, 14] * 1#none if no max depth value just choose largest
 MEDIAN_FILTER_SIZE = 3
 
 #Masking or normalizing depth maps
 NORMALIZE_DEPTH_MAPS = False
-MASK_BACKGROUND_PIXELS = True
+MASK_BACKGROUND_PIXELS = False
 
 #Which correlation functions to use
 SIMULATED_CORRELATIONS = False
@@ -93,7 +95,11 @@ if __name__ == '__main__':
         coded_vals_path = os.path.join(capture_folder, coded_vals_name)
         capture_file = np.load(coded_vals_path, allow_pickle=True)
         params = capture_file['cfg'].item()
-        coded_vals = capture_file['coded_vals']
+
+        try:
+            coded_vals = capture_file['coded_vals']
+        except:
+            print('skipped file', coded_vals_name)
         im_width = params['im_width']
         mA = params['current']
         mV = params['high_level_amplitude'] * 1000
@@ -137,8 +143,8 @@ if __name__ == '__main__':
         # -----------------------------------------------------------------
         total_trials = coded_vals.shape[0]
         trials = min(total_trials, cfg.num_trials)
-        perm = np.random.permutation(min(params['max_trials'], trials))[:trials]
-        coded_vals_trials = np.sum(coded_vals[perm, ...], axis=0)
+        #perm = np.random.permutation(min(params['max_trials'], trials))[:trials]
+        coded_vals_trials = np.sum(coded_vals[:trials, ...], axis=0)
         coded_vals_total = np.sum(coded_vals, axis=0)
 
         print(f'Trials {total_trials} for capture type {capture_type}')
@@ -180,9 +186,11 @@ if __name__ == '__main__':
         if cfg.mask_background_pixels:
             depth_map = depth_map[40:450, :]
             gt_depth_map = gt_depth_map[40:450, :]
+            depth_map[depth_map == 0] = np.nan
+            gt_depth_map[gt_depth_map == 0] = np.nan
             mask = None
 
-        mae = np.nanmean(np.abs(depth_map - gt_depth_map))
+        mae = np.nanmean(np.abs(depth_map[270:, ...] - gt_depth_map[270:, ...]))
         rmse = np.sqrt(np.nanmean((depth_map - gt_depth_map) ** 2))
 
         cfg_dict = asdict(cfg)

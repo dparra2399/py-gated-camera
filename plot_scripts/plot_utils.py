@@ -308,7 +308,7 @@ def plot_capture_comparison(depths_maps_dict, x=20, y=20, width=220, height=320,
         # Error map -------------------------------------------------------
         ax4 = fig.add_subplot(gs[i, 3])
         error_map = np.abs(depth_map - gt_depth_map)
-        im4 = ax4.imshow(error_map, vmin=0, vmax=max(0.5, np.min(error_map)))
+        im4 = ax4.imshow(error_map, vmin=0, vmax=max(0.02, np.min(error_map)))
         fig.colorbar(im4, ax=ax4, fraction=0.046, pad=0.04, label="Absolute Error (m)")
         ax4.set_title("Error Map")
 

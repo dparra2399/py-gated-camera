@@ -5,7 +5,7 @@ import subprocess
 
 BASE = [
     "python", "correlations_single_capture.py",
-    "--k", "4",
+    "--k", "3",
     "--im_width", "512",
     "--burst_time", "100",
     "--bit_depth", "12",
@@ -23,10 +23,10 @@ BASE = [
 for typ in ["coarse", "ham", "trapcoarse"]:
         illum_typ = 'pulse' if typ == 'ham' else 'gaussian'
         gate_shrinkage = '5' #'20' if typ == 'ham' else '10'
-        #duty = '20' if typ == 'ham' else '30'
-        duty = "15" if typ == "ham" else "23" #"30"
-        high_level_amp=  "0.77" if typ == "ham" else "0.54"
-        #high_level_amp=  "0.5" if typ == "ham" else "0.42"
+        duty = '20' if typ == 'ham' else '30'
+        #duty = "15" if typ == "ham" else "23" #"30"
+        #high_level_amp=  "0.77" if typ == "ham" else "0.54"
+        high_level_amp=  "0.5" if typ == "ham" else "0.42"
 
 
         cmd = BASE + [

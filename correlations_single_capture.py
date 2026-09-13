@@ -19,21 +19,21 @@ BIT_DEPTH = 12
 
 # Capture parameters
 SPLIT_ACQUISITION = False
-INT_TIME = 1000 # integration time
-BURST_TIME = 100
+INT_TIME = 20 # integration time
+BURST_TIME = 1
 K = 3  # number of time bins
-GATE_STEP_SIZE = 600 #Steps in picoseconds
-GATE_SHRINKAGE = 5 #In NS
-CAPTURE_TYPE = 'ham'
+GATE_STEP_SIZE = 1200 #Steps in picoseconds
+GATE_SHRINKAGE = 0#In NS
+CAPTURE_TYPE = 'coarse'
 
 # Illumination Parameters:
-HIGH_LEVEL_AMPLITUDE = 0.5 #in Vpp
+HIGH_LEVEL_AMPLITUDE = 0.42 #in Vpp
 LOW_LEVEL_AMPLITUDE = -0.5
 CURRENT = 16 #in mA
 EDGE = 6 * 1e-9 #Edge rate for pulse wave
-DUTY = 20 # In percentage
+DUTY = 30 # In percentage
 REP_RATE = 10 * 1e6 #in HZ
-ILLUM_TYPE = 'square'
+ILLUM_TYPE = 'gaussian'
 
 #Plot Parameters
 PLOT_CORRELATIONS = True
@@ -114,8 +114,6 @@ if __name__ == "__main__":
     sdg.turn_both_channels_on()
 
     ldc220.set_current(cfg.current)
-
-    exit(0)
 
 
     gate_widths, gate_starts = get_gate_shifts(cfg.capture_type, cfg.rep_rate, cfg.k)

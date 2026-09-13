@@ -23,7 +23,7 @@ BASE = [
 ]
 
 # sweeps
-capture_types = ["timeslicing"]
+capture_types = ["ham", "coarse"]
 phase_shifts = np.arange(20, 340, 30).tolist()  # <-- set whatever you want (degrees or whatever your script expects)
 
 print(phase_shifts)
@@ -34,19 +34,19 @@ run_id = 0
 # INNER LOOP = capture types share the SAME run_id folder
 for typ in capture_types:
 
-    #high_level_amp=  "0.5"  if typ == "ham" else "0.42"
+    high_level_amp=  "0.5"  if typ == "ham" else "0.42"
     #high_level_amp=  "0.5"  if typ == "ham" else "0.54"
     #high_level_amp = "0.42" if typ == "trapcoarse" else "0.23"
-    high_level_amp = "1.2"
+    #high_level_amp = "1.2"
 
     low_level_amps = "-0.5"
-    #illum_typ = "square" if typ == "ham" else "gaussian"
+    illum_typ = "square" if typ == "ham" else "gaussian"
     #illum_typ = "gaussian" if typ == "trapcoarse" else "pulse"
-    illum_typ = "gaussian"
-    gate_shrinkage = "0" #"25" #"25" if typ == "ham" else "10"
+    #illum_typ = "gaussian"
+    gate_shrinkage = "5" if typ == "ham" else "0"
     #duty = "15" if typ == "ham" else "23" #"30"
-    #duty = "20" if typ == "ham" else "30"  # "30"
-    duty = "12"
+    duty = "20" if typ == "ham" else "30"  # "30"
+    #duty = "12"
 
     cmd = BASE + [
         "--phase_shifts", ",".join(str(item) for item in phase_shifts),

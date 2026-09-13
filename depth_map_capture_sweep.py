@@ -3,6 +3,64 @@ import subprocess
 from itertools import product
 
 SCRIPT = "depth_map_capture.py"
+
+BASE = [
+    "python", SCRIPT,
+    "--k", "4",
+    "--im_width", "512",
+    "--bit_depth", "12",
+    "--split_acquisition", "1",
+    "--int_time", "1",
+    "--burst_time", "100",
+    "--max_trials", "50",
+    "--ground_truth_int_time", "50000",
+    "--ground_truth", "1",
+    "--rep_rate", "10000000",
+    "--save_into_file", "1",
+    "--iterations", "1",
+    "--current", "16"
+]
+
+# sweeps
+capture_types = ["coarse", "trapcoarse", "ham"]
+phases = [320]   # <-- set whatever you want
+
+run_id = 7
+
+# OUTER LOOP = things that define a "run folder"
+for phase in phases:
+
+
+    # INNER LOOP = capture types share the SAME run_id folder
+    for typ in capture_types:
+
+        #high_level_amp=  "0.5" if typ == "ham" else "0.42"
+        high_level_amp=  "0.77" if typ == "ham" else "0.54"
+
+
+        low_level_amps = "-0.5"
+        illum_typ = "pulse" if typ == "ham" else "gaussian"
+        gate_shrinkage = "5" #20" if typ == "ham" else "10"
+        duty = "15" if typ == "ham" else "23"
+        #duty = "20" if typ == "ham" else "30"
+
+        cmd = BASE + [
+            "--phase", str(phase),
+            "--capture_type", typ,
+            "--gate_shrinkage", str(gate_shrinkage),
+            "--duty", str(duty),
+            "--illum_type", illum_typ,
+            "--high_level_amplitude", str(high_level_amp),
+            "--low_level_amplitude", str(low_level_amps),
+
+            "--exp_path", f"exp_{run_id}",
+        ]
+
+        print(f"  -> running capture_type={typ}")
+        subprocess.run(cmd, check=True)
+
+    # increment ONCE per outer sweep combo (not per capture type)
+    run_id += 1
 #
 # BASE = [
 #     "python", SCRIPT,
@@ -10,10 +68,10 @@ SCRIPT = "depth_map_capture.py"
 #     "--im_width", "512",
 #     "--bit_depth", "12",
 #     "--split_acquisition", "1",
-#     "--int_time", "3",
-#     "--burst_time", "60",
+#     "--int_time", "1",
+#     "--burst_time", "100",
 #     "--max_trials", "50",
-#     "--ground_truth_int_time", "9000",
+#     "--ground_truth_int_time", "100000",
 #     "--ground_truth", "1",
 #     "--rep_rate", "10000000",
 #     "--save_into_file", "1",
@@ -22,10 +80,10 @@ SCRIPT = "depth_map_capture.py"
 # ]
 #
 # # sweeps
-# capture_types = ["trapcoarse", "coarse", "ham"]
-# phases = [60]   # <-- set whatever you want
+# capture_types = ["ham", "coarse", "trapcoarse"]
+# phases = [90]   # <-- set whatever you want
 #
-# run_id = 5
+# run_id = 10
 #
 # # OUTER LOOP = things that define a "run folder"
 # for phase in phases:
@@ -59,63 +117,4 @@ SCRIPT = "depth_map_capture.py"
 #         subprocess.run(cmd, check=True)
 #
 #     # increment ONCE per outer sweep combo (not per capture type)
-#     run_id += 1
-
-
-
-BASE = [
-    "python", SCRIPT,
-    "--k", "4",
-    "--im_width", "512",
-    "--bit_depth", "12",
-    "--split_acquisition", "1",
-    "--int_time", "1",
-    "--burst_time", "100",
-    "--max_trials", "50",
-    "--ground_truth_int_time", "5000",
-    "--ground_truth", "1",
-    "--rep_rate", "10000000",
-    "--save_into_file", "1",
-    "--iterations", "1",
-    "--current", "16"
-]
-
-# sweeps
-capture_types = ["coarse", "ham"]
-phases = [60]   # <-- set whatever you want
-
-run_id = 5
-
-# OUTER LOOP = things that define a "run folder"
-for phase in phases:
-
-
-    # INNER LOOP = capture types share the SAME run_id folder
-    for typ in capture_types:
-
-        #high_level_amp=  "0.5" if typ == "ham" else "0.42"
-        high_level_amp=  "0.77" if typ == "ham" else "0.54"
-
-        low_level_amps = "-0.5"
-        illum_typ = "pulse" if typ == "ham" else "gaussian"
-        gate_shrinkage = "5" #20" if typ == "ham" else "10"
-        duty = "15" if typ == "ham" else "23"
-        #duty = "20" if typ == "ham" else "30"
-
-        cmd = BASE + [
-            "--phase", str(phase),
-            "--capture_type", typ,
-            "--gate_shrinkage", str(gate_shrinkage),
-            "--duty", str(duty),
-            "--illum_type", illum_typ,
-            "--high_level_amplitude", str(high_level_amp),
-            "--low_level_amplitude", str(low_level_amps),
-
-            "--exp_path", f"exp_{run_id}",
-        ]
-
-        print(f"  -> running capture_type={typ}")
-        subprocess.run(cmd, check=True)
-
-    # increment ONCE per outer sweep combo (not per capture type)
-    run_id += 1
+#     run_id += 15

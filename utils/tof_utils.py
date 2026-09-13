@@ -110,7 +110,7 @@ def build_coding_matrix_from_correlations(
         # correlations_total: (H, W, n_tbins, K)
         coding_matrix = gaussian_filter(
             correlations_total.swapaxes(-1, -2),  # -> (H,W,K,n_tbins)
-            sigma=(1, 1, 1, 0),
+            sigma=(3, 3, 0, 0),
         )
         # roll along time
         if shift_size is not None:
