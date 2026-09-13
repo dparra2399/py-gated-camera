@@ -4,7 +4,8 @@ from matplotlib import pyplot as plt
 
 from single_pixel_decoding_exposure_plot import TOTAL_PIXELS
 from utils.file_utils import *
-from plot_scripts.plot_utils import plot_single_pixel_dist, plot_single_pixel_corr, plot_single_pixel_depth_pairs
+from plot_scripts.plot_utils import plot_single_pixel_dist, plot_single_pixel_corr, plot_single_pixel_depth_pairs, \
+    plot_single_pixel_error_per_trial
 from utils.global_constants import *
 from utils.tof_utils import build_coding_matrix_from_correlations, get_simulated_coding_matrix, \
     calculate_tof_domain_params, decode_single_pixel_experiment
@@ -14,8 +15,8 @@ import numpy as np
 # -----------------------------------------------------------------------------
 # CONFIG (capitalized)
 # ----------------------------------------------------------------------------
-EXP_PATH = os.path.join('timeslicing_HIGHSNR')
-N_TBINS = 1500
+EXP_PATH = os.path.join('k3_LOWSNR')
+N_TBINS = 1000
 
 #PLotting utils for visualization
 PLOT_SINGLE_PIXEL = True
@@ -62,10 +63,10 @@ if __name__ == '__main__':
     capture_folder = get_data_folder(READ_PATH_SINGLE_PIXEL_MAC, READ_PATH_SINGLE_PIXEL_WINDOWS)
     assert cfg.exp_path is not None, 'Must define exp_num to find folder'
     capture_folder = os.path.join(capture_folder, cfg.exp_path)
-
-
+    capture_folder = get_capture_folder(capture_folder)
 
     capture_paths = os.listdir(capture_folder)
+    capture_paths = [p for p in capture_paths if os.path.isfile(os.path.join(capture_folder, p))]
     capture_paths = filter_capture_files(capture_paths)
 
     depths_dict = {}
@@ -74,6 +75,8 @@ if __name__ == '__main__':
         if coded_vals_name.startswith('.'):
             continue
         coded_vals_path = os.path.join(capture_folder, coded_vals_name)
+        if not os.path.isfile(coded_vals_path):
+            continue
         capture_file = np.load(coded_vals_path, allow_pickle=True)
         params = capture_file['cfg'].item()
         coded_vals = capture_file['coded_vals']
@@ -129,7 +132,7 @@ if __name__ == '__main__':
             tbin_depth_res,
             SINGLE_PIXEL_COORDS['y'],
             SINGLE_PIXEL_COORDS['x'],
-            n_pixels=100
+            n_pixels=30
         )
         
 
@@ -141,10 +144,10 @@ if __name__ == '__main__':
             tbin_depth_res,
             SINGLE_PIXEL_COORDS['y'],
             SINGLE_PIXEL_COORDS['x'],
-            n_pixels=TOTAL_PIXELS
+            n_pixels=TOTAL_PIXELS // 2
         )
 
-        if capture_type == 'timeslicing': depths = np.roll(depths, -2, axis=-1)
+        #if capture_type == 'coarse': depths = np.roll(depths, -1, axis=-1)
         # plt.imshow(np.sum(np.sum(coded_vals_gt, axis=0), axis=-1))
         # plt.show()
 
@@ -171,10 +174,10 @@ if __name__ == '__main__':
         print(mae, rmse, capture_type)
 
     if cfg.plot_single_pixel:
+        plot_single_pixel_error_per_trial(depths_dict)
+
         plot_single_pixel_dist(depths_dict)
 
         plot_single_pixel_depth_pairs(depths_dict)
-
-
 
         plot_single_pixel_corr(depths_dict)

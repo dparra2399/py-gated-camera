@@ -2,10 +2,12 @@
 import numpy as np
 import subprocess
 
+from illum_config import get_illum
+
 
 BASE = [
     "python", "correlations_single_capture.py",
-    "--k", "3",
+    "--k", "4",
     "--im_width", "512",
     "--burst_time", "100",
     "--bit_depth", "12",
@@ -20,24 +22,22 @@ BASE = [
 
 ]
 
-for typ in ["coarse", "ham", "trapcoarse"]:
-        illum_typ = 'pulse' if typ == 'ham' else 'gaussian'
-        gate_shrinkage = '5' #'20' if typ == 'ham' else '10'
-        duty = '20' if typ == 'ham' else '30'
-        #duty = "15" if typ == "ham" else "23" #"30"
-        #high_level_amp=  "0.77" if typ == "ham" else "0.54"
-        high_level_amp=  "0.5" if typ == "ham" else "0.42"
+K = 4  # must match "--k" in BASE; used to look up illumination config
+# (capture_type, illum_type) pairs to run; illumination pulled from illum_config
+RUNS = [("coarse", "gaussian"), ("ham", "pulse"), ("trapcoarse", "gaussian")]
 
+for typ, illum_typ in RUNS:
+        illum = get_illum(K, typ, illum_typ)
 
         cmd = BASE + [
             "--capture_type", typ,
-            "--gate_shrinkage", gate_shrinkage,
-            "--duty", duty,
+            "--gate_shrinkage", str(illum["gate_shrinkage"]),
+            "--duty", str(illum["duty"]),
             "--illum_type", illum_typ,
-            "--high_level_amplitude", str(high_level_amp),
+            "--high_level_amplitude", str(illum["high_level_amplitude"]),
         ]
         print("==============================================================")
-        print(f"type={typ}  amp={high_level_amp}")
+        print(f"type={typ}  illum={illum_typ}  amp={illum['high_level_amplitude']}")
         print("==============================================================")
 
         subprocess.run(cmd)

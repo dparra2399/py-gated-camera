@@ -3,138 +3,152 @@ import matplotlib.pyplot as plt
 
 from plot_scripts.plot_utils import plot_results_summary, plot_coding_curve, plot_correlations_one_plot, \
     plot_coding_error
-from utils.tof_utils import get_ham_code, get_coarse_code, simulate_counts, simulate_counts_shared_illum, decode_simulation_depths
-from utils.tof_utils import calculate_tof_domain_params
+from utils.tof_utils import (
+    get_code,
+    simulate_counts,
+    simulate_counts_shared_illum,
+    decode_simulation_depths,
+    calculate_tof_domain_params, scale_photon_count,
+)
 
-
-# =========================
-# Parameters
-# =========================
-K = 4
-N_TBINS = 992
-TRIALS = 100
-PHOTON_COUNT = 100
-SBR = 0.1
-
+# =============================================================================
+# Global parameters
+# =============================================================================
+N_TBINS      = 1000
+TRIALS       = 500
+PHOTON_COUNT = 2000
+SBR          = 1.0
+SPLIT_ACQUISITION = True
 REP_RATE = 5e6
-REP_TAU = float(1 / REP_RATE)
+REP_TAU  = float(1 / REP_RATE)
 
-DEPTH_SAMPLE = 0.01
+DEPTH_SAMPLE = 0.1
 
-rng = np.random.default_rng()
+# =============================================================================
+# Coding schemes to evaluate
+# Add / remove / reorder entries freely — everything else is automatic.
+# Each entry:
+#   type          : 'ham' | 'coarse' | 'rect' | 'trapcoarse' | 'traprect'
+#   k             : number of codes
+#   photon_count  : photons per measurement (tune per scheme as needed)
+#   simulated     : passed through to results dict (used by some plot helpers)
+# =============================================================================
+RUNS = [
+    {'type': 'ham',      'k': 4, 'photon_count': PHOTON_COUNT, 'pulse_width':  (N_TBINS // (8)) / (2 * np.sqrt(np.log(2))),}, #(N_TBINS // (8)) / (2 * np.sqrt(np.log(2)))  * .85, 'simulated': True},
+    #{'type': 'coarse',   'k': 4, 'photon_count': PHOTON_COUNT, 'simulated': True},
+    #{'type': 'ham', 'k': 3, 'photon_count': PHOTON_COUNT, 'pulse_width': 80, },
+    # (N_TBINS // (8)) / (2 * np.sqrt(np.log(2)))  * .85, 'simulated': True},
+    {'type': 'coarse', 'k': 4, 'photon_count': PHOTON_COUNT, 'simulated': True},
+    {'type': 'trapcoarse', 'k': 4, 'photon_count': PHOTON_COUNT, 'simulated': True}
+    # {'type': 'sliding', "pulse_width": 2, "shift": 2,    'photon_count': PHOTON_COUNT, "gate_width": 100, 'simulated': True},
+    # {'type': 'sliding', "pulse_width": 2, "shift": 10,   'photon_count': PHOTON_COUNT, "gate_width": 100, 'simulated': True},
+    # {'type': 'sliding', "pulse_width": 2, "shift": 100,  'photon_count': PHOTON_COUNT, "gate_width": 100, 'simulated': True},
+    # {'type': 'sliding', "pulse_width": 2, "shift": 200,  'photon_count': PHOTON_COUNT, "gate_width": 100, 'simulated': True},
 
+    # coarsepw — one entry per pulse width you want to test
+    # {'type': 'coarsepw', 'k': 8, 'photon_count': PHOTON_COUNT, 'pulse_width': (N_TBINS // (8)) / (2 * np.sqrt(np.log(2))) ,  'simulated': True},
+    # {'type': 'coarsepw', 'k': 8, 'photon_count': PHOTON_COUNT, 'pulse_width': (N_TBINS // (6)) / (2 * np.sqrt(np.log(2))),  'simulated': True},
+    # {'type': 'coarsepw', 'k': 12, 'photon_count': PHOTON_COUNT, 'pulse_width': (N_TBINS // (12)) / (2 * np.sqrt(np.log(2))),  'simulated': True},
+    # {'type': 'coarsepw', 'k': 12, 'photon_count': PHOTON_COUNT,'pulse_width': (N_TBINS // (8)) / (2 * np.sqrt(np.log(2))), 'simulated': True},
 
-# =========================
+    # {'type': 'coarsepw', 'k': 4, 'photon_count': PHOTON_COUNT // 4, 'pulse_width': N_TBINS // 4,  'simulated': True},
+    # {'type': 'coarsepw', 'k': 4, 'photon_count': PHOTON_COUNT // 4, 'pulse_width': N_TBINS // 2,  'simulated': True},
+    # {'type': 'trapcoarse','k': 8, 'photon_count': PHOTON_COUNT // 8, 'simulated': True},
+]
+
+# =============================================================================
 # ToF domain
-# =========================
-(
-    rep_tau,
-    rep_freq,
-    tbin_res,
-    t_domain,
-    max_depth,
-    tbin_depth_res,
-) = calculate_tof_domain_params(N_TBINS, REP_TAU)
+# =============================================================================
+(rep_tau, rep_freq, tbin_res,
+ t_domain, max_depth, tbin_depth_res) = calculate_tof_domain_params(N_TBINS, REP_TAU)
 
 depths = np.arange(3.0, max_depth - 3.0, DEPTH_SAMPLE)
 
-
-
-
-
+#print(depths.shape); exit(0)
 def print_example_counts(name, depths, coded_values):
     print(f"{name}")
-    print(f"depth: {depths[0]}")
-    print(f"counts: {coded_values[0]}")
-    print(f"total counts: {np.sum(coded_values[0])}")
+    print(f"  depth:        {depths[0]}")
+    print(f"  counts:       {coded_values[0]}")
+    print(f"  total counts: {np.sum(coded_values[0])}")
     print()
 
 
+# =============================================================================
+# Run each scheme
+# =============================================================================
+results = []
 
-# =========================
-# HAM
-# =========================
-ham_modfs, ham_demodfs, ham_cm = get_ham_code(K, N_TBINS)
+for run in RUNS:
+    cap_type  = run['type']
+    k  = run.get('k', None)
+    pulse_width  = run.get('pulse_width', None)
+    gate_width = run.get('gate_width', None)
+    shift = run.get('shift', None)
+    k = int(N_TBINS / shift) if k is None else k
 
-_, ham_cv = simulate_counts(
-    waveform=ham_modfs,
-    demodfs=ham_demodfs,
-    depths=depths,
-    photon_count=PHOTON_COUNT // 4,
-    sbr=SBR,
-    tbin_depth_res=tbin_depth_res,
-    n_tbins=N_TBINS,
-    k=K,
-)
+    photon_count_base = run['photon_count']
+    photon_count = scale_photon_count(photon_count_base, cap_type, k) if SPLIT_ACQUISITION else photon_count_base
 
-print_example_counts("HAM", depths, ham_cv)
+    label  = f"{cap_type}_k{k}" + (f"_pw{pulse_width}" if pulse_width is not None else "")
 
-ham_decoded_depth, ham_rmse, ham_mae = decode_simulation_depths(
-    coding_matrix=ham_cm,
-    coded_values=ham_cv,
-    depths=depths,
-    trials=TRIALS,
-    tbin_depth_res=tbin_depth_res,
-)
+    print(f"--- {label} ---")
 
+    # get_code returns (modfs_or_illum, demodfs_or_coding_matrix_T, coding_matrix)
+    waveform_or_illum, demodfs_or_cm, coding_matrix = get_code(cap_type, k, N_TBINS,
+                                                               pulse_width=pulse_width,
+                                                               shift=shift,
+                                                               gate_width=gate_width)
 
-# =========================
-# COARSE
-# =========================
-illum, coarse_demodfs, coarse_cm = get_coarse_code(16, N_TBINS)
+    if cap_type == 'ham':
+        _, coded_values = simulate_counts(
+            waveform=waveform_or_illum,
+            demodfs=demodfs_or_cm,
+            depths=depths,
+            photon_count=photon_count,
+            sbr=SBR,
+            tbin_depth_res=tbin_depth_res,
+            n_tbins=N_TBINS,
+            k=k,
+        )
+    else:
+        _, coded_values = simulate_counts_shared_illum(
+            illum=waveform_or_illum,
+            coding_matrix=demodfs_or_cm,
+            depths=depths,
+            photon_count=photon_count,
+            sbr=SBR,
+            tbin_depth_res=tbin_depth_res,
+            n_tbins=N_TBINS,
+            k=k,
+        )
 
-_, coarse_cv = simulate_counts_shared_illum(
-    illum=illum,
-    coding_matrix=coarse_demodfs,
-    depths=depths,
-    photon_count=PHOTON_COUNT // 16,
-    sbr=SBR,
-    tbin_depth_res=tbin_depth_res,
-    n_tbins=N_TBINS,
-    k=16,
-)
+    print_example_counts(label, depths, coded_values)
 
+    decoded_depth, rmse, mae = decode_simulation_depths(
+        coding_matrix=coding_matrix,
+        coded_values=coded_values,
+        depths=depths,
+        trials=TRIALS,
+        tbin_depth_res=tbin_depth_res,
+    )
 
-print_example_counts("COARSE", depths, coarse_cv)
+    print(f"  MAE={mae * 1000:.3f} mm  |  RMSE={rmse * 1000:.3f} mm\n")
 
-coarse_decoded_depth, coarse_rmse, coarse_mae = decode_simulation_depths(
-    coding_matrix=coarse_cm,
-    coded_values=coarse_cv,
-    depths=depths,
-    trials=TRIALS,
-    tbin_depth_res=tbin_depth_res,
-)
+    results.append({
+        'name':          label,
+        'coding_matrix': coded_values,
+        'waveform':      waveform_or_illum if waveform_or_illum.ndim > 1
+                         else np.tile(waveform_or_illum[:, None], (1, k)),
+        'rmse':          rmse * 1000,
+        'mae':           mae  * 1000,
+        'depths':        depths,
+        'simulated':     run.get('simulated', True),
+    })
 
-#print(ham_cv.shape)
-#print(np.mean(ham_cv / coarse_cv, axis=0))
-
-# =========================
-# Summary
-# =========================
-print(f"HAM    → MAE={ham_mae * 1000:.3f} | RMSE={ham_rmse * 1000:.3f}")
-print(f"COARSE → MAE={coarse_mae * 1000:.3f} | RMSE={coarse_rmse * 1000:.3f}")
-
-
-results = [
-    {
-        "name": "ham",
-        "coding_matrix": ham_cv,
-        "waveform": ham_modfs,
-        "rmse": ham_rmse * 1000,
-        "mae": ham_mae * 1000,
-        "depths": depths
-    },
-    {
-        "name": "coarse",
-        "coding_matrix": coarse_cv,
-        "waveform": np.tile(illum[:, None], (1, K)),
-        "rmse": coarse_rmse * 1000,
-        "mae": coarse_mae * 1000,
-        "depths": depths
-
-    },
-]
-#plot_correlations_one_plot(results)
-#plot_coding_error(results)
+# =============================================================================
+# Plot
+# =============================================================================
+# plot_correlations_one_plot(results)
+# plot_coding_error(results)
 plot_results_summary(results)
 # plot_coding_curve(results)

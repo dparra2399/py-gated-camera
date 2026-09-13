@@ -2,12 +2,15 @@
 import subprocess
 import numpy as np
 
+from illum_config import get_illum
 
 SCRIPT = "single_pixel_capture.py"
 
+K = 4  # capture K; must have matching rows in illum_config
+
 BASE = [
     "python", SCRIPT,
-    "--k", "16",
+    "--k", str(K),
     "--im_width", "512",
     "--burst_time", "10",
     "--int_time", "30",
@@ -23,7 +26,8 @@ BASE = [
 ]
 
 # sweeps
-capture_types = ["ham", "coarse"]
+# (capture_type, illum_type) pairs to run; illumination pulled from illum_config
+RUNS = [("coarse", "gaussian"), ("ham", "pulse")]
 phase_shifts = np.arange(20, 340, 30).tolist()  # <-- set whatever you want (degrees or whatever your script expects)
 
 print(phase_shifts)
@@ -32,34 +36,22 @@ print(len(phase_shifts))
 run_id = 0
 
 # INNER LOOP = capture types share the SAME run_id folder
-for typ in capture_types:
+for typ, illum_typ in RUNS:
 
-    high_level_amp=  "0.5"  if typ == "ham" else "0.42"
-    #high_level_amp=  "0.5"  if typ == "ham" else "0.54"
-    #high_level_amp = "0.42" if typ == "trapcoarse" else "0.23"
-    #high_level_amp = "1.2"
-
-    low_level_amps = "-0.5"
-    illum_typ = "square" if typ == "ham" else "gaussian"
-    #illum_typ = "gaussian" if typ == "trapcoarse" else "pulse"
-    #illum_typ = "gaussian"
-    gate_shrinkage = "5" if typ == "ham" else "0"
-    #duty = "15" if typ == "ham" else "23" #"30"
-    duty = "20" if typ == "ham" else "30"  # "30"
-    #duty = "12"
+    illum = get_illum(K, typ, illum_typ)
 
     cmd = BASE + [
         "--phase_shifts", ",".join(str(item) for item in phase_shifts),
         "--capture_type", typ,
-        "--gate_shrinkage", str(gate_shrinkage),
-        "--duty", str(duty),
+        "--gate_shrinkage", str(illum["gate_shrinkage"]),
+        "--duty", str(illum["duty"]),
         "--illum_type", illum_typ,
-        "--high_level_amplitude", str(high_level_amp),
-        "--low_level_amplitude", str(low_level_amps),
+        "--high_level_amplitude", str(illum["high_level_amplitude"]),
+        "--low_level_amplitude", str(illum["low_level_amplitude"]),
         "--exp_path", f"exp_{run_id}",
     ]
 
     print( ",".join(str(item) for item in phase_shifts))
-    print(f"  -> running capture_type={typ} \n \n")
+    print(f"  -> running capture_type={typ} illum={illum_typ} {illum} \n \n")
     subprocess.run(cmd, check=True)
     run_id += 1
