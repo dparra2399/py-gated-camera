@@ -2,6 +2,8 @@
 import subprocess
 from itertools import product
 
+from illum_config import get_illum
+
 SCRIPT = "depth_map_capture.py"
 #
 # BASE = [
@@ -81,7 +83,9 @@ BASE = [
 ]
 
 # sweeps
-capture_types = ["coarse", "ham"]
+K = 4  # must match "--k" in BASE; used to look up illumination config
+# (capture_type, illum_type) pairs to run; illumination pulled from illum_config
+RUNS = [("coarse", "gaussian"), ("ham", "pulse")]
 phases = [60]   # <-- set whatever you want
 
 run_id = 5
@@ -91,30 +95,23 @@ for phase in phases:
 
 
     # INNER LOOP = capture types share the SAME run_id folder
-    for typ in capture_types:
+    for typ, illum_typ in RUNS:
 
-        #high_level_amp=  "0.5" if typ == "ham" else "0.42"
-        high_level_amp=  "0.77" if typ == "ham" else "0.54"
-
-        low_level_amps = "-0.5"
-        illum_typ = "pulse" if typ == "ham" else "gaussian"
-        gate_shrinkage = "5" #20" if typ == "ham" else "10"
-        duty = "15" if typ == "ham" else "23"
-        #duty = "20" if typ == "ham" else "30"
+        illum = get_illum(K, typ, illum_typ)
 
         cmd = BASE + [
             "--phase", str(phase),
             "--capture_type", typ,
-            "--gate_shrinkage", str(gate_shrinkage),
-            "--duty", str(duty),
+            "--gate_shrinkage", str(illum["gate_shrinkage"]),
+            "--duty", str(illum["duty"]),
             "--illum_type", illum_typ,
-            "--high_level_amplitude", str(high_level_amp),
-            "--low_level_amplitude", str(low_level_amps),
+            "--high_level_amplitude", str(illum["high_level_amplitude"]),
+            "--low_level_amplitude", str(illum["low_level_amplitude"]),
 
             "--exp_path", f"exp_{run_id}",
         ]
 
-        print(f"  -> running capture_type={typ}")
+        print(f"  -> running capture_type={typ} illum={illum_typ} {illum}")
         subprocess.run(cmd, check=True)
 
     # increment ONCE per outer sweep combo (not per capture type)

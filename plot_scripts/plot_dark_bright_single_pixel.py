@@ -1,4 +1,5 @@
 import pprint
+import shutil
 import zipfile
 
 from matplotlib import pyplot as plt
@@ -78,7 +79,8 @@ if __name__ == '__main__':
         depths_dict = []
 
         for exp_path in exp_path_group:
-            capture_folder = get_capture_folder(os.path.join(base_capture_folder, exp_path))
+            capture_folder, cleanup_dir = get_capture_folder(
+                os.path.join(base_capture_folder, exp_path), return_cleanup=True)
 
             capture_paths = os.listdir(capture_folder)
             capture_paths = [p for p in capture_paths if os.path.isfile(os.path.join(capture_folder, p))]
@@ -195,6 +197,12 @@ if __name__ == '__main__':
                 #cfg_dict.update(params)
 
                 depths_dict.append(cfg_dict)
+                capture_file.close()  # release the npz handle before deleting
+
+            # done reading this archive — delete the unzipped copy now so at
+            # most one archive is expanded on disk at a time
+            if cleanup_dir is not None:
+                shutil.rmtree(cleanup_dir, ignore_errors=True)
 
         row_depths_dicts.append(depths_dict)
 

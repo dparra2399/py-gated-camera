@@ -4,22 +4,25 @@ import plotly.graph_objects as go
 import plotly.io as pio
 from plotly.subplots import make_subplots
 
-from plot_scripts.plot_utils import get_cap_color
+from plot_scripts.plot_utils import get_cap_color, get_string_name
 
 # =============================================================================
 # CONFIG
 # =============================================================================
 FILENAMES = [
-   #"/Users/davidparra/PycharmProjects/py-gated-camera/data/monte_carlo_exp/ntbins1000_trials5000_photons300-9000_sbr0.1-10.0_ham_k3_coarse_k3_trapcoarse_k3_split.npz",
-   #"/Users/davidparra/PycharmProjects/py-gated-camera/data/monte_carlo_exp/ntbins1000_trials5000_photons300-9000_sbr0.1-10.0_ham_k4_coarse_k4_trapcoarse_k4_split.npz"
-    #"/Users/davidparra/PycharmProjects/py-gated-camera/data/monte_carlo_exp/ntbins1000_trials5000_photons100-3000_sbr0.1-10.0_ham_k4_coarse_k4_trapcoarse_k4.npz"
-    "/Users/davidparra/PycharmProjects/py-gated-camera/data/monte_carlo_exp/ntbins3000_trials5000_photons300-9000_sbr0.1-10.0_K12_Decreasing.npz"
+    #"/Users/davidparra/PycharmProjects/py-gated-camera/data/monte_carlo_exp/ntbins1000_trials5000_photons300-9000_sbr0.1-10.0_K3_split_ideal_2.npz",
+    "/Users/davidparra/PycharmProjects/py-gated-camera/data/monte_carlo_exp/ntbins1000_trials5000_photons300-9000_sbr0.1-10.0_K4_split.npz",
+
+    #"/Users/davidparra/PycharmProjects/py-gated-camera/data/monte_carlo_exp/ntbins1000_trials5000_photons300-9000_sbr0.1-10.0_K8_split.npz"
+    #"/Users/davidparra/PycharmProjects/py-gated-camera/data/monte_carlo_exp/ntbins1000_trials5000_photons300-9000_sbr0.1-10.0_Sliding2_split_ideal.npz",
+    #"/Users/davidparra/PycharmProjects/py-gated-camera/data/monte_carlo_exp/ntbins1000_trials5000_photons300-9000_sbr0.1-10.0_Sliding2_split.npz"
+
 ]
 
-N_TBINS    = 3000     # time bins used in the sweep (from the filename, ntbins*)
+N_TBINS    = 1000     # time bins used in the sweep (from the filename, ntbins*)
 METRIC     = 'mae'    # 'mae' or 'rmse'
 GRID_SIZE  = 7        # number of tick marks on x/y axes
-Z_MAX      = 400     # max z-axis value (mm)
+Z_MAX      = 500     # max z-axis value (mm)
 
 # Slice edges off the results to zoom into the interesting region.
 # Set to None to keep the full range on that side.
@@ -32,17 +35,21 @@ TRIM_SBR_HIGH    = None    # drop this many points from the high-SBR end
 # HELPERS
 # =============================================================================
 def parse_label(label):
-    """Parse 'ham_k3', 'coarse_k4', 'coarsepw_k3_pw50' → (capture_type, k)."""
+    """Parse 'ham_k3', 'coarse_k4', 'coarsepw_k3_pw50', 'sliding_k5_sh10'
+    → (capture_type, k, pw, shift)."""
     parts = str(label).split('_')
     cap_type = parts[0]
     k = None
     pw = None
+    shift = None
     for p in parts[1:]:
         if p.startswith('k') and p[1:].isdigit():
             k = int(p[1:])
         if p.startswith('pw'):
             pw = int(float(p[2:]))
-    return cap_type, k, pw
+        if p.startswith('sh'):
+            shift = int(float(p[2:]))
+    return cap_type, k, pw, shift
 
 
 # =============================================================================
@@ -91,13 +98,20 @@ if __name__ == "__main__":
         col = idx % n_cols + 1
 
         for j, label in enumerate(run_labels):
-            cap_type, k, pw = parse_label(label)
-            print(label)
-            color = get_cap_color(cap_type, k)
+            cap_type, k, pw, shift = parse_label(label)
+            color = get_cap_color(cap_type, k, shift)
             color = color if color is not None else 'blue'
+
             print(cap_type, k, pw)
-            if k == 3 or pw == 1 or cap_type == 'coarse':
-                continue
+
+
+            #
+            # if cap_type == 'coarse' or (cap_type == 'coarsepw' and k < 8):
+            #    continue
+
+
+
+
             fig.add_trace(go.Surface(
                 z=results[j],
                 x=X,
@@ -115,17 +129,17 @@ if __name__ == "__main__":
 
             # Surfaces don't appear in the legend, so add a dummy legend-only
             # Scatter3d (renders nothing) once per unique label/color.
-            legend_name = cap_type.capitalize()
-            if k is not None:
-                legend_name += f' K={k}'
+            legend_name = get_string_name(cap_type, None, True) + f" (K={k})"
             if pw is not None:
                 # Express pulse width as a multiple of the "matched" width.
                 if cap_type == 'coarsepw' and k:
                     ref_pw = (N_TBINS // k) / (2 * np.sqrt(np.log(2)))
+                    print(pw); print(ref_pw); print(k)#; exit(0)
+
                     mult = pw / ref_pw
                     legend_name += f' ({mult:.1f}x)'
                 else:
-                    legend_name += f' PW={pw}'
+                    legend_name += ''#f' PW={pw}'
             if legend_name not in legend_seen:
                 legend_seen[legend_name] = color
                 fig.add_trace(go.Scatter3d(
@@ -170,7 +184,7 @@ if __name__ == "__main__":
                 showgrid=True, gridcolor='lightgray', backgroundcolor='white',
                 range=[0, Z_MAX],
             ),
-            camera=dict(eye=dict(x=2.0, y=-2.0, z=0.7)),
+            camera=dict(eye=dict(x=2.0, y=-2.0, z=1.2)),
             bgcolor='white',
         )
 
@@ -191,6 +205,7 @@ if __name__ == "__main__":
             xanchor='left', yanchor='middle',
         ),
     )
-    fig.write_image("figures/monte_carlo_plot.svg")
+    fig.write_image("figures/monte_carlo_plot.svg", scale=1)
+    fig.write_image("figures/monte_carlo_plot.pdf", scale=1)
     pio.renderers.default = 'browser'
     fig.show()

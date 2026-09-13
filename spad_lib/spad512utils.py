@@ -209,7 +209,7 @@ def get_trap_gate_shifts(freq, k):
 
 
 def get_gate_shifts(type, freq, k):
-    if type == 'coarse' or type == 'rect' or type == "timeslicing":
+    if type == 'coarse':
         name = 'coarse'
     elif type == 'trapcoarse' or type == 'traprect':
         name = 'trap'

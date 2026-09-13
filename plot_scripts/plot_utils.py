@@ -4,6 +4,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import matplotlib.patches as patches
+from matplotlib.colors import to_hex
+from matplotlib.ticker import FormatStrFormatter
 from matplotlib.pyplot import legend
 from scipy.ndimage import gaussian_filter, median_filter, gaussian_filter1d
 from felipe_utils.tof_utils_felipe import zero_norm_t, norm_t
@@ -511,6 +513,31 @@ def plot_single_pixel_depth_pairs(depths_dict):
     plt.tight_layout()
     plt.show()
 
+def plot_single_pixel_error_per_trial(depths_dict):
+    # Depth error vs. trial, one line per run in the folder.
+    fig, ax = plt.subplots(figsize=(8, 5))
+    for inner in depths_dict.values():
+        depths = np.asarray(inner['depths'])
+        gt_depths = np.asarray(inner['gt_depths'])
+        # depths.shape == (trials, n_depths): collapse the depth axis so
+        # each trial becomes a single mean-absolute-error value (mm).
+        error_per_trial = np.nanmean(np.abs(depths - gt_depths), axis=-1) * 1000
+        trials = np.arange(error_per_trial.shape[0])
+        ax.plot(
+            trials,
+            error_per_trial,
+            marker='o',
+            markerfacecolor='none',
+            label=f"{inner['capture_type']} (MAE={inner['mae'] * 1000:.2f}mm)",
+        )
+    ax.set_xlabel('Trial')
+    ax.set_ylabel('Depth Error (mm)')
+    ax.set_title('Depth Error vs. Trial')
+    ax.legend()
+    ax.grid(True)
+    plt.tight_layout()
+    plt.show()
+
 def plot_results_summary(results):
     fig, axs = plt.subplots(len(results), 3, figsize=(8, 2 * len(results)), squeeze=False)
 
@@ -679,7 +706,7 @@ def plot_depth_error_distribution(results):
 def get_string_name(capture_type, k, short=False):
     name = ''
     if short:
-        if capture_type == 'coarse':
+        if capture_type == 'coarse' or capture_type == 'coarsepw':
             name = 'Triangle'
         elif capture_type == 'trapcoarse':
             name = 'Trapezoidal'
@@ -691,6 +718,8 @@ def get_string_name(capture_type, k, short=False):
             name = 'SiP Ham.'
         elif capture_type == 'timeslicing':
             name = 'Time-Slicing '
+        elif capture_type == 'sliding':
+            name = "Sliding"
     else:
 
         if capture_type == 'coarse':
@@ -705,6 +734,8 @@ def get_string_name(capture_type, k, short=False):
             name = 'SiP Hamiltonian'
         elif capture_type == 'timeslicing':
             name=  'Time-Slicing '
+        elif capture_type == 'sliding':
+            name = "Sliding"
     if k is not None: name += " K=" + str(k)
     return name
 
@@ -758,7 +789,7 @@ def plot_3d_recon_comparison(runs, snr_label="", vmax_error=None,
             ax_top.imshow(r['depth_map'], vmin=depth_vmin, vmax=depth_vmax)
             top_row_label = 'Depth Map'
 
-        ax_top.set_title(title, fontsize=12, fontweight='bold', color=color)
+        ax_top.set_title(title, fontsize=18, fontweight='bold', color=color)
         ax_top.set_xticks([])
         ax_top.set_yticks([])
         for spine in ax_top.spines.values():
@@ -766,7 +797,7 @@ def plot_3d_recon_comparison(runs, snr_label="", vmax_error=None,
         # Right-side row label on the last column only
         if j == n - 1:
             ax_top.yaxis.set_label_position('right')
-            ax_top.set_ylabel(top_row_label, fontsize=10, rotation=270, labelpad=14, va='bottom')
+            ax_top.set_ylabel(top_row_label, fontsize=16, rotation=270, labelpad=14, va='bottom')
 
 
         # ── Row 1: error map ───────────────────────────────────────────────
@@ -800,7 +831,11 @@ def plot_3d_recon_comparison(runs, snr_label="", vmax_error=None,
     y1  = axes[1, 0].get_position().y1
     x1  = axes[1, -1].get_position().x1
     cbar_ax = fig.add_axes([x1 + 0.015, y0, 0.018, y1 - y0])
-    fig.colorbar(im, cax=cbar_ax, label='Depth Error (cm)')
+    cbar = fig.colorbar(im, cax=cbar_ax)
+    # flip the label so it reads top->bottom (rotation=90 is the default)
+    cbar.set_label('Depth Error (cm)', rotation=270, labelpad=18, fontsize=16)
+    # round the tick labels to 2 decimal places
+    cbar.ax.yaxis.set_major_formatter(FormatStrFormatter('%.2f'))
 
     #if snr_label:
     #    fig.suptitle(snr_label.replace('snr', ' SNR').upper(), fontsize=14, fontweight='bold')
@@ -812,9 +847,10 @@ def plot_3d_recon_comparison(runs, snr_label="", vmax_error=None,
     plt.show()
 
 
-def get_cap_color(capture_type, k):
+def get_cap_color(capture_type, k, shift=None):
     if capture_type == 'coarse':
-        return 'orange'
+        # plain coarse = the middle of the coarsepw orange ramp
+        return to_hex(plt.get_cmap('Oranges')(0.60))
     elif capture_type == 'trapcoarse':
         return 'red'
     elif capture_type == 'rect':
@@ -822,15 +858,27 @@ def get_cap_color(capture_type, k):
     elif capture_type == 'traprect':
         return 'green'
     elif capture_type == 'coarsepw':
-        if k == 8:
-            return 'darkgreen'
-        elif k == 12:
-            return 'lightgreen'
-        else:
+        if k is None:
+            return 'orange'
+        # Light -> dark orange as k increases, sampled from the Oranges colormap
+        # so any k works. Anchored so k=8 stays light and k=20 stays dark;
+        # other k interpolate/clamp.
+        K_LIGHT, K_DARK = 8, 20
+        pos = 0.30 + 0.60 * (k - K_LIGHT) / (K_DARK - K_LIGHT)
+        pos = min(0.98, max(0.15, pos))   # clamp away from near-white/black
+        return to_hex(plt.get_cmap('Oranges')(pos))
+    elif capture_type == 'sliding':
+        if shift is None:
             return 'green'
+        # Light -> dark green as shift increases, sampled from the Greens
+        # colormap so any shift works. Tune the anchors to your shift range.
+        S_LIGHT, S_DARK = 1, 200
+        pos = 0.30 + 0.60 * (shift - S_LIGHT) / (S_DARK - S_LIGHT)
+        pos = min(0.98, max(0.15, pos))   # clamp away from near-white/black
+        return to_hex(plt.get_cmap('Greens')(pos))
     elif capture_type == 'ham':
         if k is not None:
-            if k == 4:
+            if k == 4 and False:
                 return 'lightblue'
             else:
                 return 'navy'

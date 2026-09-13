@@ -18,9 +18,9 @@ import pprint
 # Add as many filenames as you want — each becomes one column in the plot
 FILENAMES = [
     # 'hamk3_10mhz_500mV_16mA_20duty_correlations.npz',
-    # 'coarsek3_10mhz_420mV_16mA_30duty_correlations.npz',
+     'coarsek3_10mhz_420mV_16mA_30duty_correlations.npz',
     # 'trapcoarsek3_10mhz_420mV_16mA_30duty_correlations.npz',
-    'hamk4_10mhz_770mV_16mA_15duty_correlations.npz',
+    #'hamk4_10mhz_770mV_16mA_15duty_correlations.npz',
     #'coarsek4_10mhz_540mV_16mA_23duty_correlations.npz',
     #'trapcoarsek4_10mhz_540mV_16mA_23duty_correlations.npz',
     #'coarsek12_10mhz_1200mV_16mA_12duty_correlations.npz'
@@ -29,7 +29,7 @@ FILENAMES = [
 SMOOTH_SIGMA = 1
 N_TBINS_DEFAULT = 1500
 SHIFT = None   # shift applied when building coding matrix from correlations
-OTHER_SHIFTS = [-650]#[-250]#[-650]#[-620, -190, -190]   # shift applied to ideal coding matrix for alignment
+OTHER_SHIFTS = [-250]#[-250]#[-650]#[-620, -190, -190]   # shift applied to ideal coding matrix for alignment
 
 if __name__ == "__main__":
     folder = get_data_folder(READ_PATH_CORRELATIONS_MAC, READ_PATH_CORRELATIONS_WINDOWS)

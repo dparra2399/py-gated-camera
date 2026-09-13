@@ -227,6 +227,7 @@ def decode_single_pixel_experiment(
         if pixel_order is None:
             rng = np.random.default_rng(seed)
             pixel_order = rng.permutation(total_pixels)
+            #pixel_order = np.arange(total_pixels)
 
         n_pixels = min(n_pixels, total_pixels)
         idx = pixel_order[:n_pixels]
@@ -369,7 +370,15 @@ def _make_illum(n_tbins, k, add, use_rect):
     return gaussian_pulse(np.arange(n_tbins), 0, width, circ_shifted=True)
 
 def get_coarse_code(k, n_tbins, use_rect=False):
-    coding_matrix = np.kron(np.eye(k), np.ones((1, n_tbins // k)))
+    coding_matrix = np.zeros((k, n_tbins))
+
+    step = n_tbins // k
+    block_len = step
+
+    for i in range(k):
+        start = i * step
+        cols = (np.arange(start, start + block_len) % n_tbins)
+        coding_matrix[i, cols] = 1
 
     # kron truncates when k doesn't divide n_tbins evenly — interpolate back to n_tbins
     if coding_matrix.shape[-1] != n_tbins:

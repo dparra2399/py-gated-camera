@@ -25,7 +25,7 @@ import argparse
 # =============================================================================
 # CONFIG
 # =============================================================================
-EXP_PATH = os.path.join('step_stool_results', 'timeslicing_LOWSNR')
+EXP_PATH = os.path.join('step_stool_results', 'k3_HIGHSNR_1')
 N_TBINS = 3000
 NUM_TRIALS = 200
 
@@ -64,15 +64,15 @@ SNR_LABEL     = "highsnr"  if "highsnr" in EXP_PATH.lower() else "lowsnr"   # "h
 
 DEFAULT_RUNS = [
     "ham,3,10,500,16,20,1",
-    # "coarse,3,10, 420,16,30, 1",
-    # "trapcoarse,3,10, 420,16,30, 1",
+    "coarse,3,10, 420,16,30, 1",
+    "trapcoarse,3,10, 420,16,30, 1",
 
-    "ham,4,10,770,16,15,1",
+    #"ham,4,10,770,16,15,1",
     # "coarse,4,10, 540,16,23, 1",
     # "trapcoarse,4,10, 540,16,23, 1",
-
-    "timeslicing,8,10,1200,16,12,1",
-    "timeslicing,12,10,1200,16,12,1",
+    #
+    # "timeslicing,8,10,1200,16,12,1",
+    # "timeslicing,12,10,1200,16,12,1",
 
 ]
 

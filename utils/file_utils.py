@@ -41,10 +41,18 @@ def filter_capture_files(npz_files):
     return filtered
 
 def load_correlation_npz(path: str):
-    if os.path.exists(path):
-        return np.load(path, allow_pickle=True)
-
     zip_path = os.path.splitext(path)[0] + '.zip'
+
+    if os.path.exists(path):
+        try:
+            return np.load(path, allow_pickle=True)
+        except (zipfile.BadZipFile, ValueError, OSError, EOFError):
+            # A loose .npz is present but unreadable (e.g. a partial file left
+            # behind by an interrupted extraction). Fall back to the .zip if we
+            # have one; otherwise the file really is broken, so re-raise.
+            if not os.path.exists(zip_path):
+                raise
+
     if os.path.exists(zip_path):
         extract_dir = os.path.dirname(path)
         with zipfile.ZipFile(zip_path, 'r') as zip_ref:
@@ -54,9 +62,19 @@ def load_correlation_npz(path: str):
 
     raise FileNotFoundError(f'Correlation file not found as .npz or .zip: {path}')
 
-def get_capture_folder(path, delete_unzipped=True):
+def get_capture_folder(path, delete_unzipped=True, return_cleanup=False):
+    """Locate (and if needed unzip) a capture folder.
+
+    By default the extracted folder is removed at program exit via atexit,
+    which keeps every unzipped archive on disk until the process ends.
+
+    Pass return_cleanup=True to instead get back (capture_folder, cleanup_dir):
+    cleanup_dir is the extracted folder (or None if `path` was already a real
+    directory), and the caller is responsible for shutil.rmtree-ing it as soon
+    as it is done reading. This caps peak disk usage at one unzipped archive.
+    """
     if os.path.isdir(path):
-        return path
+        return (path, None) if return_cleanup else path
 
     if zipfile.is_zipfile(path + ".zip"):
         path = path + ".zip"
@@ -66,14 +84,13 @@ def get_capture_folder(path, delete_unzipped=True):
         with zipfile.ZipFile(path, 'r') as zip_ref:
             zip_ref.extractall(unzip_folder)
 
-        if delete_unzipped:
+        if delete_unzipped and not return_cleanup:
             atexit.register(shutil.rmtree, unzip_folder, ignore_errors=True)
 
         inner_folder = os.path.join(unzip_folder, os.path.basename(unzip_folder))
-        if os.path.isdir(inner_folder):
-            return inner_folder
+        capture_folder = inner_folder if os.path.isdir(inner_folder) else unzip_folder
 
-        return unzip_folder
+        return (capture_folder, unzip_folder) if return_cleanup else capture_folder
 
     raise FileNotFoundError(f'Capture path is not a directory or zip file: {path}')
 

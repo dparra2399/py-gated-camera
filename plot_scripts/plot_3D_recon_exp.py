@@ -11,16 +11,16 @@ from utils.parameter_classes import DecodeConfig
 # -----------------------------------------------------------------------------
 # CONFIG (capitalized)
 # -----------------------------------------------------------------------------
-EXP_PATH = os.path.join('horse_results', 'k4_HIGHSNR_1')
+EXP_PATH = os.path.join('step_stool_results', 'k3_HIGHSNR_1')
 SNR_LABEL     = "highsnr" if "highsnr" in EXP_PATH.lower() else "lowsnr"
 FIGURES_DIR   = "figures"   # where 3d_recon_single.py saved its PNGs
-VMAX_ERROR    = 0.1  # metres; None = auto (95th percentile across runs)
-PLOT_POINT_CLOUD = False  # True = show point cloud PNG in top row; False = show depth map instead
+VMAX_ERROR    = 0.01# metres; None = auto (95th percentile across runs)
+PLOT_POINT_CLOUD = True  # True = show point cloud PNG in top row; False = show depth map instead
 ALIGN_DEPTHS = True       # shift each run's depth map so all medians match the first run
 N_TBINS = 3000
-NUM_TRIALS = 70
+NUM_TRIALS = 200
 
-BAD_ROWS = None #[(230, 260), (80, 95)]
+BAD_ROWS = [(230, 260), (80, 95)]
 
 #PLotting utils for visualization
 PLOT_DEPTH_MAPS = True
@@ -92,6 +92,11 @@ if __name__ == '__main__':
     capture_folder = get_data_folder(READ_PATH_CAPTURE_MAC, READ_PATH_CAPTURE_WINDOWS)
     assert cfg.exp_path is not None, 'Must define exp_num to find folder'
     capture_folder = os.path.join(capture_folder, cfg.exp_path)
+    # exp_path may point at a .zip; get_capture_folder expects the base name
+    # (it appends .zip itself) and returns the unzipped directory.
+    if capture_folder.endswith('.zip'):
+        capture_folder = capture_folder[:-len('.zip')]
+    capture_folder = get_capture_folder(capture_folder)
 
     capture_paths = os.listdir(capture_folder)
     capture_paths = filter_capture_files(capture_paths)
