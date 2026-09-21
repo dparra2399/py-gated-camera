@@ -88,7 +88,7 @@ if __name__ == '__main__':
     cfg = apply_decode_defaults(DecodeConfig(**vars(args)))
 
     hot_mask = load_hot_mask(get_data_folder(HOT_MASK_PATH_WINDOWS, HOT_MASK_PATH_MAC))
-    correlation_folder = get_data_folder(READ_PATH_CORRELATIONS_MAC, READ_PATH_CORRELATIONS_WINDOWS)
+    correlation_folder = get_data_folder(READ_PATH_CORRELATIONS_DEPTH_MAC, READ_PATH_CORRELATIONS_DEPTH_WINDOWS)
     capture_folder = get_data_folder(READ_PATH_CAPTURE_MAC, READ_PATH_CAPTURE_WINDOWS)
     assert cfg.exp_path is not None, 'Must define exp_num to find folder'
     capture_folder = os.path.join(capture_folder, cfg.exp_path)

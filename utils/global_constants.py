@@ -6,6 +6,14 @@ SAVE_PATH_CORRELATIONS = "C:\\Users\\compops\\Desktop\\David_Folder\\gated_corre
 READ_PATH_CORRELATIONS_WINDOWS = f'C:\\Users\\compops\\Desktop\\David_Folder\\gated_correlations'
 READ_PATH_CORRELATIONS_MAC = f'/Users/davidparra/PycharmProjects/py-gated-camera/data/correlation_functions'
 
+# Single-pixel experiments read correlations from their own subfolder ...
+READ_PATH_CORRELATIONS_SINGLE_PIXEL_WINDOWS = f'C:\\Users\\compops\\Desktop\\David_Folder\\gated_correlations\\single_pixel'
+READ_PATH_CORRELATIONS_SINGLE_PIXEL_MAC = f'/Users/davidparra/PycharmProjects/py-gated-camera/data/correlation_functions/single_pixel'
+
+# ... while depth decoding reads from a separate subfolder.
+READ_PATH_CORRELATIONS_DEPTH_WINDOWS = f'C:\\Users\\compops\\Desktop\\David_Folder\\gated_correlations\\depth_decoding'
+READ_PATH_CORRELATIONS_DEPTH_MAC = f'/Users/davidparra/PycharmProjects/py-gated-camera/data/correlation_functions/depth_decoding'
+
 READ_PATH_VOLTAGE_FUNCTIONS_WINDOWS = "/depreciated/voltage_functions"
 READ_PATH_VOLTAGE_FUNCTIONS_MAC = "/Users/davidparra/PycharmProjects/py-gated-camera/voltage_functions"
 
@@ -32,6 +40,12 @@ FOCAL_LENGTH = 25 #in mm
 # SINGLE_PIXEL_COORDS = {'x': [85, 105],
 #                        'y': [185, 205]}
 
+# SINGLE_PIXEL_COORDS = {'x': [65, 125],
+#                        'y': [165, 225]}
+
 
 SINGLE_PIXEL_COORDS = {'x': [15, 35],
                        'y': [255, 285]}
+
+# SINGLE_PIXEL_COORDS = {'x': [20, 30],
+#                        'y': [250, 280]}

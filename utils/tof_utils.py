@@ -226,8 +226,8 @@ def decode_single_pixel_experiment(
     else:
         if pixel_order is None:
             rng = np.random.default_rng(seed)
-            pixel_order = rng.permutation(total_pixels)
-            #pixel_order = np.arange(total_pixels)
+            #pixel_order = rng.permutation(total_pixels)
+            pixel_order = np.arange(total_pixels)
 
         n_pixels = min(n_pixels, total_pixels)
         idx = pixel_order[:n_pixels]
@@ -239,6 +239,46 @@ def decode_single_pixel_experiment(
     else:
         depths, recon =  zncc_decoding(avg_coded_vals, coding_matrix, tbin_depth_res)
     return depths, recon, n_pixels
+
+
+def decode_per_pixel_experiment(
+    capture_type: str,
+    coded_vals: np.ndarray,
+    coding_matrix: np.ndarray,
+    tbin_depth_res: float,
+    y_pixels: list,
+    x_pixels: list,
+    pixel_chunk: int = 64,
+):
+    """Decode every pixel in the ROI on its own, without pooling.
+
+    decode_single_pixel_experiment() sums the ROI down to a single aggregate
+    measurement before decoding. This keeps each pixel separate so the error
+    can be inspected per pixel. Decoding runs in chunks along the pixel axis
+    so the intermediate correlation volume does not blow up memory.
+
+    Returns
+    -------
+    depths : np.ndarray
+        Shape (..., roi_h, roi_w), e.g. (trials, n_phase_shifts, roi_h, roi_w).
+    """
+    sub = coded_vals[..., y_pixels[0]:y_pixels[1], x_pixels[0]:x_pixels[1], :]
+    roi_h, roi_w = sub.shape[-3], sub.shape[-2]
+
+    flat = sub.reshape(*sub.shape[:-3], -1, sub.shape[-1])  # (..., n_pix, K)
+    n_pix = flat.shape[-2]
+
+    depth_chunks = []
+    for start in range(0, n_pix, pixel_chunk):
+        chunk = flat[..., start:start + pixel_chunk, :]
+        if capture_type == 'timeslicing':
+            chunk_depths, _ = linear_reconstruction(chunk, coding_matrix, tbin_depth_res)
+        else:
+            chunk_depths, _ = zncc_decoding(chunk, coding_matrix, tbin_depth_res)
+        depth_chunks.append(chunk_depths)
+
+    depths = np.concatenate(depth_chunks, axis=-1)  # (..., n_pix)
+    return depths.reshape(*depths.shape[:-1], roi_h, roi_w)
 
 
 def linear_reconstruction(c_vals, coding_matrix, tbin_depth_res):

@@ -10,7 +10,7 @@ from utils.file_utils import (
     get_capture_folder, capture_parse_run, str2bool,
 )
 from utils.global_constants import (
-    READ_PATH_CORRELATIONS_MAC, READ_PATH_CORRELATIONS_WINDOWS,
+    READ_PATH_CORRELATIONS_DEPTH_MAC, READ_PATH_CORRELATIONS_DEPTH_WINDOWS,
     READ_PATH_CAPTURE_MAC, READ_PATH_CAPTURE_WINDOWS,
     HOT_MASK_PATH_MAC, HOT_MASK_PATH_WINDOWS,
     PIXEL_PITCH, FOCAL_LENGTH,
@@ -238,7 +238,7 @@ if __name__ == '__main__':
     args = parse_args()
 
     hot_mask = load_hot_mask(get_data_folder(HOT_MASK_PATH_WINDOWS, HOT_MASK_PATH_MAC))
-    correlation_folder = get_data_folder(READ_PATH_CORRELATIONS_MAC, READ_PATH_CORRELATIONS_WINDOWS)
+    correlation_folder = get_data_folder(READ_PATH_CORRELATIONS_DEPTH_MAC, READ_PATH_CORRELATIONS_DEPTH_WINDOWS)
     capture_folder = get_data_folder(READ_PATH_CAPTURE_MAC, READ_PATH_CAPTURE_WINDOWS)
     if args.exp_path is not None:
         capture_folder = get_capture_folder(os.path.join(capture_folder, args.exp_path))

@@ -16,8 +16,8 @@ import numpy as np
 # -----------------------------------------------------------------------------
 # CONFIG (capitalized)
 # ----------------------------------------------------------------------------
-EXP_PATH = os.path.join('exp_3')
-N_TBINS = 2000
+EXP_PATH = os.path.join('k4_LOWSNR')
+N_TBINS = 3000
 
 #Which correlation functions to use
 SIMULATED_CORRELATIONS = False
@@ -29,7 +29,7 @@ SHIFT_SIZE = None #None if no shifting
 TOTAL_PIXELS = ((SINGLE_PIXEL_COORDS['y'][1] - SINGLE_PIXEL_COORDS['y'][0])
                 * (SINGLE_PIXEL_COORDS['x'][1] - SINGLE_PIXEL_COORDS['x'][0]))
 #Not apart of the defaults
-N_PIXELS = np.arange(10, TOTAL_PIXELS, 10)
+N_PIXELS = np.arange(10, TOTAL_PIXELS // 3, 10)
 
 # -----------------------------------------------------------------------------
 # MAIN
@@ -61,7 +61,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     cfg = apply_decode_defaults(DecodeConfig(**vars(args)))
 
-    correlation_folder = get_data_folder(READ_PATH_CORRELATIONS_MAC, READ_PATH_CORRELATIONS_WINDOWS)
+    correlation_folder = get_data_folder(READ_PATH_CORRELATIONS_SINGLE_PIXEL_MAC, READ_PATH_CORRELATIONS_SINGLE_PIXEL_WINDOWS)
     capture_folder = get_data_folder(READ_PATH_SINGLE_PIXEL_MAC, READ_PATH_SINGLE_PIXEL_WINDOWS)
     assert cfg.exp_path is not None, 'Must define exp_num to find folder'
     capture_folder = os.path.join(capture_folder, cfg.exp_path)
@@ -110,6 +110,7 @@ if __name__ == '__main__':
 
         correlations_total = load_correlation_npz(corr_path)['correlations']
 
+
         if cfg.simulated_correlations:
             coding_matrix = get_simulated_coding_matrix(capture_type, cfg.n_tbins, k)
         else:
@@ -133,6 +134,9 @@ if __name__ == '__main__':
         #pixel_order = np.arange(TOTAL_PIXELS)
 
         #coded_vals_gt = np.load(gt_coded_vals_path, allow_pickle=True)['coded_vals']
+        # print(coded_vals.shape)
+        # plt.imshow(np.sum(np.sum(np.sum(coded_vals, axis=-1), axis=0), axis=0))
+        # plt.show()
 
         gt_depths, recon_gt, _ = decode_single_pixel_experiment(
             capture_type + "s",

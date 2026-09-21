@@ -158,7 +158,40 @@ if __name__ == "__main__":
 
         trial_runs = []
         for trials in range(cfg.trials):
-            if cfg.capture_type == "coarse" or  cfg.capture_type == "trapcoarse" or (cfg.capture_type == "ham" and cfg.k < 4):
+            if cfg.capture_type == "ham" and cfg.k == 4:
+                # One sweep per gate width instead of one capture per gate. The widths and
+                # starts come straight from get_gate_shifts, so these are exactly the gates
+                # the slow path fires and the tuned gate shrinkage still applies unchanged.
+                sweep_needed = {k: v for k, v in asdict(cfg).items() if k in burst_capture.__code__.co_varnames}
+                coded_vals = np.zeros((512, cfg.im_width, cfg.k))
+
+                width_groups = {}
+                for code in range(cfg.k):
+                    for gate_width, gate_start in zip(gate_widths[code], gate_starts[code]):
+                        width_groups.setdefault(gate_width, []).append((gate_start, code))
+
+                for gate_width, gates in sorted(width_groups.items()):
+                    gates.sort()
+                    starts = [start for start, _ in gates]
+                    steps = np.diff(starts)
+                    assert len(set(steps)) <= 1, f"gate starts {starts} are not uniformly spaced"
+
+                    sweep_needed["gate_steps"] = len(starts)
+                    sweep_needed["gate_step_size"] = int(steps[0]) if len(steps) else 0
+                    sweep_needed["gate_offset"] = starts[0]
+
+                    if trials == 0:
+                        print(f"Doing Fast Capture of {cfg.capture_type} K={cfg.k}")
+                        print(f"gate_width: {gate_width - cfg.gate_shrinkage}")
+                        print(f"gate_step_size: {sweep_needed['gate_step_size']}")
+                        print(f"gate_steps: {len(starts)}, gate_offset: {starts[0]}")
+                        print("---------------------------------")
+                    print(f"trial number starting: {trials}")
+
+                    counts = burst_capture(SPAD1, gate_width=gate_width - cfg.gate_shrinkage, **sweep_needed)
+                    for step, (_, code) in enumerate(gates):
+                        coded_vals[:, :, code] += counts[:, :, step]
+            elif cfg.capture_type == "coarse" or  cfg.capture_type == "trapcoarse" or (cfg.capture_type == "ham" and cfg.k < 4):
                 needed = {k: v for k, v in asdict(cfg).items() if k in burst_capture.__code__.co_varnames}
                 gate_width = gate_widths[0][0] - cfg.gate_shrinkage
                 needed["gate_step_size"] = gate_starts[1][0]
