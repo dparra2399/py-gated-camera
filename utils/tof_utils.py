@@ -226,8 +226,8 @@ def decode_single_pixel_experiment(
     else:
         if pixel_order is None:
             rng = np.random.default_rng(seed)
-            #pixel_order = rng.permutation(total_pixels)
-            pixel_order = np.arange(total_pixels)
+            pixel_order = rng.permutation(total_pixels)
+            #pixel_order = np.arange(total_pixels)
 
         n_pixels = min(n_pixels, total_pixels)
         idx = pixel_order[:n_pixels]

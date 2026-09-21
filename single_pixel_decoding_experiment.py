@@ -5,17 +5,17 @@ from matplotlib import pyplot as plt
 from single_pixel_decoding_exposure_plot import TOTAL_PIXELS
 from utils.file_utils import *
 from plot_scripts.plot_utils import plot_single_pixel_dist, plot_single_pixel_corr, plot_single_pixel_depth_pairs, \
-    plot_single_pixel_error_per_trial
+    plot_single_pixel_error_per_trial, plot_single_pixel_error_per_pixel
 from utils.global_constants import *
 from utils.tof_utils import build_coding_matrix_from_correlations, get_simulated_coding_matrix, \
-    calculate_tof_domain_params, decode_single_pixel_experiment
+    calculate_tof_domain_params, decode_single_pixel_experiment, decode_per_pixel_experiment
 from utils.parameter_classes import DecodeConfig
 import numpy as np
 
 # -----------------------------------------------------------------------------
 # CONFIG (capitalized)
 # ----------------------------------------------------------------------------
-EXP_PATH = os.path.join('exp_3')
+EXP_PATH = os.path.join('k4_LOWSNR')
 N_TBINS = 2000
 
 #PLotting utils for visualization
@@ -59,7 +59,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     cfg = apply_decode_defaults(DecodeConfig(**vars(args)))
 
-    correlation_folder = get_data_folder(READ_PATH_CORRELATIONS_MAC, READ_PATH_CORRELATIONS_WINDOWS)
+    correlation_folder = get_data_folder(READ_PATH_CORRELATIONS_SINGLE_PIXEL_MAC, READ_PATH_CORRELATIONS_SINGLE_PIXEL_WINDOWS)
     capture_folder = get_data_folder(READ_PATH_SINGLE_PIXEL_MAC, READ_PATH_SINGLE_PIXEL_WINDOWS)
     assert cfg.exp_path is not None, 'Must define exp_num to find folder'
     capture_folder = os.path.join(capture_folder, cfg.exp_path)
@@ -122,7 +122,8 @@ if __name__ == '__main__':
         (rep_tau, rep_freq,tbin_res,
          t_domain,max_depth,tbin_depth_res,)= calculate_tof_domain_params(n_tbins, rep_tau)
 
-
+        pixel_order = np.random.default_rng(4).permutation(TOTAL_PIXELS)
+        #pixel_order = np.arange(TOTAL_PIXELS)
 
 
         depths, zncc, _ = decode_single_pixel_experiment(
@@ -132,7 +133,8 @@ if __name__ == '__main__':
             tbin_depth_res,
             SINGLE_PIXEL_COORDS['y'],
             SINGLE_PIXEL_COORDS['x'],
-            n_pixels=200
+            n_pixels=200,
+            pixel_order=pixel_order,
         )
         
 
@@ -144,7 +146,19 @@ if __name__ == '__main__':
             tbin_depth_res,
             SINGLE_PIXEL_COORDS['y'],
             SINGLE_PIXEL_COORDS['x'],
-            n_pixels=TOTAL_PIXELS
+            n_pixels=TOTAL_PIXELS,
+            pixel_order = pixel_order,
+        )
+
+        # decode each ROI pixel on its own (no pooling) so error can be
+        # inspected per pixel rather than only in aggregate
+        per_pixel_depths = decode_per_pixel_experiment(
+            capture_type,
+            coded_vals,
+            coding_matrix,
+            tbin_depth_res,
+            SINGLE_PIXEL_COORDS['y'],
+            SINGLE_PIXEL_COORDS['x'],
         )
 
         #if capture_type == 'coarse': depths = np.roll(depths, -1, axis=-1)
@@ -167,7 +181,8 @@ if __name__ == '__main__':
         cfg_dict.update({'depths': depths, 'gt_depths': gt_depths,
                          'rmse': rmse, 'mae': mae, 'coding_matrix': coding_matrix,
                          'tbin_res': tbin_res, 'tbin_depth_res': tbin_depth_res,
-                         'phase_shifts' : phase_shifts, 'capture_type': capture_type})
+                         'phase_shifts' : phase_shifts, 'capture_type': capture_type,
+                         'per_pixel_depths': per_pixel_depths})
         #cfg_dict.update(params)
         depths_dict[coded_vals_path] = cfg_dict
 
@@ -175,6 +190,8 @@ if __name__ == '__main__':
 
     if cfg.plot_single_pixel:
         plot_single_pixel_error_per_trial(depths_dict)
+
+        plot_single_pixel_error_per_pixel(depths_dict)
 
         plot_single_pixel_dist(depths_dict)
 

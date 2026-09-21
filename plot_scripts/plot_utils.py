@@ -892,3 +892,52 @@ def get_cap_color(capture_type, k, shift=None):
         else:
             return 'purple'
     return None
+
+
+def plot_single_pixel_error_per_pixel(depths_dict, save_fig: bool = False, n_worst: int = 5):
+    """Per-pixel depth error (mm), averaged over trials and phase shifts.
+
+    Unlike plot_single_pixel_error_per_trial, which collapses the ROI into one
+    pooled measurement, this expects each entry to carry 'per_pixel_depths'
+    with shape (trials, n_phase_shifts, roi_h, roi_w) so each pixel keeps its
+    own decoded depth. 'gt_depths' (trials, n_phase_shifts) is the pooled
+    high-SNR reference and is broadcast across the ROI.
+    """
+    entries = [v for v in depths_dict.values() if v.get('per_pixel_depths') is not None]
+    if not entries:
+        print('No per-pixel depths in depths_dict; skipping per-pixel error plot.')
+        return
+
+    fig, axs = plt.subplots(1, len(entries), figsize=(4 * len(entries), 5), squeeze=False)
+
+    for col, inner in enumerate(entries):
+        per_pixel = np.asarray(inner['per_pixel_depths'])   # (trials, shifts, h, w)
+        gt = np.asarray(inner['gt_depths'])                 # (trials, shifts)
+
+        # average the trial and phase-shift axes so every pixel gets one MAE
+        err = np.abs(per_pixel - gt[..., np.newaxis, np.newaxis]) * 1000
+        err_map = np.nanmean(err, axis=(0, 1))
+
+        ax = axs[0, col]
+        im = ax.imshow(err_map, aspect='auto', cmap='inferno', vmax=100)
+        ax.set_title(f"{inner['capture_type']}\nmean={np.nanmean(err_map):.2f}mm",
+                     fontsize=11, fontweight='bold')
+        ax.set_xlabel('x (ROI)')
+        if col == 0:
+            ax.set_ylabel('y (ROI)')
+        fig.colorbar(im, ax=ax, label='MAE (mm)')
+
+        flat = err_map.ravel()
+        order = np.argsort(flat)[::-1][:n_worst]
+        print(f"--- {inner['capture_type']} per-pixel error ---")
+        print(f"  median={np.nanmedian(flat):.2f}mm  "
+              f"mean={np.nanmean(flat):.2f}mm  max={np.nanmax(flat):.2f}mm")
+        for rank, p in enumerate(order, 1):
+            yy, xx = np.unravel_index(p, err_map.shape)
+            print(f"  worst {rank}: ROI(y={yy}, x={xx}) -> {flat[p]:.2f}mm")
+
+    fig.suptitle('Per-Pixel Depth Error (averaged over trials & phase shifts)')
+    plt.tight_layout()
+    if save_fig:
+        plt.savefig('figures/error_per_pixel.pdf', dpi=300, bbox_inches='tight', pad_inches=0.1)
+    plt.show()
