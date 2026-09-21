@@ -9,6 +9,7 @@ from utils.file_utils import *
 from plot_scripts.plot_utils import plot_single_pixel_dist, plot_single_pixel_corr, plot_single_pixel_depth_pairs, \
     get_string_name, get_single_pixel_title, get_cap_color
 from utils.global_constants import *
+from utils.global_constants import get_single_pixel_coords, get_total_pixels
 from utils.parameter_classes import DecodeConfig
 from utils.tof_utils import build_coding_matrix_from_correlations, get_simulated_coding_matrix, \
     calculate_tof_domain_params, decode_single_pixel_experiment
@@ -36,10 +37,11 @@ SIMULATED_CORRELATIONS = False
 SIGMA_SIZE = 1 #None if no smoothing
 SHIFT_SIZE = None #None if no shifting
 
-TOTAL_PIXELS = ((SINGLE_PIXEL_COORDS['y'][1] - SINGLE_PIXEL_COORDS['y'][0])
-                * (SINGLE_PIXEL_COORDS['x'][1] - SINGLE_PIXEL_COORDS['x'][0]))
 #Not apart of the defaults
-N_PIXELS = np.arange(2, TOTAL_PIXELS, 5)
+# n-pixel sweep knobs. The upper bound is derived per-capture at runtime,
+# because the ROI (and so its pixel count) depends on the capture's im_width.
+N_PIXELS_START = 2
+N_PIXELS_STEP = 5
 
 # -----------------------------------------------------------------------------
 # MAIN
@@ -100,6 +102,10 @@ if __name__ == '__main__':
                 params = capture_file['cfg'].item()
                 coded_vals = capture_file['coded_vals']
                 im_width = params['im_width']
+                # ROI depends on the captured frame width (512 vs cropped)
+                coords = get_single_pixel_coords(im_width)
+                total_pixels = get_total_pixels(coords)
+                n_pixels_range = np.arange(N_PIXELS_START, total_pixels, N_PIXELS_STEP)
                 mA = params['current']
                 mV = params['high_level_amplitude'] * 1000
                 capture_type = params['capture_type']
@@ -144,7 +150,7 @@ if __name__ == '__main__':
                 rmse_list = []
                 int_times = []
 
-                pixel_order = np.random.default_rng(0).permutation(TOTAL_PIXELS)
+                pixel_order = np.random.default_rng(0).permutation(total_pixels)
 
                 #coded_vals_gt = np.load(gt_coded_vals_path, allow_pickle=True)['coded_vals']
 
@@ -153,21 +159,21 @@ if __name__ == '__main__':
                     coded_vals,
                     coding_matrix,
                     tbin_depth_res,
-                    SINGLE_PIXEL_COORDS['y'],
-                    SINGLE_PIXEL_COORDS['x'],
-                    n_pixels=TOTAL_PIXELS,
+                    coords['y'],
+                    coords['x'],
+                    n_pixels=total_pixels,
                     pixel_order=pixel_order,
                 )
 
-                for i, n in enumerate(N_PIXELS):
+                for i, n in enumerate(n_pixels_range):
 
                     depths, recon, num_pixels = decode_single_pixel_experiment(
                         capture_type + "s",
                         coded_vals,
                         coding_matrix,
                         tbin_depth_res,
-                        SINGLE_PIXEL_COORDS['y'],
-                        SINGLE_PIXEL_COORDS['x'],
+                        coords['y'],
+                        coords['x'],
                         n_pixels=n,
                         pixel_order=pixel_order
                     )

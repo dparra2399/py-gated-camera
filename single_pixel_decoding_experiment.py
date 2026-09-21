@@ -2,11 +2,11 @@ import pprint
 
 from matplotlib import pyplot as plt
 
-from single_pixel_decoding_exposure_plot import TOTAL_PIXELS
 from utils.file_utils import *
 from plot_scripts.plot_utils import plot_single_pixel_dist, plot_single_pixel_corr, plot_single_pixel_depth_pairs, \
     plot_single_pixel_error_per_trial, plot_single_pixel_error_per_pixel
 from utils.global_constants import *
+from utils.global_constants import get_single_pixel_coords, get_total_pixels
 from utils.tof_utils import build_coding_matrix_from_correlations, get_simulated_coding_matrix, \
     calculate_tof_domain_params, decode_single_pixel_experiment, decode_per_pixel_experiment
 from utils.parameter_classes import DecodeConfig
@@ -81,6 +81,9 @@ if __name__ == '__main__':
         params = capture_file['cfg'].item()
         coded_vals = capture_file['coded_vals']
         im_width = params['im_width']
+        # ROI depends on the captured frame width (512 vs cropped)
+        coords = get_single_pixel_coords(im_width)
+        total_pixels = get_total_pixels(coords)
         mA = params['current']
         mV = params['high_level_amplitude'] * 1000
         capture_type = params['capture_type']
@@ -122,7 +125,7 @@ if __name__ == '__main__':
         (rep_tau, rep_freq,tbin_res,
          t_domain,max_depth,tbin_depth_res,)= calculate_tof_domain_params(n_tbins, rep_tau)
 
-        pixel_order = np.random.default_rng(4).permutation(TOTAL_PIXELS)
+        pixel_order = np.random.default_rng(4).permutation(total_pixels)
         #pixel_order = np.arange(TOTAL_PIXELS)
 
 
@@ -131,8 +134,8 @@ if __name__ == '__main__':
             coded_vals,
             coding_matrix,
             tbin_depth_res,
-            SINGLE_PIXEL_COORDS['y'],
-            SINGLE_PIXEL_COORDS['x'],
+            coords['y'],
+            coords['x'],
             n_pixels=200,
             pixel_order=pixel_order,
         )
@@ -144,9 +147,9 @@ if __name__ == '__main__':
             coded_vals,
             coding_matrix,
             tbin_depth_res,
-            SINGLE_PIXEL_COORDS['y'],
-            SINGLE_PIXEL_COORDS['x'],
-            n_pixels=TOTAL_PIXELS,
+            coords['y'],
+            coords['x'],
+            n_pixels=total_pixels,
             pixel_order = pixel_order,
         )
 
@@ -157,8 +160,8 @@ if __name__ == '__main__':
             coded_vals,
             coding_matrix,
             tbin_depth_res,
-            SINGLE_PIXEL_COORDS['y'],
-            SINGLE_PIXEL_COORDS['x'],
+            coords['y'],
+            coords['x'],
         )
 
         #if capture_type == 'coarse': depths = np.roll(depths, -1, axis=-1)
@@ -167,7 +170,7 @@ if __name__ == '__main__':
 
         print(f'capture type: {capture_type}')
         print(f'depth: {gt_depths[0, 0]:.3f}')
-        counts = np.sum(coded_vals[0, 0, SINGLE_PIXEL_COORDS['y'][0]:SINGLE_PIXEL_COORDS['y'][1], SINGLE_PIXEL_COORDS['x'][0]:SINGLE_PIXEL_COORDS['x'][1], :])
+        counts = np.sum(coded_vals[0, 0, coords['y'][0]:coords['y'][1], coords['x'][0]:coords['x'][1], :])
         print(f'total counts: {counts:.3f}')
         print('----------------------------------')
 

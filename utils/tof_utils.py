@@ -6,7 +6,8 @@ from scipy.ndimage import gaussian_filter, gaussian_filter1d, median_filter
 
 from felipe_utils.research_utils import signalproc_ops, np_utils
 from felipe_utils.tof_utils_felipe import zero_norm_t
-from utils.global_constants import EPILSON, SPEED_OF_LIGHT, SINGLE_PIXEL_COORDS
+from utils.global_constants import EPILSON, SPEED_OF_LIGHT, SINGLE_PIXEL_COORDS, \
+    get_single_pixel_coords
 from felipe_utils import tof_utils_felipe
 from felipe_utils import CodingFunctionsFelipe
 from felipe_utils.research_utils.signalproc_ops import gaussian_pulse, max_gaussian_center_of_mass_mle
@@ -140,13 +141,15 @@ def build_coding_matrix_from_correlations(
         return coding_matrix  # (H,W,n_tbins,K)
 
     # legacy path: spatial-sum correlations
+    # correlations_total is (H, W, ...), so W is im_width -- pick the ROI to match
+    coords = get_single_pixel_coords(correlations_total.shape[1])
     coding_matrix = np.transpose(
         #np.mean(np.mean(correlations_total[:, 20:correlations_total.shape[1]//2-20, :], axis=0), axis=0)
         #np.mean(np.mean(correlations_total[280:300, 140:150, :], axis=0), axis=0)
         #np.sum(np.sum(correlations_total[280:300, 155:170, ...], axis=0), axis=0)
         #np.sum(np.sum(correlations_total[205:220, 135:145, ...], axis=0), axis=0)
         #np.sum(np.sum(correlations_total[185:205, 85:95, :], axis=0), axis=0)
-        np.sum(np.sum(correlations_total[SINGLE_PIXEL_COORDS['y'][0]:SINGLE_PIXEL_COORDS['y'][1], SINGLE_PIXEL_COORDS['x'][0]:SINGLE_PIXEL_COORDS['x'][1], :], axis=0), axis=0)
+        np.sum(np.sum(correlations_total[coords['y'][0]:coords['y'][1], coords['x'][0]:coords['x'][1], :], axis=0), axis=0)
 
     )  # (n_tbins,K)
 

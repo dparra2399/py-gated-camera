@@ -44,8 +44,32 @@ FOCAL_LENGTH = 25 #in mm
 #                        'y': [165, 225]}
 
 
-SINGLE_PIXEL_COORDS = {'x': [15, 35],
-                       'y': [255, 285]}
+# Single-pixel ROI, keyed by im_width. The sensor height is always 512, but the
+# width follows im_width, so the x window has to move with it (the target sits
+# at a different column when the frame is cropped).
+SINGLE_PIXEL_COORDS_BY_WIDTH = {
+    128: {'x': [15, 35],   'y': [255, 285]},
+    512: {'x': [115, 135], 'y': [250, 280]},
+}
 
+# default so existing `from utils.global_constants import SINGLE_PIXEL_COORDS`
+# imports keep working; prefer get_single_pixel_coords(im_width) where im_width
+# is known at runtime.
+SINGLE_PIXEL_COORDS = SINGLE_PIXEL_COORDS_BY_WIDTH[128]
+
+# older ROIs kept for reference
 # SINGLE_PIXEL_COORDS = {'x': [20, 30],
 #                        'y': [250, 280]}
+
+
+def get_single_pixel_coords(im_width=None):
+    """ROI dict for a given im_width, falling back to the 128 default."""
+    if im_width is None:
+        return SINGLE_PIXEL_COORDS
+    return SINGLE_PIXEL_COORDS_BY_WIDTH.get(int(im_width), SINGLE_PIXEL_COORDS)
+
+
+def get_total_pixels(coords=None):
+    """Pixel count of an ROI dict (defaults to the module default)."""
+    c = SINGLE_PIXEL_COORDS if coords is None else coords
+    return (c['y'][1] - c['y'][0]) * (c['x'][1] - c['x'][0])
