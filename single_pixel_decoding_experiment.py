@@ -15,8 +15,8 @@ import numpy as np
 # -----------------------------------------------------------------------------
 # CONFIG (capitalized)
 # ----------------------------------------------------------------------------
-EXP_PATH = os.path.join('k3_LOWSNR')
-N_TBINS = 1000
+EXP_PATH = os.path.join('exp_3')
+N_TBINS = 2000
 
 #PLotting utils for visualization
 PLOT_SINGLE_PIXEL = True
@@ -132,7 +132,7 @@ if __name__ == '__main__':
             tbin_depth_res,
             SINGLE_PIXEL_COORDS['y'],
             SINGLE_PIXEL_COORDS['x'],
-            n_pixels=30
+            n_pixels=200
         )
         
 
@@ -144,7 +144,7 @@ if __name__ == '__main__':
             tbin_depth_res,
             SINGLE_PIXEL_COORDS['y'],
             SINGLE_PIXEL_COORDS['x'],
-            n_pixels=TOTAL_PIXELS // 2
+            n_pixels=TOTAL_PIXELS
         )
 
         #if capture_type == 'coarse': depths = np.roll(depths, -1, axis=-1)

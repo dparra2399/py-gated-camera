@@ -158,17 +158,26 @@ if __name__ == "__main__":
 
         trial_runs = []
         for trials in range(cfg.trials):
-            if cfg.capture_type == "timeslicing":
+            if cfg.capture_type == "coarse" or  cfg.capture_type == "trapcoarse" or (cfg.capture_type == "ham" and cfg.k < 4):
                 needed = {k: v for k, v in asdict(cfg).items() if k in burst_capture.__code__.co_varnames}
-                gate_width = gate_widths[0][0]
-                needed["gate_step_size"] = gate_width * 1e3
+                gate_width = gate_widths[0][0] - cfg.gate_shrinkage
+                needed["gate_step_size"] = gate_starts[1][0]
+                #needed["gate_step_size"] = gate_width * 1e3
                 needed["gate_steps"] = cfg.k
                 needed["gate_offset"] = 0
+
+                if trials == 0:
+                    print(f"Doing Fast Capture of {cfg.capture_type} K={cfg.k}")
+                    print(f"gate_width: {gate_width}")
+                    print(f"gate_step_size: {gate_starts[1]}")
+                    print("---------------------------------")
+                print(f"trial number starting: {trials}")
                 coded_vals = burst_capture(SPAD1, gate_width=gate_width, **needed)
             else:
                 coded_vals = depth_map_capture(SPAD1, gate_starts=gate_starts, gate_widths=gate_widths,
                                   int_time=cfg.int_time, **needed)
             trial_runs.append(coded_vals)
+        print("---------------------------------")
 
         # import matplotlib.pyplot as plt
         # plt.plot(np.sum(np.sum(coded_vals[SINGLE_PIXEL_COORDS['y'][0]:SINGLE_PIXEL_COORDS['y'][1], SINGLE_PIXEL_COORDS['x'][0]:SINGLE_PIXEL_COORDS['x'][1], :], axis=0), axis=0))

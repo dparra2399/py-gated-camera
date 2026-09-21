@@ -476,12 +476,18 @@ class SPAD512S:
                   " values: %s.\nDefault width of 512 is used instead!"
                   % self.col)
             im_width = 512
-        command = bytes("G," + str(bitDepth) + "," + str(intTime) + "," + 
-                        str(iterations) + ","+ str(gate_steps) + ","  + 
+        # command = bytes("G," + str(bitDepth) + "," + str(intTime) + "," +
+        #                 str(iterations) + ","+ str(gate_steps) + ","  +
+        #                 str(gate_step_size)+ "," + str(gate_step_arbitrary) +
+        #                 ',' + str(gate_width) + "," + str(gate_offset) + ","+
+        #                 str(gate_direction) + ","  + str(gate_trig)+ "," +
+        #                 str(overlap) + ","+ str(stream),  " utf8 ")
+        command = bytes("G," + str(bitDepth) + "," + str(intTime) + "," +
+                        str(iterations) + ","+ str(gate_steps) + ","  +
                         str(gate_step_size)+ "," + str(gate_step_arbitrary) +
                         ',' + str(gate_width) + "," + str(gate_offset) + ","+
                         str(gate_direction) + ","  + str(gate_trig)+ "," +
-                        str(overlap) + ","+ str(stream),  " utf8 ")
+                        str(overlap) + ","+ str(stream) + "," + str(im_width),  " utf8 ")
         self.t.send(command)
         if timeout:
             self.t.settimeout(5.0)  # Set a timeout of 5 seconds

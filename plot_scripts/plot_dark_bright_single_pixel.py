@@ -19,9 +19,12 @@ import numpy as np
 # ----------------------------------------------------------------------------
 # List of rows; each row is a list of groups (one subplot per group);
 # each group is a list of exp_paths aggregated into that subplot.
+# EXP_PATHS = [
+#     [['k3_HIGHSNR'], ['k3_LOWSNR']],
+#     [['k4_HIGHSNR'], ['k4_LOWSNR']]
+# ]
 EXP_PATHS = [
-    [['k3_HIGHSNR'], ['k3_LOWSNR']],
-    [['k4_HIGHSNR'], ['k4_LOWSNR']]
+   [['exp_1']]
 ]
 N_TBINS = 1500
 ERROR_TYPE = "MAE"
@@ -36,7 +39,7 @@ SHIFT_SIZE = None #None if no shifting
 TOTAL_PIXELS = ((SINGLE_PIXEL_COORDS['y'][1] - SINGLE_PIXEL_COORDS['y'][0])
                 * (SINGLE_PIXEL_COORDS['x'][1] - SINGLE_PIXEL_COORDS['x'][0]))
 #Not apart of the defaults
-N_PIXELS = np.arange(2, TOTAL_PIXELS//3, 5)
+N_PIXELS = np.arange(2, TOTAL_PIXELS, 5)
 
 # -----------------------------------------------------------------------------
 # MAIN
@@ -300,6 +303,6 @@ if __name__ == '__main__':
     #plt.rcParams['svg.fonttype'] = 'path'
     #timeslicing = if
     plt.subplots_adjust(wspace=0.2, hspace=0.05)
-    plt.savefig(f'figures/single_pixel_k{k}.pdf', dpi=300, bbox_inches='tight', pad_inches=0.1)
+    #plt.savefig(f'figures/single_pixel_k{k}.pdf', dpi=300, bbox_inches='tight', pad_inches=0.1)
     plt.show()
     print(len(all_depths_dicts))

@@ -251,7 +251,7 @@ def burst_capture(
     gate_step_arbitrary, gate_width, gate_offset,
     gate_direction, gate_trig, overlap, pileup, im_width, timeout
 ):
-    counts = np.zeros((im_width, im_width, gate_steps))
+    counts = np.zeros((512, im_width, gate_steps))
     current_inttime = int_time
 
     while current_inttime > burst_time:
@@ -263,7 +263,8 @@ def burst_capture(
                     gate_direction, gate_trig, overlap, 1, pileup, im_width, timeout
                 )
                 break  # success — exit the loop
-            except:
+            except Exception as e:
+                print(e)
                 print("Measurement failed, retrying...")
 
         current_inttime -= burst_time
@@ -278,7 +279,10 @@ def burst_capture(
             break  # success — exit the loop
         except:
             print("Measurement failed, retrying...")
-
+    # import matplotlib.pyplot as plt
+    # plt.imshow(np.sum(counts, axis=-1))
+    # plt.show()
+    # exit(0)
     return counts
 
 
@@ -287,7 +291,7 @@ def depth_map_capture(spad1, gate_starts, gate_widths, k, gate_shrinkage,
                         bit_depth, int_time, burst_time, iterations, gate_steps, gate_step_size, #SPAD512 Params
                         gate_step_arbitrary, gate_direction, gate_trig, overlap, pileup, im_width, timeout #SPAD512 Params
                         ):
-    coded_vals = np.zeros((im_width, im_width, k))
+    coded_vals = np.zeros((512, im_width, k))
     for i in range(k):
 
         print('-------------------------------------------------------')
@@ -297,7 +301,7 @@ def depth_map_capture(spad1, gate_starts, gate_widths, k, gate_shrinkage,
         gate_widths_tmp = gate_widths[i]
         gate_starts_tmp = gate_starts[i]
 
-        counts = np.zeros((im_width, im_width, 1))
+        counts = np.zeros((512, im_width, 1))
 
         for k in range(len(gate_starts_tmp)):
             gate_width = gate_widths_tmp[k] - gate_shrinkage
@@ -330,7 +334,7 @@ def correlation_capture(spad1, gate_starts, gate_widths, k, gate_shrinkage,
                         bit_depth, int_time, burst_time, iterations, gate_steps, gate_step_size, #SPAD512 Params
                         gate_step_arbitrary, gate_direction, gate_trig, overlap, pileup, im_width, timeout #SPAD512 Params
                         ):
-    correlations = np.zeros((im_width, im_width, k, gate_steps))
+    correlations = np.zeros((512, im_width, k, gate_steps))
     for i in range(k):
 
         print('-------------------------------------------------------')
@@ -340,7 +344,7 @@ def correlation_capture(spad1, gate_starts, gate_widths, k, gate_shrinkage,
         gate_widths_tmp = gate_widths[i]
         gate_starts_tmp = gate_starts[i]
 
-        counts = np.zeros((im_width, im_width, gate_steps))
+        counts = np.zeros((512, im_width, gate_steps))
 
         for k in range(len(gate_starts_tmp)):
             gate_width = gate_widths_tmp[k] - gate_shrinkage

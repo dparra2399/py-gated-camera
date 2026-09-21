@@ -272,8 +272,8 @@ def plot_correlation_comparison_seperate(
 
     fig.subplots_adjust(wspace=0.01, hspace=0.01)
     plt.tight_layout()
-    if save_fig:
-        plt.savefig(f'figures/correlation_comparison.pdf', dpi=300, bbox_inches='tight', pad_inches=0.1)
+    #if save_fig:
+    #    plt.savefig(f'figures/correlation_comparison.pdf', dpi=300, bbox_inches='tight', pad_inches=0.1)
     plt.show()
 
 def plot_capture_comparison(depths_maps_dict, x=20, y=20, width=220, height=320,
@@ -372,7 +372,7 @@ def plot_single_pixel_dist(depths_dict):
         np.mean(np.abs(inner['depths'] - inner['gt_depths']), axis=0)
         for inner in depths_dict.values()
     ]
-    ymax = np.max(all_errors)+1
+    ymax = np.max(all_errors)+0.1
 
     for i, key in enumerate(keys):
         inner = depths_dict[key]

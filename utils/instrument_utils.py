@@ -236,6 +236,6 @@ ni_daq.set_current(0)
 #print(ni_daq.read_current())
 #
 # sdg.set_pulse(duty=20, rep_rate=5*1e6, high_level=4, low_level=-4, phase=0, edge=6 * 1e-9)
-# #sdg.set_phase_shift(phase=45)
+#sdg.set_phase_shift(phase=45)
 #
 # #sdg.turn_both_channels_on()

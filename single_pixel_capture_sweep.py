@@ -2,56 +2,70 @@
 import subprocess
 import numpy as np
 
-from illum_config import get_illum
+from illum_config import get_illum, ILLUM_CONFIG
 
 SCRIPT = "single_pixel_capture.py"
 
-K = 4  # capture K; must have matching rows in illum_config
+K_VALUES = [4]  # <-- sweep these; illum combos are resolved from illum_config per K
 
 BASE = [
     "python", SCRIPT,
-    "--k", str(K),
-    "--im_width", "512",
-    "--burst_time", "10",
-    "--int_time", "30",
+    "--im_width", "128",
+    "--burst_time", "0.05",
+    "--int_time", "2",
     "--split_acquisition", "1",
     "--bit_depth", "12",
-    "--ground_truth_int_time", "30", #40
+    "--ground_truth_int_time", "2",  # 40
     "--ground_truth", "0",
     "--rep_rate", "10000000",
     "--save_into_file", "1",
     "--iterations", "1",
     "--current", "16",
-    "--trials", "100",
+    "--trials", "10",
 ]
 
-# sweeps
-# (capture_type, illum_type) pairs to run; illumination pulled from illum_config
-RUNS = [("coarse", "gaussian"), ("ham", "pulse")]
-phase_shifts = np.arange(20, 340, 30).tolist()  # <-- set whatever you want (degrees or whatever your script expects)
+# Capture types to run. The illum_type for each is looked up from illum_config
+# per K, so ham -> square at k=3, ham -> pulse at k=4, and ham is skipped
+# wherever no row is configured (e.g. k=8).
+CAPTURE_TYPES = ['ham'] #'["coarse", "trapcoarse"]
+
+phase_shifts = np.arange(20, 340, 30).tolist()
 
 print(phase_shifts)
 print(len(phase_shifts))
 
-run_id = 0
 
-# INNER LOOP = capture types share the SAME run_id folder
-for typ, illum_typ in RUNS:
+def runs_for_k(k):
+    """(capture_type, illum_type) combos configured for this k, in CAPTURE_TYPES order."""
+    combos = []
+    for typ in CAPTURE_TYPES:
+        for illum_typ in [it for (kk, ct, it) in ILLUM_CONFIG if kk == k and ct == typ]:
+            combos.append((typ, illum_typ))
+    return combos
 
-    illum = get_illum(K, typ, illum_typ)
 
-    cmd = BASE + [
-        "--phase_shifts", ",".join(str(item) for item in phase_shifts),
-        "--capture_type", typ,
-        "--gate_shrinkage", str(illum["gate_shrinkage"]),
-        "--duty", str(illum["duty"]),
-        "--illum_type", illum_typ,
-        "--high_level_amplitude", str(illum["high_level_amplitude"]),
-        "--low_level_amplitude", str(illum["low_level_amplitude"]),
-        "--exp_path", f"exp_{run_id}",
-    ]
+run_id = 5
 
-    print( ",".join(str(item) for item in phase_shifts))
-    print(f"  -> running capture_type={typ} illum={illum_typ} {illum} \n \n")
-    subprocess.run(cmd, check=True)
-    run_id += 1
+# OUTER LOOP = K             -> each K gets its own run_id folder
+# INNER LOOP = capture types -> share the SAME run_id folder
+for K in K_VALUES:
+    for typ, illum_typ in runs_for_k(K):
+
+        illum = get_illum(K, typ, illum_typ)
+
+        cmd = BASE + [
+            "--k", str(K),
+            "--phase_shifts", ",".join(str(item) for item in phase_shifts),
+            "--capture_type", typ,
+            "--gate_shrinkage", str(illum["gate_shrinkage"]),
+            "--duty", str(illum["duty"]),
+            "--illum_type", illum_typ,
+            "--high_level_amplitude", str(illum["high_level_amplitude"]),
+            "--low_level_amplitude", str(illum["low_level_amplitude"]),
+            "--exp_path", f"exp_{run_id}",
+        ]
+
+        print(f"  -> running K={K} capture_type={typ} illum={illum_typ} {illum} \n \n")
+        subprocess.run(cmd, check=True)
+
+    #run_id += 1  # new folder per K

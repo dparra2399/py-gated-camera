@@ -4,15 +4,16 @@ import subprocess
 
 from illum_config import get_illum
 
+K = 16
 
 BASE = [
     "python", "correlations_single_capture.py",
-    "--k", "4",
-    "--im_width", "512",
-    "--burst_time", "100",
+    "--k", str(K),
+    "--im_width", "128",
+    "--burst_time", "0.05",
     "--bit_depth", "12",
-    "--int_time", "1000",
-    "--gate_step_size", "600",
+    "--int_time", "2",
+    "--gate_step_size", "1200",
     "--rep_rate", "10000000",
     "--plot_correlations", "false",
     "--save_into_file", "true",
@@ -22,10 +23,9 @@ BASE = [
 
 ]
 
-K = 4  # must match "--k" in BASE; used to look up illumination config
 # (capture_type, illum_type) pairs to run; illumination pulled from illum_config
-RUNS = [("coarse", "gaussian"), ("ham", "pulse"), ("trapcoarse", "gaussian")]
-
+RUNS = [("coarse", "gaussian")] #[("ham", "pulse")]
+#("ham", "square"), ("coarse", "gaussian"),
 for typ, illum_typ in RUNS:
         illum = get_illum(K, typ, illum_typ)
 

@@ -16,8 +16,8 @@ import numpy as np
 # -----------------------------------------------------------------------------
 # CONFIG (capitalized)
 # ----------------------------------------------------------------------------
-EXP_PATH = os.path.join('k3_LOWSNR')
-N_TBINS = 1500
+EXP_PATH = os.path.join('exp_3')
+N_TBINS = 2000
 
 #Which correlation functions to use
 SIMULATED_CORRELATIONS = False
@@ -29,7 +29,7 @@ SHIFT_SIZE = None #None if no shifting
 TOTAL_PIXELS = ((SINGLE_PIXEL_COORDS['y'][1] - SINGLE_PIXEL_COORDS['y'][0])
                 * (SINGLE_PIXEL_COORDS['x'][1] - SINGLE_PIXEL_COORDS['x'][0]))
 #Not apart of the defaults
-N_PIXELS = np.arange(2, TOTAL_PIXELS, 5)
+N_PIXELS = np.arange(10, TOTAL_PIXELS, 10)
 
 # -----------------------------------------------------------------------------
 # MAIN
@@ -129,8 +129,8 @@ if __name__ == '__main__':
         rmse_list = []
         int_times = []
 
-        #pixel_order = np.random.default_rng(0).permutation(TOTAL_PIXELS)
-        pixel_order = np.arange(TOTAL_PIXELS)
+        pixel_order = np.random.default_rng(0).permutation(TOTAL_PIXELS)
+        #pixel_order = np.arange(TOTAL_PIXELS)
 
         #coded_vals_gt = np.load(gt_coded_vals_path, allow_pickle=True)['coded_vals']
 
@@ -141,7 +141,7 @@ if __name__ == '__main__':
             tbin_depth_res,
             SINGLE_PIXEL_COORDS['y'],
             SINGLE_PIXEL_COORDS['x'],
-            n_pixels=TOTAL_PIXELS // 3,
+            n_pixels=TOTAL_PIXELS,
             pixel_order=pixel_order,
 
         )

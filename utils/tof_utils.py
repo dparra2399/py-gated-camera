@@ -201,7 +201,7 @@ def decode_depth_map(
         zncc = np.matmul(norm_coding_matrix, norm_coded_vals[..., np.newaxis]).squeeze(-1)
 
     depths = np.argmax(zncc, axis=-1)
-    depth_map = depths.reshape((im_width, im_width)) * tbin_depth_res
+    depth_map = depths.reshape((512, im_width)) * tbin_depth_res
     return depth_map, zncc
 
 def decode_single_pixel_experiment(

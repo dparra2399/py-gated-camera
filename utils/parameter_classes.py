@@ -9,7 +9,7 @@ class Config:
 
     # Capture
     int_time: Optional[float] = None
-    burst_time: Optional[int] = None
+    burst_time: Optional[float] = None
     k: Optional[int] = None
     gate_step_size: Optional[int] = None
     gate_shrinkage: Optional[int] = None

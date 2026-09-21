@@ -16,19 +16,23 @@ To add a new combination, add a row here rather than editing the sweep scripts.
 ILLUM_CONFIG = {
     # (k, capture_type, illum_type): {duty, high_level_amplitude, low_level_amplitude}
     # ---- K = 3 ----
-    (3, "ham",    "square"):   {"duty": 20, "high_level_amplitude": 0.5,  "low_level_amplitude": -0.5, "gate_shrinkage": 5},
-    (3, "coarse", "gaussian"): {"duty": 30, "high_level_amplitude": 0.42, "low_level_amplitude": -0.5, "gate_shrinkage": 0},
+    (3, "ham",    "square"):   {"duty": 20, "high_level_amplitude": 0.5,  "low_level_amplitude": -0.5, "gate_shrinkage": 4},
+    (3, "coarse", "gaussian"): {"duty": 30, "high_level_amplitude": 0.42, "low_level_amplitude": -0.5, "gate_shrinkage": 2},
+    (3, "trapcoarse", "gaussian"): {"duty": 30, "high_level_amplitude": 0.42, "low_level_amplitude": -0.5, "gate_shrinkage": 4},
     # ---- K = 4 ----
-    (4, "ham",    "pulse"):    {"duty": 15, "high_level_amplitude": 0.77, "low_level_amplitude": -0.5, "gate_shrinkage": 0},
-    (4, "coarse", "gaussian"): {"duty": 23, "high_level_amplitude": 0.54, "low_level_amplitude": -0.5, "gate_shrinkage": 0},
+    (4, "ham",    "pulse"):    {"duty": 15, "high_level_amplitude": 0.77, "low_level_amplitude": -0.5, "gate_shrinkage": 4},
+    (4, "coarse", "gaussian"): {"duty": 23, "high_level_amplitude": 0.54, "low_level_amplitude": -0.5, "gate_shrinkage": 2},
+    (4, "trapcoarse", "gaussian"): {"duty": 23, "high_level_amplitude": 0.54, "low_level_amplitude": -0.5,  "gate_shrinkage": 4},
+
     # ---- K = 8 ----
     (8, "coarse", "gaussian"): {"duty": 12, "high_level_amplitude": 1.2,  "low_level_amplitude": -0.5, "gate_shrinkage": 0},
+    (12, "coarse", "gaussian"): {"duty": 12, "high_level_amplitude": 1.2, "low_level_amplitude": -0.5,
+                                "gate_shrinkage": 0},
+    (16, "coarse", "gaussian"): {"duty": 12, "high_level_amplitude": 1.2, "low_level_amplitude": -0.5,
+                                 "gate_shrinkage": 0},
+
 }
 
-# trapcoarse shares coarse's illumination — mirror every coarse row.
-for (_k, _ct, _it), _v in list(ILLUM_CONFIG.items()):
-    if _ct == "coarse":
-        ILLUM_CONFIG[(_k, "trapcoarse", _it)] = dict(_v)
 
 
 def get_illum(k, capture_type, illum_type):

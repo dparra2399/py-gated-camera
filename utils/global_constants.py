@@ -33,5 +33,5 @@ FOCAL_LENGTH = 25 #in mm
 #                        'y': [185, 205]}
 
 
-SINGLE_PIXEL_COORDS = {'x': [205, 235],
+SINGLE_PIXEL_COORDS = {'x': [15, 35],
                        'y': [255, 285]}
