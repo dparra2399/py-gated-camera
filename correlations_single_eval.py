@@ -17,7 +17,7 @@ from utils.tof_utils import (
 # =============================
 # Defaults
 # =============================
-PHOTON_COUNT = 3000
+PHOTON_COUNT = 1000
 SBR = 1.0
 TRIALS = 1000
 N_TBINS = 996
@@ -42,7 +42,9 @@ DEFAULT_RUNS = [
     "coarse,8,10,1200,16,12,False",
     "coarse,12,10,1200,16,12,False",
     "coarse,16,10,1200,16,12,False",
-
+    # "trapcoarse,8,10,1200,16,12,False",
+    # "trapcoarse,12,10,1200,16,12,False",
+    # "trapcoarse,16,10,1200,16,12,False",
     #"rect,3,10,230,16,30,True",
 
 
@@ -103,7 +105,7 @@ if __name__ == "__main__":
         depths = np.arange(args.depth_margin, max_depth - args.depth_margin, args.depth_sample)
     else:
         depths = np.arange(args.depth_margin, args.n_tbins - args.depth_margin, 1)
-    folder = get_data_folder(READ_PATH_CORRELATIONS_MAC, READ_PATH_CORRELATIONS_WINDOWS)
+    folder = get_data_folder(READ_PATH_CORRELATIONS_SINGLE_PIXEL_MAC, READ_PATH_CORRELATIONS_SINGLE_PIXEL_WINDOWS)
     #folder = os.path.join(folder, "feb10th_2026")
 
     results = []

@@ -5,7 +5,7 @@ import open3d as o3d
 from scipy.ndimage import median_filter
 
 from utils.file_utils import (
-    get_data_folder, load_hot_mask, load_correlation_npz,
+    get_data_folder, load_hot_mask, load_correlation_npz, load_npz,
     make_correlation_filename, make_capture_filename,
     get_capture_folder, capture_parse_run, str2bool,
 )
@@ -279,7 +279,7 @@ if __name__ == '__main__':
             )
         print(f"  coding_matrix shape: {coding_matrix.shape}")
 
-        capture_file = np.load(coded_vals_path, allow_pickle=True)
+        capture_file = load_npz(coded_vals_path)
         cfg = capture_file['cfg'].item()
         coded_vals = capture_file['coded_vals']
         im_width = cfg['im_width']

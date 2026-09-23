@@ -91,7 +91,7 @@ if __name__ == '__main__':
 
     for i, coded_vals_name in enumerate(capture_paths):
         coded_vals_path = os.path.join(capture_folder, coded_vals_name)
-        capture_file = np.load(coded_vals_path, allow_pickle=True)
+        capture_file = load_npz(coded_vals_path)
         params = capture_file['cfg'].item()
         coded_vals = capture_file['coded_vals']
         im_width = params['im_width']

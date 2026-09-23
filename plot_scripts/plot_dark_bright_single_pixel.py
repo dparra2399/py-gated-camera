@@ -20,14 +20,13 @@ import numpy as np
 # ----------------------------------------------------------------------------
 # List of rows; each row is a list of groups (one subplot per group);
 # each group is a list of exp_paths aggregated into that subplot.
-# EXP_PATHS = [
-#     [['k3_HIGHSNR'], ['k3_LOWSNR']],
-#     [['k4_HIGHSNR'], ['k4_LOWSNR']]
-# ]
 EXP_PATHS = [
-   [['exp_1']]
+    # [['k3_HIGHSNR'], ['k3_LOWSNR']],
+    # [['k4_HIGHSNR'], ['k4_LOWSNR']]
+    [['k8_12_16_HIGHSNR'], ['k8_12_16_LOWSNR']]
 ]
-N_TBINS = 1500
+
+N_TBINS = 2000
 ERROR_TYPE = "MAE"
 
 #Which correlation functions to use
@@ -40,8 +39,8 @@ SHIFT_SIZE = None #None if no shifting
 #Not apart of the defaults
 # n-pixel sweep knobs. The upper bound is derived per-capture at runtime,
 # because the ROI (and so its pixel count) depends on the capture's im_width.
-N_PIXELS_START = 2
-N_PIXELS_STEP = 5
+N_PIXELS_START = 11
+N_PIXELS_STEP = 10
 
 # -----------------------------------------------------------------------------
 # MAIN
@@ -70,7 +69,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
     cfg = apply_decode_defaults(DecodeConfig(**vars(args)))
 
-    correlation_folder = get_data_folder(READ_PATH_CORRELATIONS_MAC, READ_PATH_CORRELATIONS_WINDOWS)
+    correlation_folder = get_data_folder(READ_PATH_CORRELATIONS_SINGLE_PIXEL_MAC,
+                                         READ_PATH_CORRELATIONS_SINGLE_PIXEL_WINDOWS)
     base_capture_folder = get_data_folder(READ_PATH_SINGLE_PIXEL_MAC, READ_PATH_SINGLE_PIXEL_WINDOWS)
 
     exp_paths = EXP_PATHS if cfg.exp_path is None else [[[cfg.exp_path]]]
@@ -98,7 +98,7 @@ if __name__ == '__main__':
                 coded_vals_path = os.path.join(capture_folder, coded_vals_name)
                 if not os.path.isfile(coded_vals_path):
                     continue
-                capture_file = np.load(coded_vals_path, allow_pickle=True)
+                capture_file = load_npz(coded_vals_path)
                 params = capture_file['cfg'].item()
                 coded_vals = capture_file['coded_vals']
                 im_width = params['im_width']
@@ -149,6 +149,8 @@ if __name__ == '__main__':
                 mae_list = []
                 rmse_list = []
                 int_times = []
+
+                seed = 0 if k > 4 else 1
 
                 pixel_order = np.random.default_rng(0).permutation(total_pixels)
 
@@ -241,6 +243,7 @@ if __name__ == '__main__':
             int_times = inner_dict['int_times']
             capture_type = inner_dict['capture_type']
             k = inner_dict['k']
+            capture_type = capture_type + "pw" if k > 4 else capture_type
 
             if ERROR_TYPE == "MAE":
                 error = mae
@@ -256,11 +259,11 @@ if __name__ == '__main__':
                 markerfacecolor='none',
                 markeredgewidth=2,
                 label=get_string_name(capture_type, None, True) + f" (K={k})",
-                color=get_cap_color(capture_type, None)
+                color=get_cap_color(capture_type, k)
             )
             #ax.set_ylim(0, 200)
             xmax = max(xmax, max(int_times))
-        ax.set_xlim(-0.2, xmax + 0.2)
+        ax.set_xlim(-0.01, xmax + 0.01)
         cell_xmax[i][j]  = round(xmax, 6)
         cell_title[i][j] = get_single_pixel_title(exp_paths[i][j])
         ax.legend(fontsize=14, framealpha=1, facecolor='white', edgecolor='black')
@@ -309,6 +312,6 @@ if __name__ == '__main__':
     #plt.rcParams['svg.fonttype'] = 'path'
     #timeslicing = if
     plt.subplots_adjust(wspace=0.2, hspace=0.05)
-    #plt.savefig(f'figures/single_pixel_k{k}.pdf', dpi=300, bbox_inches='tight', pad_inches=0.1)
+    plt.savefig(f'figures/single_pixel_k{k}.pdf', dpi=300, bbox_inches='tight', pad_inches=0.1)
     plt.show()
     print(len(all_depths_dicts))

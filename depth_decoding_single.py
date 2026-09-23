@@ -128,7 +128,7 @@ if __name__ == '__main__':
                 args.n_tbins,
             )
 
-        capture_file = np.load(coded_vals_path, allow_pickle=True)
+        capture_file = load_npz(coded_vals_path)
         cfg = capture_file['cfg'].item()
         coded_vals = capture_file['coded_vals']
         im_width = cfg['im_width']

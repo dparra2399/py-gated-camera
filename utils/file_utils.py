@@ -45,11 +45,10 @@ def load_correlation_npz(path: str):
 
     if os.path.exists(path):
         try:
-            return np.load(path, allow_pickle=True)
+            return load_npz(path)   # lazy; auto-recovers from a Bad CRC-32 on read
         except (zipfile.BadZipFile, ValueError, OSError, EOFError):
-            # A loose .npz is present but unreadable (e.g. a partial file left
-            # behind by an interrupted extraction). Fall back to the .zip if we
-            # have one; otherwise the file really is broken, so re-raise.
+            # The .npz can't even be opened (e.g. a damaged zip directory). Fall
+            # back to a pristine .zip if we have one; otherwise it's broken.
             if not os.path.exists(zip_path):
                 raise
 
@@ -58,9 +57,135 @@ def load_correlation_npz(path: str):
         with zipfile.ZipFile(zip_path, 'r') as zip_ref:
             zip_ref.extractall(extract_dir)
         atexit.register(os.remove, path)
-        return np.load(path, allow_pickle=True)
+        return load_npz(path)
 
     raise FileNotFoundError(f'Correlation file not found as .npz or .zip: {path}')
+
+def recover_npz(path, repair=True, backup=True):
+    """Recover arrays from a .npz that fails a CRC check (``BadZipFile: Bad CRC-32``).
+
+    An ``.npz`` is a ZIP of ``.npy`` members; numpy verifies each member's
+    CRC-32 when the array is read and raises ``zipfile.BadZipFile`` on a
+    mismatch, throwing the bytes away even when they are actually intact. That
+    is the common case here: the members are stored uncompressed, so a bad CRC
+    usually means only the checksum / a few bytes were damaged by a write or
+    copy that didn't finish atomically (a stopped run, a partial sync between
+    machines) -- the array itself is still sitting there whole.
+
+    Reads every member with the CRC check disabled and returns a dict mapping
+    array name (without the ``.npy`` suffix) -> ``np.ndarray``.
+
+    repair=True  also rewrites a clean, valid ``.npz`` in place so future
+                 ``np.load()`` calls succeed normally.
+    backup=True  first renames the corrupt original to ``<path>.corrupt`` so
+                 nothing is lost (ignored when ``repair=False``).
+
+    Raises RuntimeError if a member cannot be read at all (e.g. a compressed
+    member whose deflate stream is genuinely damaged); in that case nothing is
+    overwritten, so the original file is left untouched.
+    """
+    recovered = {}
+    failed = {}
+
+    # numpy validates member CRCs inside ZipExtFile._update_crc; disable it so a
+    # bad checksum doesn't discard otherwise-readable bytes. Always restored.
+    orig_update_crc = zipfile.ZipExtFile._update_crc
+    zipfile.ZipExtFile._update_crc = lambda self, newdata: None
+    try:
+        with zipfile.ZipFile(path) as zf:
+            for name in zf.namelist():
+                key = name[:-4] if name.endswith('.npy') else name
+                try:
+                    with zf.open(name) as fp:            # stream: no full-file buffer
+                        recovered[key] = np.lib.format.read_array(fp, allow_pickle=True)
+                except Exception as e:                   # e.g. zlib error on a damaged stream
+                    failed[key] = e
+    finally:
+        zipfile.ZipExtFile._update_crc = orig_update_crc
+
+    if failed:
+        detail = ', '.join(f'{k}: {type(e).__name__}: {e}' for k, e in failed.items())
+        if repair:
+            raise RuntimeError(
+                f'Could not fully recover {path}; refusing to repair with missing '
+                f'members ({detail}). Recovered: {list(recovered)}')
+        print(f'[recover_npz] WARNING: {len(failed)} unreadable member(s) in {path}: {detail}')
+
+    if repair and recovered:
+        tmp = path + '.recovered'
+        np.savez(tmp, **recovered)                       # np.savez appends .npz
+        tmp = tmp + '.npz'
+        with np.load(tmp, allow_pickle=True) as check:   # force the CRC check that was failing
+            for key in recovered:
+                _ = check[key]
+        if backup:
+            os.replace(path, path + '.corrupt')
+        os.replace(tmp, path)
+
+    return recovered
+
+class _RecoveringNpz:
+    """NpzFile-like wrapper that auto-repairs a corrupt .npz on member access.
+
+    ``np.load`` opens an .npz lazily, so a ``Bad CRC-32`` only fires when a
+    member is actually read. On that failure this recovers the file in place
+    with :func:`recover_npz` and retries the read, so a corrupt-but-readable
+    archive self-heals instead of crashing the caller.
+    """
+    def __init__(self, path, allow_pickle=True):
+        self._path = path
+        self._allow_pickle = allow_pickle
+        self._npz = np.load(path, allow_pickle=allow_pickle)
+
+    def __getitem__(self, key):
+        try:
+            return self._npz[key]
+        except (zipfile.BadZipFile, ValueError, OSError, EOFError):
+            print(f'[load_npz] Bad CRC in {self._path}; recovering in place...')
+            self._npz.close()
+            recover_npz(self._path, repair=True, backup=True)
+            self._npz = np.load(self._path, allow_pickle=self._allow_pickle)
+            return self._npz[key]
+
+    @property
+    def files(self):
+        return self._npz.files
+
+    def keys(self):
+        return self._npz.files
+
+    def __contains__(self, key):
+        return key in self._npz.files
+
+    def close(self):
+        self._npz.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        self.close()
+
+def load_npz(path, allow_pickle=True):
+    """Drop-in for ``np.load(path, allow_pickle=...)`` on .npz archives that
+    auto-recovers from a ``Bad CRC-32``.
+
+    Returns an object indexed by member name (``obj['coded_vals']``); if that
+    read hits a CRC error the file is repaired in place (see :func:`recover_npz`)
+    and the read retried, so an interrupted-write corruption self-heals.
+    """
+    return _RecoveringNpz(path, allow_pickle=allow_pickle)
+
+def save_npz_atomic(path, **arrays):
+    """Save an .npz atomically: write a temp file, then ``os.replace`` it into
+    place. A stopped/killed run can't leave a half-written .npz that later fails
+    a CRC check. ``path`` may be given with or without the .npz extension.
+    """
+    final = path if path.endswith('.npz') else path + '.npz'
+    tmp = final + '.tmp.npz'          # ends in .npz so np.savez writes it verbatim
+    np.savez(tmp, **arrays)
+    os.replace(tmp, final)            # atomic swap into place
+    return final
 
 def get_capture_folder(path, delete_unzipped=True, return_cleanup=False):
     """Locate (and if needed unzip) a capture folder.
@@ -113,8 +238,8 @@ def save_capture_data(save_path, cfg_dict, coded_vals):
 
     os.makedirs(save_path, exist_ok=True)
     out_file = os.path.join(save_path, save_name)
-    np.savez(out_file, coded_vals=coded_vals, cfg=cfg_dict)
-    print(f"✅ Saved Capture data to {out_file}.npz")
+    save_npz_atomic(out_file, coded_vals=coded_vals, cfg=cfg_dict)
+    print(f"✅ Saved Capture data to {out_file}")
 
 def save_correlation_data(save_path, cfg_dict, correlations):
 
@@ -123,8 +248,8 @@ def save_correlation_data(save_path, cfg_dict, correlations):
 
     os.makedirs(save_path, exist_ok=True)
     out_file = os.path.join(save_path, save_name)
-    np.savez(out_file, correlations=correlations, cfg=cfg_dict)
-    print(f"✅ Saved correlation data to {out_file}.npz")
+    save_npz_atomic(out_file, correlations=correlations, cfg=cfg_dict)
+    print(f"✅ Saved correlation data to {out_file}")
 
 
 def make_filename(capture_type, k, freq_mhz, mV, mA, duty):

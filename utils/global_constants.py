@@ -47,9 +47,15 @@ FOCAL_LENGTH = 25 #in mm
 # Single-pixel ROI, keyed by im_width. The sensor height is always 512, but the
 # width follows im_width, so the x window has to move with it (the target sits
 # at a different column when the frame is cropped).
+# SINGLE_PIXEL_COORDS_BY_WIDTH = {
+#     128: {'x': [15, 35],   'y': [255, 285]},
+#     512: {'x': [115, 135], 'y': [250, 280]},
+# }
+
+
 SINGLE_PIXEL_COORDS_BY_WIDTH = {
-    128: {'x': [15, 35],   'y': [255, 285]},
-    512: {'x': [115, 135], 'y': [250, 280]},
+    128: {'x': [20, 30],   'y': [260, 280]},
+    512: {'x': [210, 220], 'y': [260, 280]},
 }
 
 # default so existing `from utils.global_constants import SINGLE_PIXEL_COORDS`
