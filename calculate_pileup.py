@@ -102,7 +102,7 @@ if __name__ == "__main__":
 
     ldc220.set_current(cfg.current)
 
-    gate_widths, gate_starts = get_gate_shifts(cfg.capture_type, cfg.rep_rate, cfg.k)
+    gate_widths, gate_starts = get_gate_shifts(cfg.capture_type, cfg.rep_rate, cfg.k, cfg.sliding_gate_width)
 
     time.sleep(30)
 

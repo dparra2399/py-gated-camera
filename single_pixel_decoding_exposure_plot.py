@@ -98,7 +98,7 @@ if __name__ == '__main__':
         duty = params['duty']
         rep_tau = params['rep_tau']
 
-        gate_widths, gate_starts = get_gate_shifts(capture_type, freq, k)
+        gate_widths, gate_starts = get_gate_shifts(capture_type, freq, k, params.get('sliding_gate_width'))
         total_count = sum(len(sublist) for sublist in gate_widths)
         int_time = params['int_time'] * total_count
 
