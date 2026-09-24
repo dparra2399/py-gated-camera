@@ -88,6 +88,9 @@ K = 4  # must match "--k" in BASE; used to look up illumination config
 RUNS = [("coarse", "gaussian"), ("ham", "pulse")]
 phases = [60]   # <-- set whatever you want
 
+# sliding only: gate width in ns (k sets the shift, the width is independent)
+SLIDING_GATE_WIDTH = 50
+
 run_id = 5
 
 # OUTER LOOP = things that define a "run folder"
@@ -110,6 +113,8 @@ for phase in phases:
 
             "--exp_path", f"exp_{run_id}",
         ]
+        if typ == "sliding":
+            cmd += ["--sliding_gate_width", str(SLIDING_GATE_WIDTH)]
 
         print(f"  -> running capture_type={typ} illum={illum_typ} {illum}")
         subprocess.run(cmd, check=True)

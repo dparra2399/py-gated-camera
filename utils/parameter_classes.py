@@ -12,6 +12,9 @@ class Config:
     burst_time: Optional[float] = None
     k: Optional[int] = None
     gate_step_size: Optional[int] = None
+    sliding_gate_width: Optional[int] = None #in ns; named apart from gate_width, which is a local
+                                         #inside burst_capture/depth_map_capture/correlation_capture
+                                         #and would collide via their co_varnames kwarg filtering
     gate_shrinkage: Optional[int] = None
     capture_type: Optional[str] = None
     trials: Optional[int] = None

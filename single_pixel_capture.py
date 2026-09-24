@@ -24,6 +24,7 @@ K = 3  # number of time bins
 TRIALS = 1
 
 GATE_SHRINKAGE = 5 #In NS
+SLIDING_GATE_WIDTH = None #In NS, only used by sliding (other schemes derive it from k)
 CAPTURE_TYPE = 'ham'
 
 # Illumination Parameters:
@@ -72,6 +73,7 @@ if __name__ == "__main__":
             k=K,
             trials=TRIALS,
             gate_shrinkage=GATE_SHRINKAGE,
+            sliding_gate_width=SLIDING_GATE_WIDTH,
             capture_type=CAPTURE_TYPE,
             high_level_amplitude=HIGH_LEVEL_AMPLITUDE,
             low_level_amplitude=LOW_LEVEL_AMPLITUDE,
@@ -124,7 +126,7 @@ if __name__ == "__main__":
     ldc220.set_current(cfg.current)
     #exit(0)
 
-    gate_widths, gate_starts = get_gate_shifts(cfg.capture_type, cfg.rep_rate, cfg.k)
+    gate_widths, gate_starts = get_gate_shifts(cfg.capture_type, cfg.rep_rate, cfg.k, cfg.sliding_gate_width)
 
     total_count = sum(len(sublist) for sublist in gate_widths)
     cfg.int_time = cfg.int_time/total_count if cfg.split_acquisition else cfg.int_time
@@ -191,7 +193,7 @@ if __name__ == "__main__":
                     counts = burst_capture(SPAD1, gate_width=gate_width - cfg.gate_shrinkage, **sweep_needed)
                     for step, (_, code) in enumerate(gates):
                         coded_vals[:, :, code] += counts[:, :, step]
-            elif cfg.capture_type == "coarse" or  cfg.capture_type == "trapcoarse" or (cfg.capture_type == "ham" and cfg.k < 4):
+            elif cfg.capture_type in ("coarse", "trapcoarse", "sliding") or (cfg.capture_type == "ham" and cfg.k < 4):
                 needed = {k: v for k, v in asdict(cfg).items() if k in burst_capture.__code__.co_varnames}
                 gate_width = gate_widths[0][0] - cfg.gate_shrinkage
                 needed["gate_step_size"] = gate_starts[1][0]

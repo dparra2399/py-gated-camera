@@ -11,7 +11,7 @@ from plot_scripts.plot_utils import plot_single_pixel_dist, plot_single_pixel_co
 from utils.global_constants import *
 from utils.global_constants import get_single_pixel_coords, get_total_pixels
 from utils.parameter_classes import DecodeConfig
-from utils.tof_utils import build_coding_matrix_from_correlations, get_simulated_coding_matrix, \
+from utils.tof_utils import build_coding_matrix_from_correlations, get_simulated_coding_matrix, sliding_gate_width_tbins, \
     calculate_tof_domain_params, decode_single_pixel_experiment
 import numpy as np
 
@@ -132,7 +132,8 @@ if __name__ == '__main__':
                 correlations_total = load_correlation_npz(corr_path)['correlations']
 
                 if cfg.simulated_correlations:
-                    coding_matrix = get_simulated_coding_matrix(capture_type, cfg.n_tbins, k)
+                    coding_matrix = get_simulated_coding_matrix(capture_type, cfg.n_tbins, k,
+                                                        sliding_gate_width_tbins(params.get('sliding_gate_width'), rep_tau, cfg.n_tbins))
                 else:
                     coding_matrix = build_coding_matrix_from_correlations(
                         correlations_total,

@@ -29,6 +29,10 @@ BASE = [
 # wherever no row is configured (e.g. k=8).
 CAPTURE_TYPES = ['ham'] #'["coarse", "trapcoarse"]
 
+# sliding only: gate width in ns. k is the number of shifts, so the shift is tau/k and the gate
+# width is independent of it -- wide overlapping gates with fine shifts is the whole point.
+SLIDING_GATE_WIDTH = 50
+
 phase_shifts = np.arange(20, 340, 30).tolist()
 
 print(phase_shifts)
@@ -39,7 +43,8 @@ def runs_for_k(k):
     """(capture_type, illum_type) combos configured for this k, in CAPTURE_TYPES order."""
     combos = []
     for typ in CAPTURE_TYPES:
-        for illum_typ in [it for (kk, ct, it) in ILLUM_CONFIG if kk == k and ct == typ]:
+        # kk is None for schemes whose illumination does not depend on k (sliding)
+        for illum_typ in [it for (kk, ct, it) in ILLUM_CONFIG if kk in (k, None) and ct == typ]:
             combos.append((typ, illum_typ))
     return combos
 
@@ -64,6 +69,8 @@ for K in K_VALUES:
             "--low_level_amplitude", str(illum["low_level_amplitude"]),
             "--exp_path", f"exp_{run_id}",
         ]
+        if typ == "sliding":
+            cmd += ["--sliding_gate_width", str(SLIDING_GATE_WIDTH)]
 
         print(f"  -> running K={K} capture_type={typ} illum={illum_typ} {illum} \n \n")
         subprocess.run(cmd, check=True)

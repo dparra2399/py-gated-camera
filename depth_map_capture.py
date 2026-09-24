@@ -23,6 +23,7 @@ MAX_TRIALS = 50
 K = 8  # number of time bins
 
 GATE_SHRINKAGE = 0 #In NS
+SLIDING_GATE_WIDTH = None #In NS, only used by sliding (other schemes derive it from k)
 CAPTURE_TYPE = 'timeslicing'
 
 # Illumination Parameters:
@@ -69,6 +70,7 @@ if __name__ == "__main__":
             max_trials=MAX_TRIALS,
             k=K,
             gate_shrinkage=GATE_SHRINKAGE,
+            sliding_gate_width=SLIDING_GATE_WIDTH,
             capture_type=CAPTURE_TYPE,
             high_level_amplitude=HIGH_LEVEL_AMPLITUDE,
             low_level_amplitude=LOW_LEVEL_AMPLITUDE,
@@ -131,7 +133,7 @@ if __name__ == "__main__":
 
     ldc220.set_current(cfg.current)
 
-    gate_widths, gate_starts = get_gate_shifts(cfg.capture_type, cfg.rep_rate, cfg.k)
+    gate_widths, gate_starts = get_gate_shifts(cfg.capture_type, cfg.rep_rate, cfg.k, cfg.sliding_gate_width)
     total_count = sum(len(sublist) for sublist in gate_widths)
 
     time.sleep(45)

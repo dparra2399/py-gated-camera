@@ -197,9 +197,9 @@ def get_hamk4_gate_shifts(freq, k=4):
     return gate_widths, gate_starts
 
 def get_coarse_gate_shifts(freq, k):
-    gate_width = math.floor((((1/freq)*1e12) // k) * 1e-3 )
-    gate_starts = [[(gate_width * (gate_step) * 1e3)] for gate_step in range(k)]
-    gate_widths = [[gate_width] for i in range(k)]
+    gate_width = (((1/freq)*1e12) // k) * 1e-3
+    gate_starts = [[int(gate_width * (gate_step) * 1e3)] for gate_step in range(k)]
+    gate_widths = [[math.floor(gate_width)] for i in range(k)]
     return gate_widths, gate_starts
 
 def get_trap_gate_shifts(freq, k):
@@ -208,8 +208,18 @@ def get_trap_gate_shifts(freq, k):
     return gate_widths, gate_starts
 
 
-def get_gate_shifts(type, freq, k):
-    if type == 'coarse':
+def get_sliding_gate_shifts(freq, k, gate_width):
+    assert gate_width is not None, 'gate_width is required for sliding'
+    step = int((1 / freq) * 1e12) // k                # ps
+    gate_widths = [[gate_width] for _ in range(k)]    # ns, passed in as-is (no ps -> ns like coarse)
+    gate_starts = [[step * i] for i in range(k)]      # ps
+    return gate_widths, gate_starts
+
+
+def get_gate_shifts(type, freq, k, gate_width=None):
+    if type == 'sliding':
+        return get_sliding_gate_shifts(freq, k, gate_width)
+    elif type == 'coarse':
         name = 'coarse'
     elif type == 'trapcoarse' or type == 'traprect':
         name = 'trap'
@@ -328,6 +338,57 @@ def depth_map_capture(spad1, gate_starts, gate_widths, k, gate_shrinkage,
     print('-------------------------------------------------------')
 
     return coded_vals
+
+
+def sliding_correlation_capture(spad1, gate_starts, gate_widths, k, gate_shrinkage,
+                        bit_depth, int_time, burst_time, iterations, gate_steps, gate_step_size, #SPAD512 Params
+                        gate_step_arbitrary, gate_direction, gate_trig, overlap, pileup, im_width, timeout #SPAD512 Params
+                        ):
+    """Correlation functions for a sliding code, from a single sweep.
+
+    Every sliding gate is the same gate at a different offset, so one swept gate
+    measures the correlation function of all k of them: row i is row 0 rolled by
+    the sliding step. That turns k full sweeps into one.
+    """
+    slide_step = gate_starts[1][0] - gate_starts[0][0]
+    # the roll is circular, so the sweep has to cover one whole period
+    tau_ps = slide_step * k
+    assert abs(gate_steps * gate_step_size - tau_ps) <= gate_step_size, (
+        f'sweep of {gate_steps} x {gate_step_size} ps must span one period ({tau_ps} ps)')
+    roll = slide_step / gate_step_size
+
+    print('-------------------------------------------------------')
+    print(f'Measuring one correlation sweep for all {k} sliding gates')
+    print(f'\tGate width: {gate_widths[0][0] - gate_shrinkage}')
+    print(f'\tSliding step: {slide_step} ps ({roll:g} sweep steps)')
+    print('-------------------------------------------------------')
+
+    counts = burst_capture(spad1,
+                           bit_depth=bit_depth, int_time=int_time, burst_time=burst_time,
+                           iterations=iterations, gate_steps=gate_steps, gate_step_size=gate_step_size,
+                           gate_step_arbitrary=gate_step_arbitrary,
+                           gate_width=gate_widths[0][0] - gate_shrinkage,
+                           gate_offset=gate_starts[0][0], gate_direction=gate_direction,
+                           gate_trig=gate_trig, overlap=overlap, pileup=pileup,
+                           im_width=im_width, timeout=timeout)
+
+    # shift by a whole number of samples where the step divides, interpolate where it does not,
+    # so the sweep step is free to be anything that covers the period
+    correlations = np.zeros((512, im_width, k, gate_steps))
+    sample = np.arange(gate_steps)
+    for i in range(k):
+        src = (sample + i * roll) % gate_steps
+        low = np.floor(src).astype(int)
+        frac = src - low
+        high = (low + 1) % gate_steps
+        correlations[:, :, i, :] = counts[:, :, low] * (1 - frac) + counts[:, :, high] * frac
+    correlations = np.flip(correlations, axis=-1)
+
+    print('-------------------------------------------------------')
+    print(f'Ending correlation measurements')
+    print('-------------------------------------------------------')
+
+    return correlations
 
 
 def correlation_capture(spad1, gate_starts, gate_widths, k, gate_shrinkage,

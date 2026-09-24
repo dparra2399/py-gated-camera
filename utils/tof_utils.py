@@ -52,7 +52,7 @@ def calculate_tof_domain_params(n_tbins, rep_tau=None, max_depth=None):
     return (rep_tau, rep_freq, tbin_res, t_domain, max_depth, tbin_depth_res)
 
 
-def get_simulated_coding_matrix(type, n_tbins, k):
+def get_simulated_coding_matrix(type, n_tbins, k, gate_width=None):
     if type=='ham':
         func = getattr(CodingFunctionsFelipe, f"GetHamK{k}")
         (modfs, demodfs) = func(N=n_tbins)
@@ -115,9 +115,32 @@ def get_simulated_coding_matrix(type, n_tbins, k):
             axis=0).real
 
 
+    elif type == 'sliding':
+        # k is the number of shifts, so the step is n_tbins // k; unlike coarse the gate width
+        # is set independently and the gates overlap (or leave gaps) instead of tiling.
+        assert gate_width is not None, 'gate_width (in time bins) is required for sliding'
+        step = n_tbins // k
+        coding_matrix = np.zeros((k, n_tbins))
+        for i in range(k):
+            indices = np.arange(i * step, i * step + gate_width) % n_tbins
+            coding_matrix[i, indices] = 1
+        # same 12 ns illumination pulse as coarse k >= 8
+        irf_width = (n_tbins // 8) / (2 * np.sqrt(np.log(2)))
+        irf = gaussian_pulse(np.arange(n_tbins), 0, irf_width, circ_shifted=True)
+        coding_matrix = np.fft.ifft(
+            np.fft.fft(irf[..., np.newaxis], axis=0).conj() * np.fft.fft(np.transpose(coding_matrix), axis=0),
+            axis=0).real
+
     else:
         assert False
     return coding_matrix
+
+
+def sliding_gate_width_tbins(sliding_gate_width, rep_tau, n_tbins):
+    """Sliding gate width in ns -> time bins, for the simulated coding matrix."""
+    if sliding_gate_width is None:
+        return None
+    return int(round(sliding_gate_width * 1e-9 / rep_tau * n_tbins))
 
 def build_coding_matrix_from_correlations(
     correlations_total: np.ndarray,

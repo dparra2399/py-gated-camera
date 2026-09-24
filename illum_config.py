@@ -31,6 +31,12 @@ ILLUM_CONFIG = {
     (16, "coarse", "gaussian"): {"duty": 12, "high_level_amplitude": 1.2, "low_level_amplitude": -0.5,
                                  "gate_shrinkage": 0},
 
+    # ---- sliding ----
+    # k is only the number of gate shifts, so it does not change the illumination. Keyed by
+    # k=None, which get_illum falls back to for any k: the same 12 ns pulse as coarse k >= 8,
+    # and the gate is never shrunk.
+    (None, "sliding", "gaussian"): {"duty": 12, "high_level_amplitude": 1.2, "low_level_amplitude": -0.5,
+                                    "gate_shrinkage": 0},
 }
 
 
@@ -43,8 +49,11 @@ def get_illum(k, capture_type, illum_type):
     """
     key = (int(k), capture_type, illum_type)
     if key not in ILLUM_CONFIG:
+        # schemes whose illumination does not depend on k (sliding) register under k=None
+        key = (None, capture_type, illum_type)
+    if key not in ILLUM_CONFIG:
         raise KeyError(
-            f"No illumination config for {key}. Configured combos: "
-            + ", ".join(str(x) for x in sorted(ILLUM_CONFIG))
+            f"No illumination config for {(int(k), capture_type, illum_type)}. Configured combos: "
+            + ", ".join(str(x) for x in sorted(ILLUM_CONFIG, key=lambda key: (key[0] is not None, key)))
         )
     return ILLUM_CONFIG[key]

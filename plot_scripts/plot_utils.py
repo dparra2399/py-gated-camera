@@ -852,7 +852,15 @@ def get_cap_color(capture_type, k, shift=None):
         # plain coarse = the middle of the coarsepw orange ramp
         return to_hex(plt.get_cmap('Oranges')(0.60))
     elif capture_type == 'trapcoarse':
-        return 'red'
+        if k is None:
+            return 'red'
+        # Light -> dark red as k increases, sampled from the Reds colormap so
+        # any k works. Anchored so k=3 stays light and k=12 stays dark; other
+        # k interpolate/clamp (k=16 clamps to the dark end).
+        K_LIGHT, K_DARK = 8, 20
+        pos = 0.30 + 0.60 * (k - K_LIGHT) / (K_DARK - K_LIGHT)
+        pos = min(0.98, max(0.15, pos))   # clamp away from near-white/black
+        return to_hex(plt.get_cmap('Reds')(pos))
     elif capture_type == 'rect':
         return 'limegreen'
     elif capture_type == 'traprect':

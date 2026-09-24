@@ -5,6 +5,7 @@ import subprocess
 from illum_config import get_illum
 
 K = 16
+REP_RATE = 10000000
 
 BASE = [
     "python", "correlations_single_capture.py",
@@ -14,7 +15,7 @@ BASE = [
     "--bit_depth", "12",
     "--int_time", "2",
     "--gate_step_size", "1200",
-    "--rep_rate", "10000000",
+    "--rep_rate", str(REP_RATE),
     "--plot_correlations", "false",
     "--save_into_file", "true",
     "--timeout", "0",
@@ -25,6 +26,9 @@ BASE = [
 
 # (capture_type, illum_type) pairs to run; illumination pulled from illum_config
 RUNS = [("coarse", "gaussian")] #[("ham", "pulse")]
+
+# sliding only: gate width in ns (k sets the shift, the width is independent)
+SLIDING_GATE_WIDTH = 50
 #("ham", "square"), ("coarse", "gaussian"),
 for typ, illum_typ in RUNS:
         illum = get_illum(K, typ, illum_typ)
@@ -36,6 +40,8 @@ for typ, illum_typ in RUNS:
             "--illum_type", illum_typ,
             "--high_level_amplitude", str(illum["high_level_amplitude"]),
         ]
+        if typ == "sliding":
+            cmd += ["--sliding_gate_width", str(SLIDING_GATE_WIDTH)]
         print("==============================================================")
         print(f"type={typ}  illum={illum_typ}  amp={illum['high_level_amplitude']}")
         print("==============================================================")

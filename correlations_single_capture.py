@@ -7,7 +7,8 @@ import time
 from utils.global_constants import *
 from utils.file_utils import build_parser_from_config, save_correlation_data
 from utils.parameter_classes import  Config
-from spad_lib.spad512utils import set_up_spad512, get_gate_shifts, correlation_capture
+from spad_lib.spad512utils import (set_up_spad512, get_gate_shifts, correlation_capture,
+                                   sliding_correlation_capture)
 from utils.instrument_utils import SDG5162_GATED_PROJECT, NIDAQ_LDC220
 from plot_scripts.plot_utils import plot_correlation_functions
 from dataclasses import asdict
@@ -24,6 +25,7 @@ BURST_TIME = 1
 K = 3  # number of time bins
 GATE_STEP_SIZE = 1200 #Steps in picoseconds
 GATE_SHRINKAGE = 0#In NS
+SLIDING_GATE_WIDTH = None #In NS, only used by sliding (other schemes derive it from k)
 CAPTURE_TYPE = 'coarse'
 
 # Illumination Parameters:
@@ -68,6 +70,7 @@ if __name__ == "__main__":
             k=K,
             split_acquisition=SPLIT_ACQUISITION,
             gate_shrinkage=GATE_SHRINKAGE,
+            sliding_gate_width=SLIDING_GATE_WIDTH,
             capture_type=CAPTURE_TYPE,
             high_level_amplitude=HIGH_LEVEL_AMPLITUDE,
             low_level_amplitude=LOW_LEVEL_AMPLITUDE,
@@ -116,13 +119,15 @@ if __name__ == "__main__":
     ldc220.set_current(cfg.current)
 
 
-    gate_widths, gate_starts = get_gate_shifts(cfg.capture_type, cfg.rep_rate, cfg.k)
+    gate_widths, gate_starts = get_gate_shifts(cfg.capture_type, cfg.rep_rate, cfg.k, cfg.sliding_gate_width)
     total_count = sum(len(sublist) for sublist in gate_widths)
     cfg.int_time = cfg.int_time/total_count if cfg.split_acquisition else cfg.int_time
 
     time.sleep(45)
-    needed = {k: v for k, v in asdict(cfg).items() if k in correlation_capture.__code__.co_varnames}
-    correlations = correlation_capture(SPAD1, gate_starts=gate_starts, gate_widths=gate_widths, **needed)
+    # every sliding gate is the same gate, so one sweep measures all k correlation functions
+    capture_fn = sliding_correlation_capture if cfg.capture_type == 'sliding' else correlation_capture
+    needed = {k: v for k, v in asdict(cfg).items() if k in capture_fn.__code__.co_varnames}
+    correlations = capture_fn(SPAD1, gate_starts=gate_starts, gate_widths=gate_widths, **needed)
 
     ldc220.set_current(0)
     sdg.turn_both_channels_off()
