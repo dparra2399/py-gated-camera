@@ -139,6 +139,20 @@ if __name__ == "__main__":
     needed = {k: v for k, v in asdict(cfg).items() if k in depth_map_capture.__code__.co_varnames}
     needed.pop('int_time')
 
+    # Sliding at high k produces frames far too large to accumulate across trials and phases
+    # (hundreds of GB), and the single-pixel decode only ever reads this ROI. So crop each
+    # capture the moment it comes back, before anything is accumulated. decode_single_pixel_
+    # experiment detects the smaller frame and skips its own crop.
+    if cfg.capture_type == 'sliding':
+        roi_coords = get_single_pixel_coords(cfg.im_width)
+        print(f'sliding: cropping every capture to ROI {roi_coords} before accumulating')
+        def roi_crop(a):
+            return a[..., roi_coords['y'][0]:roi_coords['y'][1],
+                          roi_coords['x'][0]:roi_coords['x'][1], :].copy()
+    else:
+        def roi_crop(a):
+            return a
+
     coded_vals_range = []
     gt_coded_vals_range = [] if cfg.ground_truth else None
 
@@ -212,7 +226,7 @@ if __name__ == "__main__":
             else:
                 coded_vals = depth_map_capture(SPAD1, gate_starts=gate_starts, gate_widths=gate_widths,
                                   int_time=cfg.int_time, **needed)
-            trial_runs.append(coded_vals)
+            trial_runs.append(roi_crop(coded_vals))
         print("---------------------------------")
 
         # import matplotlib.pyplot as plt
@@ -223,7 +237,7 @@ if __name__ == "__main__":
         if cfg.ground_truth:
             gt_coded_vals = depth_map_capture(SPAD1, gate_starts=gate_starts, gate_widths=gate_widths,
                                                          int_time=cfg.ground_truth_int_time, **needed)
-            gt_coded_vals_range.append(gt_coded_vals)
+            gt_coded_vals_range.append(roi_crop(gt_coded_vals))
 
     single_pixel_coded_vals = np.swapaxes(
         np.stack([x.astype(np.float32) for x in coded_vals_range]),
@@ -232,19 +246,6 @@ if __name__ == "__main__":
     )
     gt_single_pixel_coded_vals = np.stack(gt_coded_vals_range) if gt_coded_vals_range is not None else None
 
-    if cfg.capture_type == 'sliding':
-        # A full frame is tens of GB once k is in the hundreds, and the single-pixel decode
-        # only ever reads this ROI, so sliding captures are stored already cropped to it.
-        # decode_single_pixel_experiment detects the smaller frame and skips its own crop.
-        coords = get_single_pixel_coords(cfg.im_width)
-        roi = (slice(None),) * (single_pixel_coded_vals.ndim - 3) + (
-            slice(coords['y'][0], coords['y'][1]), slice(coords['x'][0], coords['x'][1]), slice(None))
-        print(f"cropping sliding capture to ROI {coords}: "
-              f"{single_pixel_coded_vals.shape} -> {single_pixel_coded_vals[roi].shape}")
-        single_pixel_coded_vals = single_pixel_coded_vals[roi]
-        if gt_single_pixel_coded_vals is not None:
-            gt_single_pixel_coded_vals = gt_single_pixel_coded_vals[
-                (slice(None),) * (gt_single_pixel_coded_vals.ndim - 3) + roi[-3:]]
 
     ldc220.set_current(0)
     sdg.turn_both_channels_off()
