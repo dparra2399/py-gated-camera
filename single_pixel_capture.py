@@ -232,6 +232,20 @@ if __name__ == "__main__":
     )
     gt_single_pixel_coded_vals = np.stack(gt_coded_vals_range) if gt_coded_vals_range is not None else None
 
+    if cfg.capture_type == 'sliding':
+        # A full frame is tens of GB once k is in the hundreds, and the single-pixel decode
+        # only ever reads this ROI, so sliding captures are stored already cropped to it.
+        # decode_single_pixel_experiment detects the smaller frame and skips its own crop.
+        coords = get_single_pixel_coords(cfg.im_width)
+        roi = (slice(None),) * (single_pixel_coded_vals.ndim - 3) + (
+            slice(coords['y'][0], coords['y'][1]), slice(coords['x'][0], coords['x'][1]), slice(None))
+        print(f"cropping sliding capture to ROI {coords}: "
+              f"{single_pixel_coded_vals.shape} -> {single_pixel_coded_vals[roi].shape}")
+        single_pixel_coded_vals = single_pixel_coded_vals[roi]
+        if gt_single_pixel_coded_vals is not None:
+            gt_single_pixel_coded_vals = gt_single_pixel_coded_vals[
+                (slice(None),) * (gt_single_pixel_coded_vals.ndim - 3) + roi[-3:]]
+
     ldc220.set_current(0)
     sdg.turn_both_channels_off()
 
