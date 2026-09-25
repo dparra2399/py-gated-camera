@@ -14,7 +14,7 @@ from utils.tof_utils import (
 # =============================================================================
 # Global parameters
 # =============================================================================
-N_TBINS      = 1000
+N_TBINS      = 2000
 TRIALS       = 500
 PHOTON_COUNT = 2000
 SBR          = 1.0
@@ -33,7 +33,7 @@ DEPTH_SAMPLE = 0.1
 #   photon_count  : photons per measurement (tune per scheme as needed)
 #   simulated     : passed through to results dict (used by some plot helpers)
 # =============================================================================
-PULSE_WIDTH = int((N_TBINS // (8)) / (2 * np.sqrt(np.log(2))))
+PULSE_WIDTH = int((N_TBINS // (50)) / (2 * np.sqrt(np.log(2))))
 
 RUNS = [
     {'type': 'ham',      'k': 4, 'photon_count': PHOTON_COUNT, 'pulse_width':  PULSE_WIDTH,}, #(N_TBINS // (8)) / (2 * np.sqrt(np.log(2)))  * .85, 'simulated': True},
@@ -42,9 +42,9 @@ RUNS = [
     # (N_TBINS // (8)) / (2 * np.sqrt(np.log(2)))  * .85, 'simulated': True},
     #{'type': 'coarse', 'k': 4, 'photon_count': PHOTON_COUNT, 'simulated': True},
     #{'type': 'trapcoarse', 'k': 4, 'photon_count': PHOTON_COUNT, 'simulated': True}
-    {'type': 'sliding', "pulse_width": PULSE_WIDTH, "shift": 2,    'photon_count': PHOTON_COUNT, "gate_width": PULSE_WIDTH * 5,  'simulated': True},
-    {'type': 'sliding', "pulse_width": PULSE_WIDTH, "shift": 10,   'photon_count': PHOTON_COUNT, "gate_width": PULSE_WIDTH * 5,  'simulated': True},
-    {'type': 'sliding', "pulse_width": PULSE_WIDTH, "shift": 100,  'photon_count': PHOTON_COUNT, "gate_width": PULSE_WIDTH * 5,  'simulated': True},
+    {'type': 'sliding', "pulse_width": PULSE_WIDTH, "shift": 5,    'photon_count': PHOTON_COUNT, "gate_width": PULSE_WIDTH * 15,  'simulated': True},
+    {'type': 'sliding', "pulse_width": PULSE_WIDTH, "shift": 10,   'photon_count': PHOTON_COUNT, "gate_width": PULSE_WIDTH * 15,  'simulated': True},
+    {'type': 'sliding', "pulse_width": PULSE_WIDTH, "shift": 100,  'photon_count': PHOTON_COUNT, "gate_width": PULSE_WIDTH * 15,  'simulated': True},
     # {'type': 'sliding', "pulse_width": 2, "shift": 200,  'photon_count': PHOTON_COUNT, "gate_width": 100, 'simulated': True},
 
     # coarsepw — one entry per pulse width you want to test
@@ -89,7 +89,7 @@ for run in RUNS:
     k = int(N_TBINS / shift) if k is None else k
 
     photon_count_base = run['photon_count']
-    photon_count = scale_photon_count(photon_count_base, cap_type, k) if SPLIT_ACQUISITION else photon_count_base
+    photon_count = scale_photon_count(photon_count_base, cap_type, k) if SPLIT_ACQUISITION else photon_count_base // k
 
     label  = f"{cap_type}_k{k}" + (f"_pw{pulse_width}" if pulse_width is not None else "")
 

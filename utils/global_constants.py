@@ -79,3 +79,40 @@ def get_total_pixels(coords=None):
     """Pixel count of an ROI dict (defaults to the module default)."""
     c = SINGLE_PIXEL_COORDS if coords is None else coords
     return (c['y'][1] - c['y'][0]) * (c['x'][1] - c['x'][0])
+
+# SPAD512S will not run an acquisition shorter than 80 us. Times are in ms everywhere in
+# this repo, so that floor is 0.08 ms. burst_time is what each individual acquisition asks
+# the camera for (int_time is a budget spread over several of them), so burst_time is the
+# number that has to clear the floor.
+MIN_INT_TIME = 0.08  # ms (80 us)
+
+
+def smallest_acquisition(int_time, burst_time):
+    """Shortest exposure burst_capture will ask the camera for.
+
+    It requests full burst_time chunks while the remaining budget exceeds one, then the
+    leftover remainder -- so the shortest request is that remainder (or the whole int_time
+    when it never enters the loop).
+    """
+    remaining = int_time
+    while remaining > burst_time:
+        remaining -= burst_time
+    return remaining
+
+
+def check_exposure_time(int_time, burst_time, label='exposure'):
+    """Abort before touching the camera if any single acquisition falls below the SPAD floor.
+
+    int_time must already be split by total_count when split_acquisition is on -- that split
+    is what makes the per-gate budget, and hence the chunks, small enough to matter.
+    """
+    shortest = smallest_acquisition(int_time, burst_time)
+    if shortest >= MIN_INT_TIME:
+        return shortest
+    import sys
+    print('-------------------------------------------------------')
+    print(f'ABORTING: shortest {label} is {shortest * 1e3:.1f} us, below the SPAD minimum of '
+          f'{MIN_INT_TIME * 1e3:.0f} us ({MIN_INT_TIME} ms)')
+    print(f'\tsplit int_time {int_time:g} ms, burst_time {burst_time:g} ms')
+    print('-------------------------------------------------------')
+    sys.exit(1)

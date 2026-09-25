@@ -130,6 +130,7 @@ if __name__ == "__main__":
 
     total_count = sum(len(sublist) for sublist in gate_widths)
     cfg.int_time = cfg.int_time/total_count if cfg.split_acquisition else cfg.int_time
+    check_exposure_time(cfg.int_time, cfg.burst_time)
 
     print(f"int_time: {cfg.int_time}")
 

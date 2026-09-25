@@ -122,6 +122,7 @@ if __name__ == "__main__":
     gate_widths, gate_starts = get_gate_shifts(cfg.capture_type, cfg.rep_rate, cfg.k, cfg.sliding_gate_width)
     total_count = sum(len(sublist) for sublist in gate_widths)
     cfg.int_time = cfg.int_time/total_count if cfg.split_acquisition else cfg.int_time
+    check_exposure_time(cfg.int_time, cfg.burst_time)
 
     time.sleep(45)
     # every sliding gate is the same gate, so one sweep measures all k correlation functions

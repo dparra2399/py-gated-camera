@@ -113,6 +113,7 @@ if __name__ == "__main__":
     sdg.turn_both_channels_off()
 
     rep_rate = cfg.rep_rate
+    check_exposure_time(cfg.int_time, cfg.burst_time)
     int_time_s = cfg.int_time * 1e-3  # <-- if ms
     N = rep_rate * int_time_s
 

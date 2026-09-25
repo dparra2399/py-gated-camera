@@ -155,6 +155,7 @@ if __name__ == "__main__":
 
         int_time_tmp = cfg.int_time if i < cfg.max_trials else cfg.burst_time
         int_time = int_time_tmp / total_count if cfg.split_acquisition else int_time_tmp
+        check_exposure_time(int_time, cfg.burst_time)
         if i == 0 or i == cfg.max_trials: print('int_time:', int_time)
         if cfg.capture_type != 'ham' or cfg.k != 4: #cfg.capture_type == "timeslicing":
             ts_needed = {k: v for k, v in asdict(cfg).items() if k in burst_capture.__code__.co_varnames}

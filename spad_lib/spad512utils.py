@@ -268,7 +268,7 @@ def burst_capture(
         while True:
             try:
                 counts += spad1.get_gated_intensity(
-                    bit_depth, current_inttime, iterations, gate_steps, gate_step_size,
+                    bit_depth, burst_time, iterations, gate_steps, gate_step_size,
                     gate_step_arbitrary, gate_width, gate_offset,
                     gate_direction, gate_trig, overlap, 1, pileup, im_width, timeout
                 )
