@@ -239,3 +239,44 @@ ni_daq.set_current(0)
 #sdg.set_phase_shift(phase=45)
 #
 # #sdg.turn_both_channels_on()
+
+def register_laser_shutdown(ldc220, sdg=None):
+    """Zero the laser current on every exit path Python can observe.
+
+    Covers a normal return, an unhandled exception, KeyboardInterrupt, sys.exit (the
+    integration-time guards use it) and a polite SIGTERM/SIGBREAK. It cannot cover SIGKILL,
+    Task Manager 'End Process', or an OS crash: set_voltage closes its DAQ task after every
+    write, so the DAC holds its last value with no process running at all. Those need a
+    device-side watchdog or a hardware interlock.
+
+    Call it immediately after the LDC220 is constructed, before any current is applied.
+    """
+    import atexit
+    import signal
+    import sys
+
+    def shutdown(*_args):
+        try:
+            ldc220.set_current(0)
+            print('laser current set to 0')
+        except Exception as exc:
+            print(f'FAILED to zero laser current: {exc}')
+        if sdg is not None:
+            try:
+                sdg.turn_both_channels_off()
+            except Exception as exc:
+                print(f'FAILED to turn off sdg channels: {exc}')
+
+    atexit.register(shutdown)
+
+    # translate a polite kill into SystemExit so the atexit hook above still runs
+    for name in ('SIGTERM', 'SIGBREAK'):
+        sig = getattr(signal, name, None)
+        if sig is None:
+            continue
+        try:
+            signal.signal(sig, lambda _s, _f: sys.exit(1))
+        except (ValueError, OSError):
+            pass  # not the main thread, or unsupported on this platform
+
+    return shutdown

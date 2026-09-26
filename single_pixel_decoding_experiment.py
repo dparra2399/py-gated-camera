@@ -7,7 +7,7 @@ from plot_scripts.plot_utils import plot_single_pixel_dist, plot_single_pixel_co
     plot_single_pixel_error_per_trial, plot_single_pixel_error_per_pixel
 from utils.global_constants import *
 from utils.global_constants import get_single_pixel_coords, get_total_pixels
-from utils.tof_utils import build_coding_matrix_from_correlations, get_simulated_coding_matrix, sliding_gate_width_tbins, \
+from utils.tof_utils import build_coding_matrix_from_correlations, get_simulated_coding_matrix, sliding_gate_width_tbins, resolve_roi_pixels, \
     calculate_tof_domain_params, decode_single_pixel_experiment, decode_per_pixel_experiment
 from utils.parameter_classes import DecodeConfig
 import numpy as np
@@ -171,7 +171,8 @@ if __name__ == '__main__':
 
         print(f'capture type: {capture_type}')
         print(f'depth: {gt_depths[0, 0]:.3f}')
-        counts = np.sum(coded_vals[0, 0, coords['y'][0]:coords['y'][1], coords['x'][0]:coords['x'][1], :])
+        yp, xp = resolve_roi_pixels(coded_vals, coords['y'], coords['x'])
+        counts = np.sum(coded_vals[0, 0, yp[0]:yp[1], xp[0]:xp[1], :])
         print(f'total counts: {counts:.3f}')
         print('----------------------------------')
 

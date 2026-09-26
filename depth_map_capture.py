@@ -6,7 +6,7 @@ from utils.global_constants import *
 from utils.file_utils import build_parser_from_config, save_capture_and_gt_data, save_capture_data
 from utils.parameter_classes import  Config
 from spad_lib.spad512utils import set_up_spad512, get_gate_shifts, depth_map_capture, burst_capture
-from utils.instrument_utils import SDG5162_GATED_PROJECT, NIDAQ_LDC220
+from utils.instrument_utils import SDG5162_GATED_PROJECT, NIDAQ_LDC220, register_laser_shutdown
 from dataclasses import asdict
 ##### Editable parameters (defaults; can be overridden via CLI)  #####
 
@@ -104,6 +104,15 @@ if __name__ == "__main__":
     cfg = apply_defaults(cfg)
 
 
+    gate_widths, gate_starts = get_gate_shifts(cfg.capture_type, cfg.rep_rate, cfg.k, cfg.sliding_gate_width)
+    total_count = sum(len(sublist) for sublist in gate_widths)
+
+    # Validate both branches of the loop's int_time up front, before anything is energised:
+    # the loop uses cfg.int_time for the first max_trials passes, then cfg.burst_time.
+    for _budget, _name in ((cfg.int_time, 'int_time'), (cfg.burst_time, 'burst_time-as-budget')):
+        _split = _budget / total_count if cfg.split_acquisition else _budget
+        check_exposure_time(_split, cfg.burst_time, label=_name)
+
     SPAD1 = set_up_spad512()
 
     sdg = SDG5162_GATED_PROJECT(
@@ -112,6 +121,7 @@ if __name__ == "__main__":
 
     ldc220 = NIDAQ_LDC220(max_amps=40)
     ldc220.set_current(0)
+    register_laser_shutdown(ldc220, sdg)
 
 
     sdg.set_waveform_and_trigger(cfg.illum_type, cfg.duty, cfg.rep_rate,
@@ -133,8 +143,6 @@ if __name__ == "__main__":
 
     ldc220.set_current(cfg.current)
 
-    gate_widths, gate_starts = get_gate_shifts(cfg.capture_type, cfg.rep_rate, cfg.k, cfg.sliding_gate_width)
-    total_count = sum(len(sublist) for sublist in gate_widths)
 
     time.sleep(45)
 
@@ -155,7 +163,6 @@ if __name__ == "__main__":
 
         int_time_tmp = cfg.int_time if i < cfg.max_trials else cfg.burst_time
         int_time = int_time_tmp / total_count if cfg.split_acquisition else int_time_tmp
-        check_exposure_time(int_time, cfg.burst_time)
         if i == 0 or i == cfg.max_trials: print('int_time:', int_time)
         if cfg.capture_type != 'ham' or cfg.k != 4: #cfg.capture_type == "timeslicing":
             ts_needed = {k: v for k, v in asdict(cfg).items() if k in burst_capture.__code__.co_varnames}

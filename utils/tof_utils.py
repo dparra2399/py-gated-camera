@@ -230,6 +230,18 @@ def decode_depth_map(
     depth_map = depths.reshape((512, im_width)) * tbin_depth_res
     return depth_map, zncc
 
+def resolve_roi_pixels(coded_vals, y_pixels, x_pixels):
+    """ROI bounds for a capture array, whether or not it was saved pre-cropped.
+
+    Sliding captures are stored already cropped to the ROI (a full frame is hundreds of GB
+    at high k), so the absolute coords would index past the end and silently return an empty
+    slice. A frame smaller than the coords already IS the ROI, so take it whole.
+    """
+    if coded_vals.shape[-3] < y_pixels[1] or coded_vals.shape[-2] < x_pixels[1]:
+        return [0, coded_vals.shape[-3]], [0, coded_vals.shape[-2]]
+    return y_pixels, x_pixels
+
+
 def decode_single_pixel_experiment(
     capture_type: str,
     coded_vals: np.ndarray,
@@ -243,11 +255,7 @@ def decode_single_pixel_experiment(
     gt: bool = False,
 ):
 
-    # sliding captures are saved already cropped to the ROI, so the absolute coords would
-    # index past the end -- detect the smaller frame and take it whole instead
-    if coded_vals.shape[-3] < y_pixels[1] or coded_vals.shape[-2] < x_pixels[1]:
-        y_pixels, x_pixels = [0, coded_vals.shape[-3]], [0, coded_vals.shape[-2]]
-
+    y_pixels, x_pixels = resolve_roi_pixels(coded_vals, y_pixels, x_pixels)
     sub = coded_vals[..., y_pixels[0]:y_pixels[1], x_pixels[0]:x_pixels[1], :]
     sub = sub.reshape(*sub.shape[:-3], -1, sub.shape[-1])
     total_pixels = sub.shape[-2]
@@ -293,6 +301,7 @@ def decode_per_pixel_experiment(
     depths : np.ndarray
         Shape (..., roi_h, roi_w), e.g. (trials, n_phase_shifts, roi_h, roi_w).
     """
+    y_pixels, x_pixels = resolve_roi_pixels(coded_vals, y_pixels, x_pixels)
     sub = coded_vals[..., y_pixels[0]:y_pixels[1], x_pixels[0]:x_pixels[1], :]
     roi_h, roi_w = sub.shape[-3], sub.shape[-2]
 

@@ -6,7 +6,7 @@ from utils.global_constants import *
 from utils.file_utils import build_parser_from_config, save_capture_and_gt_data
 from utils.parameter_classes import  Config
 from spad_lib.spad512utils import set_up_spad512, get_gate_shifts, depth_map_capture
-from utils.instrument_utils import SDG5162_GATED_PROJECT, NIDAQ_LDC220
+from utils.instrument_utils import SDG5162_GATED_PROJECT, NIDAQ_LDC220, register_laser_shutdown
 from dataclasses import asdict
 ##### Editable parameters (defaults; can be overridden via CLI)  #####
 
@@ -87,6 +87,8 @@ if __name__ == "__main__":
     cfg = Config(**vars(args))
     cfg = apply_defaults(cfg)
 
+    check_exposure_time(cfg.int_time, cfg.burst_time)
+
     SPAD1 = set_up_spad512()
 
     sdg = SDG5162_GATED_PROJECT(
@@ -95,6 +97,7 @@ if __name__ == "__main__":
 
     ldc220 = NIDAQ_LDC220(max_amps=40)
     ldc220.set_current(0)
+    register_laser_shutdown(ldc220, sdg)
 
     sdg.set_waveform_and_trigger(cfg.illum_type, cfg.duty, cfg.rep_rate,
                                  cfg.high_level_amplitude, cfg.low_level_amplitude, cfg.phase, cfg.edge)
@@ -113,7 +116,6 @@ if __name__ == "__main__":
     sdg.turn_both_channels_off()
 
     rep_rate = cfg.rep_rate
-    check_exposure_time(cfg.int_time, cfg.burst_time)
     int_time_s = cfg.int_time * 1e-3  # <-- if ms
     N = rep_rate * int_time_s
 
