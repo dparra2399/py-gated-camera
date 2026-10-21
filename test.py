@@ -17,7 +17,7 @@ from utils.tof_utils import (
 N_TBINS      = 2000
 TRIALS       = 500
 PHOTON_COUNT = 2000
-SBR          = 1.0
+SBR          = 0.1
 SPLIT_ACQUISITION = True
 REP_RATE = 5e6
 REP_TAU  = float(1 / REP_RATE)
@@ -33,18 +33,18 @@ DEPTH_SAMPLE = 0.1
 #   photon_count  : photons per measurement (tune per scheme as needed)
 #   simulated     : passed through to results dict (used by some plot helpers)
 # =============================================================================
-PULSE_WIDTH = int((N_TBINS // (50)) / (2 * np.sqrt(np.log(2))))
+PULSE_WIDTH = int((N_TBINS // (8)) / (2 * np.sqrt(np.log(2))))
 
 RUNS = [
-    {'type': 'ham',      'k': 4, 'photon_count': PHOTON_COUNT, 'pulse_width':  PULSE_WIDTH,}, #(N_TBINS // (8)) / (2 * np.sqrt(np.log(2)))  * .85, 'simulated': True},
-    #{'type': 'coarse',   'k': 4, 'photon_count': PHOTON_COUNT, 'simulated': True},
+    {'type': 'ham',      'k': 3, 'photon_count': PHOTON_COUNT, 'pulse_width':  PULSE_WIDTH,}, #(N_TBINS // (8)) / (2 * np.sqrt(np.log(2)))  * .85, 'simulated': True},
+    {'type': 'coarse',   'k': 3, 'photon_count': PHOTON_COUNT, 'simulated': True},
     #{'type': 'ham', 'k': 3, 'photon_count': PHOTON_COUNT, 'pulse_width': 80, },
     # (N_TBINS // (8)) / (2 * np.sqrt(np.log(2)))  * .85, 'simulated': True},
     #{'type': 'coarse', 'k': 4, 'photon_count': PHOTON_COUNT, 'simulated': True},
-    #{'type': 'trapcoarse', 'k': 4, 'photon_count': PHOTON_COUNT, 'simulated': True}
-    {'type': 'sliding', "pulse_width": PULSE_WIDTH, "shift": 5,    'photon_count': PHOTON_COUNT, "gate_width": PULSE_WIDTH * 15,  'simulated': True},
-    {'type': 'sliding', "pulse_width": PULSE_WIDTH, "shift": 10,   'photon_count': PHOTON_COUNT, "gate_width": PULSE_WIDTH * 15,  'simulated': True},
-    {'type': 'sliding', "pulse_width": PULSE_WIDTH, "shift": 100,  'photon_count': PHOTON_COUNT, "gate_width": PULSE_WIDTH * 15,  'simulated': True},
+    {'type': 'trapcoarse', 'k': 3, 'photon_count': PHOTON_COUNT, 'simulated': True}
+    # {'type': 'sliding', "pulse_width": PULSE_WIDTH, "shift": 5,    'photon_count': PHOTON_COUNT, "gate_width": PULSE_WIDTH * 15,  'simulated': True},
+    # {'type': 'sliding', "pulse_width": PULSE_WIDTH, "shift": 10,   'photon_count': PHOTON_COUNT, "gate_width": PULSE_WIDTH * 15,  'simulated': True},
+    # {'type': 'sliding', "pulse_width": PULSE_WIDTH, "shift": 100,  'photon_count': PHOTON_COUNT, "gate_width": PULSE_WIDTH * 15,  'simulated': True},
     # {'type': 'sliding', "pulse_width": 2, "shift": 200,  'photon_count': PHOTON_COUNT, "gate_width": 100, 'simulated': True},
 
     # coarsepw — one entry per pulse width you want to test

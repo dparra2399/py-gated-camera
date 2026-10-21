@@ -112,7 +112,7 @@ if __name__ == '__main__':
                                           make_capture_filename(capture_type, k, freq_mhz, mV, mA, duty,
                                                                 None, True))
 
-        correlations_total = load_correlation_npz(corr_path)['correlations']
+        correlations_total, sliding_rows = load_correlations(corr_path)
 
         if cfg.simulated_correlations:
             coding_matrix = get_simulated_coding_matrix(capture_type, cfg.n_tbins, k,
@@ -124,6 +124,7 @@ if __name__ == '__main__':
                 cfg.smooth_sigma,
                 cfg.shift,
                 cfg.n_tbins,
+                sliding=sliding_rows,
             )
 
         # mn = coding_matrix.min()

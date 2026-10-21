@@ -253,7 +253,11 @@ if __name__ == "__main__":
     sdg.turn_both_channels_off()
 
     if cfg.save_into_file:
-        save_capture_and_gt_data(save_path=cfg.save_path, cfg_dict=asdict(cfg),
+        cfg_dict = asdict(cfg)
+        if cfg.capture_type == 'sliding':
+            # decode needs the crop's sensor position to sum the full-frame correlations
+            cfg_dict['roi_coords'] = roi_coords
+        save_capture_and_gt_data(save_path=cfg.save_path, cfg_dict=cfg_dict,
                                      coded_vals=single_pixel_coded_vals, gt_coded_vals=gt_single_pixel_coded_vals)
 
 

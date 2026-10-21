@@ -1,4 +1,6 @@
 import numpy as np
+import open3d as o3d
+from scipy.ndimage import median_filter
 
 from spad_lib.spad512utils import *
 from utils.file_utils import *
@@ -11,10 +13,10 @@ from utils.parameter_classes import DecodeConfig
 # -----------------------------------------------------------------------------
 # CONFIG (capitalized)
 # -----------------------------------------------------------------------------
-EXP_PATH = os.path.join('step_stool_results', 'k3_HIGHSNR_1')
+EXP_PATH = os.path.join('step_stool_results', 'k4_LOWSNR_1')
 SNR_LABEL     = "highsnr" if "highsnr" in EXP_PATH.lower() else "lowsnr"
-FIGURES_DIR   = "figures"   # where 3d_recon_single.py saved its PNGs
-VMAX_ERROR    = 0.01# metres; None = auto (95th percentile across runs)
+FIGURES_DIR   = "figures"   # where the panel PDF is saved
+VMAX_ERROR    = 2.0 # meters; None = auto (95th percentile across runs)
 PLOT_POINT_CLOUD = True  # True = show point cloud PNG in top row; False = show depth map instead
 ALIGN_DEPTHS = True       # shift each run's depth map so all medians match the first run
 N_TBINS = 3000
@@ -43,6 +45,128 @@ SHIFT_SIZE = 70 #None if no shifting
 #Corrections to depth map
 CORRECT_DEPTH_DISTORTION = False
 CORRECT_MASTER = True
+
+# --- point-cloud rendering (top row of the panel) ---
+# Point clouds render off-screen straight into the panel (no windows, no PNGs).
+# True = also open an interactive viewer per run first, to re-aim the camera and press S.
+INTERACTIVE_VIEWER = False
+# The point cloud gets its own post-processing, separate from the error maps
+PCD_BAD_ROWS = [(230, 260), (70, 95)]
+PCD_COL_CROP = (100, -100)   # tighter column crop than the error maps' (20, -20)
+PCD_MASTER_OFFSET = 0.009    # m added to the master (left) half when CORRECT_MASTER
+PCD_VMIN = None              # shared clip range across runs; None = auto
+PCD_VMAX = None
+FOV_MAJOR_AXIS_DEG = 10.0    # horizontal FOV in degrees
+# Press S in the viewer window to save the current camera view; it reloads on the next run.
+CAMERA_PARAMS_FILE = "camera_params.json"
+VIEW_ZOOM = 0.8
+SHOW_AXES = False
+PCD_ZOOM_OUT = 5   # mouse-wheel steps applied to the panel renders; bigger = more zoomed out, 0 = saved view
+
+
+# -----------------------------------------------------------------------------
+# POINT-CLOUD HELPERS
+# -----------------------------------------------------------------------------
+def pointcloud_depth_map(depth_map, im_width, correct_master, mask_background, median_size):
+    """Post-process a decoded depth map for the point cloud (not for the error maps)."""
+    depth_map = depth_map.astype(float)
+    if not correct_master:
+        depth_map = depth_map[:, : im_width // 2]
+    else:
+        depth_map[:, : im_width // 2] += PCD_MASTER_OFFSET
+    if mask_background:
+        depth_map = depth_map[40:450, PCD_COL_CROP[0]:PCD_COL_CROP[1]]
+    depth_map = median_filter(depth_map, size=median_size)
+    if PCD_BAD_ROWS:
+        for start, end in PCD_BAD_ROWS:
+            depth_map[start:end + 1, :] = np.nan
+    return depth_map
+
+
+def depth_to_pointcloud(depth_map, fov_major_axis_deg):
+    """Back-project a depth map to a 3-D point cloud."""
+    height, width = depth_map.shape
+    fx = width / (2 * np.tan(np.radians(fov_major_axis_deg) / 2))
+    fy = fx
+    cx, cy = width / 2.0, height / 2.0
+
+    x_grid, y_grid = np.meshgrid(np.arange(width), np.arange(height))
+    z = depth_map.astype(np.float32)
+    x3d = (x_grid - cx) * z / fx
+    y3d = -(y_grid - cy) * z / fy
+
+    points = np.stack((x3d, y3d, z), axis=-1).reshape(-1, 3)
+    valid = ~np.isnan(points).any(axis=1) & (points[:, 2] > 0)
+    return points[valid]
+
+
+def setup_view(vis, geometry):
+    """Add the geometry (and optional axes) and apply the saved camera, else the default zoom."""
+    vis.add_geometry(geometry)
+    if SHOW_AXES:
+        bbox = geometry.get_axis_aligned_bounding_box()
+        axis_size = np.linalg.norm(np.asarray(bbox.max_bound) - np.asarray(bbox.min_bound)) * 0.05
+        vis.add_geometry(o3d.geometry.TriangleMesh.create_coordinate_frame(size=axis_size))
+    ctrl = vis.get_view_control()
+    if CAMERA_PARAMS_FILE and os.path.isfile(CAMERA_PARAMS_FILE):
+        params = o3d.io.read_pinhole_camera_parameters(CAMERA_PARAMS_FILE)
+        ctrl.convert_from_pinhole_camera_parameters(params, allow_arbitrary=True)
+    else:
+        ctrl.set_zoom(VIEW_ZOOM)
+    return ctrl
+
+
+def aim_camera(geometry, title):
+    """Interactive viewer for re-aiming: press S to save the view to CAMERA_PARAMS_FILE."""
+    vis = o3d.visualization.VisualizerWithKeyCallback()
+    vis.create_window(window_name=title)
+    ctrl = setup_view(vis, geometry)
+
+    def save_camera(vis):
+        o3d.io.write_pinhole_camera_parameters(CAMERA_PARAMS_FILE, ctrl.convert_to_pinhole_camera_parameters())
+        print(f"\n[{title}] Camera saved to {CAMERA_PARAMS_FILE}")
+        return False
+
+    vis.register_key_callback(ord("S"), save_camera)
+    print(f"[{title}] Press S to save the current view, then close the window")
+    vis.run()
+    vis.destroy_window()
+
+
+def render_offscreen(geometry):
+    """Render with the saved camera in a hidden window and return the image (H, W, 3) in [0, 1]."""
+    # match the window to the saved camera's size so the view (and the panel's crop) is unchanged
+    width, height = 1920, 1080
+    if CAMERA_PARAMS_FILE and os.path.isfile(CAMERA_PARAMS_FILE):
+        intrinsic = o3d.io.read_pinhole_camera_parameters(CAMERA_PARAMS_FILE).intrinsic
+        width, height = intrinsic.width, intrinsic.height
+    vis = o3d.visualization.Visualizer()
+    vis.create_window(width=width, height=height, visible=False)
+    ctrl = setup_view(vis, geometry)
+    # only here, not in setup_view, so pressing S in the viewer never saves the zoom-out into the camera file
+    ctrl.scale(PCD_ZOOM_OUT)
+    vis.poll_events()
+    vis.update_renderer()
+    image = np.asarray(vis.capture_screen_float_buffer(do_render=True))
+    vis.destroy_window()
+    return image
+
+
+def render_point_cloud(depth_map, run_tag):
+    points = depth_to_pointcloud(depth_map, FOV_MAJOR_AXIS_DEG)
+    print(f"  {run_tag}: point cloud {len(points):,} points")
+    # centre at origin so open3d zoom/pan works correctly
+    points = points - points.mean(axis=0)
+
+    pcd = o3d.geometry.PointCloud()
+    pcd.points = o3d.utility.Vector3dVector(points)
+    z = points[:, 2]
+    z_norm = (z - z.min()) / (z.max() - z.min() + 1e-8)
+    pcd.colors = o3d.utility.Vector3dVector(plt.get_cmap("gray")(0.3 + 0.4 * z_norm)[:, :3])
+
+    if INTERACTIVE_VIEWER:
+        aim_camera(pcd, title=f"Point Cloud — {run_tag}")
+    return render_offscreen(pcd)
 
 
 # -----------------------------------------------------------------------------
@@ -127,7 +251,7 @@ if __name__ == '__main__':
                                           make_capture_filename(capture_type, k, freq_mhz, mV, mA, duty,
                                                                 None, True))
 
-        correlations_total = load_correlation_npz(corr_path)['correlations']
+        correlations_total, sliding_rows = load_correlations(corr_path)
 
         if cfg.simulated_correlations:
             coding_matrix = get_simulated_coding_matrix(capture_type, cfg.n_tbins, k,
@@ -139,8 +263,11 @@ if __name__ == '__main__':
                 cfg.smooth_sigma,
                 cfg.shift,
                 cfg.n_tbins,
+                sliding=sliding_rows,
             )
 
+        # plt.imshow(np.sum(np.sum(correlations_total, axis=-1), axis=-1))
+        # plt.show()
         # mn = coding_matrix.min()
         # mx = coding_matrix.max()
         # coding_matrix = (coding_matrix - mn) / (mx - mn)
@@ -165,6 +292,9 @@ if __name__ == '__main__':
 
 
         depth_map = filter_hot_pixels(depth_map, hot_mask)
+        # copy: the error-map crop below is a view that gets edited in place
+        pcd_depth_map = pointcloud_depth_map(depth_map.copy(), im_width, cfg.correct_master,
+                                             cfg.mask_background_pixels, cfg.median_filter_size)
 
         coded_vals_filt = np.zeros_like(coded_vals_trials)
         for i in range(coded_vals_trials.shape[-1]):
@@ -208,7 +338,7 @@ if __name__ == '__main__':
 
         cfg_dict = asdict(cfg)
         cfg_dict.update({'depth_map': depth_map, 'gt_depth_map': gt_depth_map,
-                         'rmse': rmse, 'mae': mae})
+                         'pcd_depth_map': pcd_depth_map, 'rmse': rmse, 'mae': mae})
         cfg_dict.update(params)
         depth_map_dict[coded_vals_path] = cfg_dict
 
@@ -237,6 +367,20 @@ if __name__ == '__main__':
         d['depth_map']    = np.clip(d['depth_map'],    vmin_clip, vmax_clip)
         d['gt_depth_map'] = np.clip(d['gt_depth_map'], vmin_clip, vmax_clip)
 
+    # --- point clouds: align, clip to one shared range, render off-screen for the panel ---
+    if PLOT_POINT_CLOUD:
+        pcd_maps = [d['pcd_depth_map'] for d in depth_map_dict.values()]
+        if ALIGN_DEPTHS:
+            ref_median = np.nanmedian(pcd_maps[0])
+            pcd_maps = [m + (ref_median - np.nanmedian(m)) for m in pcd_maps]
+        all_vals = np.concatenate([m.ravel() for m in pcd_maps])
+        pcd_vmin = PCD_VMIN if PCD_VMIN is not None else float(np.nanmin(all_vals))
+        pcd_vmax = PCD_VMAX if PCD_VMAX is not None else float(np.nanmax(all_vals))
+        print(f"\n  Point-cloud depth range: vmin={pcd_vmin:.3f}  vmax={pcd_vmax:.3f}")
+        for d, m in zip(depth_map_dict.values(), pcd_maps):
+            d['pcd_image'] = render_point_cloud(np.clip(m, pcd_vmin, pcd_vmax),
+                                                f"{d['capture_type']}_k{d['k']}_{SNR_LABEL}")
+
     # --- 3-D recon comparison panel ---
     recon_runs = []
     for coded_vals_path, d in depth_map_dict.items():
@@ -246,6 +390,7 @@ if __name__ == '__main__':
             'snr_label':    SNR_LABEL,
             'depth_map':    d['depth_map'],
             'gt_depth_map': d['gt_depth_map'],
+            'pcd_image':    d.get('pcd_image'),
         })
 
 

@@ -7,7 +7,7 @@ from scipy.ndimage import gaussian_filter, gaussian_filter1d, median_filter
 from felipe_utils.research_utils import signalproc_ops, np_utils
 from felipe_utils.tof_utils_felipe import zero_norm_t
 from utils.global_constants import EPILSON, SPEED_OF_LIGHT, SINGLE_PIXEL_COORDS, \
-    get_single_pixel_coords
+    SLIDING_LEGACY_CROP_ROI, get_single_pixel_coords
 from felipe_utils import tof_utils_felipe
 from felipe_utils import CodingFunctionsFelipe
 from felipe_utils.research_utils.signalproc_ops import gaussian_pulse, max_gaussian_center_of_mass_mle
@@ -58,7 +58,7 @@ def get_simulated_coding_matrix(type, n_tbins, k, gate_width=None):
         (modfs, demodfs) = func(N=n_tbins)
         #Dt = demodfs.sum(axis=1)
         #print(Dt.min(), Dt.max(), Dt.mean(), Dt.std())
-        irf = gaussian_pulse(np.arange(n_tbins), 0, 80, circ_shifted=True)
+        irf = gaussian_pulse(np.arange(n_tbins), 0, 1, circ_shifted=True)
         coding_matrix = np.fft.ifft(np.fft.fft(modfs, axis=0).conj() * np.fft.fft(demodfs, axis=0), axis=0).real
 
         coding_matrix = np.fft.ifft(
@@ -142,15 +142,46 @@ def sliding_gate_width_tbins(sliding_gate_width, rep_tau, n_tbins):
         return None
     return int(round(sliding_gate_width * 1e-9 / rep_tau * n_tbins))
 
+def expand_sliding_rows(arr, k, roll, axis=-2):
+    """Rebuild k sliding correlation rows from the single stored row.
+
+    Row i is row 0 shifted by i*roll samples along the last axis. The shift is negative here
+    (positive at capture time) because sliding_correlation_capture flips the sweep before
+    saving. Fractional rolls interpolate, matching how capture built them.
+    """
+    arr = np.moveaxis(arr, axis, -2)
+    n = arr.shape[-1]
+    sample = np.arange(n)
+    out = np.empty(arr.shape[:-2] + (k, n), dtype=arr.dtype)
+    for i in range(k):
+        src = (sample - i * roll) % n
+        low = np.floor(src).astype(int)
+        frac = src - low
+        high = (low + 1) % n
+        out[..., i, :] = arr[..., 0, low] * (1 - frac) + arr[..., 0, high] * frac
+    return np.moveaxis(out, -2, axis)
+
+
 def build_coding_matrix_from_correlations(
     correlations_total: np.ndarray,
     use_full,
     sigma_size,
     shift_size,
     n_tbins=None,
+    sliding=None,
+    coords=None,
 ) -> np.ndarray:
+    # A sliding capture stores only correlation row 0; `sliding` is the (k, roll) needed to
+    # rebuild the rest. Fail loudly rather than silently building a 1-column coding matrix.
+    if sliding is None and correlations_total.shape[-2] == 1:
+        raise ValueError(
+            'correlations have a single code row, which means a sliding capture stored one '
+            'row. Load with file_utils.load_correlations() and pass its `sliding` through.')
+
     if use_full:
         # correlations_total: (H, W, n_tbins, K)
+        if sliding is not None:
+            correlations_total = expand_sliding_rows(correlations_total, *sliding, axis=-1)
         coding_matrix = gaussian_filter(
             correlations_total.swapaxes(-1, -2),  # -> (H,W,K,n_tbins)
             sigma=(3, 3, 0, 0),
@@ -164,8 +195,12 @@ def build_coding_matrix_from_correlations(
         return coding_matrix  # (H,W,n_tbins,K)
 
     # legacy path: spatial-sum correlations
-    # correlations_total is (H, W, ...), so W is im_width -- pick the ROI to match
-    coords = get_single_pixel_coords(correlations_total.shape[1])
+    # correlations_total is (H, W, ...), so W is im_width -- pick the ROI to match.
+    # Callers that select their own ROI must pass it in: the coded values and the coding
+    # matrix have to be summed over the *same* pixels, and overriding only the caller's side
+    # silently decodes one ROI against a coding matrix measured at another.
+    if coords is None:
+        coords = get_single_pixel_coords(correlations_total.shape[1])
     coding_matrix = np.transpose(
         #np.mean(np.mean(correlations_total[:, 20:correlations_total.shape[1]//2-20, :], axis=0), axis=0)
         #np.mean(np.mean(correlations_total[280:300, 140:150, :], axis=0), axis=0)
@@ -175,6 +210,10 @@ def build_coding_matrix_from_correlations(
         np.sum(np.sum(correlations_total[coords['y'][0]:coords['y'][1], coords['x'][0]:coords['x'][1], :], axis=0), axis=0)
 
     )  # (n_tbins,K)
+
+    if sliding is not None:
+        # after the ROI sum the array is tiny, so this is the cheap place to rebuild the rows
+        coding_matrix = expand_sliding_rows(coding_matrix[None, ...], *sliding, axis=-1)[0]
 
     #coding_matrix[:, 2] = np.roll(coding_matrix[:, 2], shift=2, axis=-1)
     if shift_size is not None:
@@ -197,8 +236,10 @@ def build_coding_matrix_from_correlations(
     # coding_matrix = (coding_matrix - mins) / (maxs - mins)
     return coding_matrix
 
-def scale_photon_count(photon_count, capture_type, k):
-    if capture_type == 'ham':
+def scale_photon_count(photon_count, capture_type, k, single_gate_per_frame=True):
+    # single_gate_per_frame: the camera opens one gate per frame, so ham codes with multiple
+    # gate openings per demodulation function need extra frames. An ideal sensor splits by k.
+    if capture_type == 'ham' and single_gate_per_frame:
         divisor = k if k <= 3 else 6
     else:
         divisor = k   # coarse, trapcoarse, coarsepw all divide by k
@@ -240,6 +281,17 @@ def resolve_roi_pixels(coded_vals, y_pixels, x_pixels):
     if coded_vals.shape[-3] < y_pixels[1] or coded_vals.shape[-2] < x_pixels[1]:
         return [0, coded_vals.shape[-3]], [0, coded_vals.shape[-2]]
     return y_pixels, x_pixels
+
+
+def correlation_coords(coded_vals, params, roi_y, roi_x):
+    """Absolute sensor ROI to sum the full-frame correlations over for these coded values.
+
+    A pre-cropped frame (fewer than the sensor's 512 rows) indexes from its own corner, so
+    using its ROI on the full-frame correlations would sum the wrong pixels.
+    """
+    if coded_vals.shape[-3] == 512:
+        return {'y': roi_y, 'x': roi_x}
+    return params.get('roi_coords', SLIDING_LEGACY_CROP_ROI)
 
 
 def decode_single_pixel_experiment(

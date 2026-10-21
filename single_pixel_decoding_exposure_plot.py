@@ -9,16 +9,16 @@ from plot_scripts.plot_utils import plot_single_pixel_dist, plot_single_pixel_co
     get_string_name
 from utils.global_constants import *
 from utils.global_constants import get_single_pixel_coords, get_total_pixels
-from utils.tof_utils import build_coding_matrix_from_correlations, get_simulated_coding_matrix, sliding_gate_width_tbins, \
-    calculate_tof_domain_params, decode_single_pixel_experiment
+from utils.tof_utils import build_coding_matrix_from_correlations, get_simulated_coding_matrix, sliding_gate_width_tbins, resolve_roi_pixels, \
+    calculate_tof_domain_params, decode_single_pixel_experiment, correlation_coords
 from utils.parameter_classes import DecodeConfig
 import numpy as np
 
 # -----------------------------------------------------------------------------
 # CONFIG (capitalized)
 # ----------------------------------------------------------------------------
-EXP_PATH = os.path.join('k4_LOWSNR')
-N_TBINS = 3000
+EXP_PATH = os.path.join('k8_12_16_TRAPCOARSE_LOWSNR')
+N_TBINS = 2000
 
 #Which correlation functions to use
 SIMULATED_CORRELATIONS = False
@@ -30,7 +30,7 @@ SHIFT_SIZE = None #None if no shifting
 #Not apart of the defaults
 # n-pixel sweep knobs. The upper bound is derived per-capture at runtime,
 # because the ROI (and so its pixel count) depends on the capture's im_width.
-N_PIXELS_START = 10
+N_PIXELS_START = 11
 N_PIXELS_STEP = 10
 
 # -----------------------------------------------------------------------------
@@ -87,8 +87,12 @@ if __name__ == '__main__':
         im_width = params['im_width']
         # ROI depends on the captured frame width (512 vs cropped)
         coords = get_single_pixel_coords(im_width)
-        total_pixels = get_total_pixels(coords)
-        n_pixels_range = np.arange(N_PIXELS_START, total_pixels // 3, N_PIXELS_STEP)
+        # The stored frame may already be cropped to an ROI (sliding captures are), and that
+        # ROI can differ from today's constant, so derive the bounds and the pixel count
+        # from the array itself rather than from get_total_pixels().
+        roi_y, roi_x = resolve_roi_pixels(coded_vals, coords['y'], coords['x'])
+        total_pixels = (roi_y[1] - roi_y[0]) * (roi_x[1] - roi_x[0])
+        n_pixels_range = np.arange(N_PIXELS_START, total_pixels, N_PIXELS_STEP)
         mA = params['current']
         mV = params['high_level_amplitude'] * 1000
         capture_type = params['capture_type']
@@ -114,7 +118,7 @@ if __name__ == '__main__':
                                                                 None, True))
 
 
-        correlations_total = load_correlation_npz(corr_path)['correlations']
+        correlations_total, sliding_rows = load_correlations(corr_path)
 
 
         if cfg.simulated_correlations:
@@ -127,6 +131,8 @@ if __name__ == '__main__':
                 cfg.smooth_sigma,
                 cfg.shift,
                 cfg.n_tbins,
+                sliding=sliding_rows,
+                coords=correlation_coords(coded_vals, params, roi_y, roi_x),
             )
 
         n_tbins = cfg.n_tbins if cfg.n_tbins is not None else coding_matrix.shape[0]
@@ -142,16 +148,16 @@ if __name__ == '__main__':
 
         #coded_vals_gt = np.load(gt_coded_vals_path, allow_pickle=True)['coded_vals']
         # print(coded_vals.shape)
-        # plt.imshow(np.sum(np.sum(np.sum(coded_vals, axis=-1), axis=0), axis=0))
-        # plt.show()
+        #plt.imshow(np.sum(np.sum(np.sum(coded_vals, axis=-1), axis=0), axis=0))
+        #plt.show()
 
         gt_depths, recon_gt, _ = decode_single_pixel_experiment(
             capture_type + "s",
             coded_vals,
             coding_matrix,
             tbin_depth_res,
-            coords['y'],
-            coords['x'],
+            roi_y,
+            roi_x,
             n_pixels=total_pixels,
             pixel_order=pixel_order,
 
@@ -164,8 +170,8 @@ if __name__ == '__main__':
                 coded_vals,
                 coding_matrix,
                 tbin_depth_res,
-                coords['y'],
-                coords['x'],
+                roi_y,
+                roi_x,
                 n_pixels=n,
                 pixel_order=pixel_order
             )
@@ -219,6 +225,6 @@ if __name__ == '__main__':
     axs.tick_params(axis='both', labelsize=18)
     plt.grid(True)
     #plt.rcParams['svg.fonttype'] = 'path'
-    plt.savefig('single_pixel_decoding_exposure_plot.pdf', dpi=300)
+    #plt.savefig('single_pixel_decoding_exposure_plot.pdf', dpi=300)
     plt.show()
     print(len(depths_dict))

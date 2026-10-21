@@ -115,7 +115,7 @@ if __name__ == '__main__':
         # gt_coded_vals_path = os.path.join(capture_folder, make_capture_filename(r['capture_type'], r['k'], r['freq_mhz'],
         #                                      r['mV'], r['mA'],  r['duty'], r['int_time'], True))
 
-        correlations_total = load_correlation_npz(corr_path)['correlations']
+        correlations_total, sliding_rows = load_correlations(corr_path)
 
         if args.simulated_correlations:
             coding_matrix = get_simulated_coding_matrix(r['capture_type'], args.n_tbins, r["k"])
@@ -126,6 +126,7 @@ if __name__ == '__main__':
                 args.smooth_sigma,
                 args.shift,
                 args.n_tbins,
+                sliding=sliding_rows,
             )
 
         capture_file = load_npz(coded_vals_path)

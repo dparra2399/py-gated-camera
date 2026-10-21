@@ -11,18 +11,19 @@ from plot_scripts.plot_utils import get_cap_color, get_string_name
 # =============================================================================
 FILENAMES = [
     #"/Users/davidparra/PycharmProjects/py-gated-camera/data/monte_carlo_exp/ntbins1000_trials5000_photons300-9000_sbr0.1-10.0_K3_split_ideal_2.npz",
-    "/Users/davidparra/PycharmProjects/py-gated-camera/data/monte_carlo_exp/ntbins1000_trials5000_photons300-9000_sbr0.1-10.0_K4_split.npz",
+    #"/Users/davidparra/PycharmProjects/py-gated-camera/data/monte_carlo_exp/ntbins1000_trials5000_photons300-9000_sbr0.1-10.0_K4_split.npz",
 
     #"/Users/davidparra/PycharmProjects/py-gated-camera/data/monte_carlo_exp/ntbins1000_trials5000_photons300-9000_sbr0.1-10.0_K8_split.npz"
     #"/Users/davidparra/PycharmProjects/py-gated-camera/data/monte_carlo_exp/ntbins1000_trials5000_photons300-9000_sbr0.1-10.0_Sliding2_split_ideal.npz",
     #"/Users/davidparra/PycharmProjects/py-gated-camera/data/monte_carlo_exp/ntbins1000_trials5000_photons300-9000_sbr0.1-10.0_Sliding2_split.npz"
+     "/Users/davidparra/PycharmProjects/py-gated-camera/data/monte_carlo_exp/ntbins1000_trials5000_photons300-9000_sbr0.1-10.0_Sliding3_split_ideal.npz"
 
 ]
 
 N_TBINS    = 1000     # time bins used in the sweep (from the filename, ntbins*)
 METRIC     = 'mae'    # 'mae' or 'rmse'
 GRID_SIZE  = 7        # number of tick marks on x/y axes
-Z_MAX      = 500     # max z-axis value (mm)
+Z_MAX      = 50000     # max z-axis value (mm)
 
 # Slice edges off the results to zoom into the interesting region.
 # Set to None to keep the full range on that side.

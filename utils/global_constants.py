@@ -37,31 +37,45 @@ SPEED_OF_LIGHT = 3e8
 PIXEL_PITCH = 16.38 #in uM
 FOCAL_LENGTH = 25 #in mm
 
-# SINGLE_PIXEL_COORDS = {'x': [85, 105],
-#                        'y': [185, 205]}
+SINGLE_PIXEL_COORDS = {'x': [85, 105],
+                       'y': [185, 205]}
 
 # SINGLE_PIXEL_COORDS = {'x': [65, 125],
 #                        'y': [165, 225]}
 
 
-# Single-pixel ROI, keyed by im_width. The sensor height is always 512, but the
-# width follows im_width, so the x window has to move with it (the target sits
-# at a different column when the frame is cropped).
+###### COARSE and TRAP COARSE LOW SNR
+# SINGLE_PIXEL_COORDS_BY_WIDTH = {
+#     128: {'x': [90, 100],   'y': [260, 280]},
+#     512: {'x': [115, 135], 'y': [250, 280]},
+# }
+
+
+# #
 # SINGLE_PIXEL_COORDS_BY_WIDTH = {
 #     128: {'x': [15, 35],   'y': [255, 285]},
 #     512: {'x': [115, 135], 'y': [250, 280]},
 # }
 
+#
+# SINGLE_PIXEL_COORDS_BY_WIDTH = {
+#     128: {'x': [20, 30],   'y': [260, 280]},
+#     512: {'x': [210, 220], 'y': [260, 280]},
+# }
 
 SINGLE_PIXEL_COORDS_BY_WIDTH = {
     128: {'x': [20, 30],   'y': [260, 280]},
-    512: {'x': [210, 220], 'y': [260, 280]},
+    512: {'x': [85, 105], 'y': [185, 205]},
 }
 
 # default so existing `from utils.global_constants import SINGLE_PIXEL_COORDS`
 # imports keep working; prefer get_single_pixel_coords(im_width) where im_width
 # is known at runtime.
 SINGLE_PIXEL_COORDS = SINGLE_PIXEL_COORDS_BY_WIDTH[128]
+
+# Where pre-cropped sliding captures were cropped on the sensor, for files saved before the
+# capture started recording cfg['roi_coords']. This was the committed 128 ROI on 2026-09-25/26.
+SLIDING_LEGACY_CROP_ROI = {'x': [20, 30], 'y': [260, 280]}
 
 # older ROIs kept for reference
 # SINGLE_PIXEL_COORDS = {'x': [20, 30],

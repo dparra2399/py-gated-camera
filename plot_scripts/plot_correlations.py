@@ -6,7 +6,7 @@ sys.path.append('.')
 
 from plot_scripts.plot_utils import plot_correlation_functions, plot_correlation_comparison, \
     plot_correlation_comparison_seperate, get_string_name
-from utils.file_utils import make_correlation_filename, get_data_folder, load_correlation_npz
+from utils.file_utils import sliding_rows_for, make_correlation_filename, get_data_folder, load_correlation_npz
 from utils.global_constants import *
 from utils.tof_utils import build_coding_matrix_from_correlations, get_simulated_coding_matrix
 import numpy as np
@@ -17,10 +17,10 @@ import pprint
 
 # Add as many filenames as you want — each becomes one column in the plot
 FILENAMES = [
-     #'hamk3_10mhz_500mV_16mA_20duty_correlations.npz',
-     # 'coarsek3_10mhz_420mV_16mA_30duty_correlations.npz',
-     # 'trapcoarsek3_10mhz_420mV_16mA_30duty_correlations.npz',
-    'hamk4_10mhz_770mV_16mA_15duty_correlations.npz',
+     'hamk3_10mhz_500mV_16mA_20duty_correlations.npz',
+      'coarsek3_10mhz_420mV_16mA_30duty_correlations.npz',
+      'trapcoarsek3_10mhz_420mV_16mA_30duty_correlations.npz',
+    #'hamk4_10mhz_770mV_16mA_15duty_correlations.npz',
     #'coarsek4_10mhz_540mV_16mA_23duty_correlations.npz',
     #'trapcoarsek4_10mhz_540mV_16mA_23duty_correlations.npz',
     #'coarsek12_10mhz_1200mV_16mA_12duty_correlations.npz'
@@ -29,10 +29,10 @@ FILENAMES = [
 SMOOTH_SIGMA = 1
 N_TBINS_DEFAULT = 1500
 SHIFT = None   # shift applied when building coding matrix from correlations
-OTHER_SHIFTS = None #[-250]#[-250]#[-650]#[-620, -190, -190]   # shift applied to ideal coding matrix for alignment
+OTHER_SHIFTS = [-500, -90, -90] #[-250]#[-250]#[-650]#[-620, -190, -190]   # shift applied to ideal coding matrix for alignment
 
 if __name__ == "__main__":
-    folder = get_data_folder(READ_PATH_CORRELATIONS_MAC, READ_PATH_CORRELATIONS_WINDOWS)
+    folder = get_data_folder(READ_PATH_CORRELATIONS_SINGLE_PIXEL_MAC, READ_PATH_CORRELATIONS_SINGLE_PIXEL_WINDOWS)
 
     measured_list = []
     coding_list   = []
@@ -44,13 +44,16 @@ if __name__ == "__main__":
         file = load_correlation_npz(path)
         cfg  = file["cfg"].item()
         correlations_total = file["correlations"]
-        plt.imshow(np.sum(np.sum(correlations_total, axis=-1), axis=-1))
-        plt.show()
+
+        #plt.imshow(np.sum(np.sum(correlations_total, axis=-1), axis=-1))
+        #plt.show()
+
         K = cfg["k"]
         K_last = K
 
         measured = build_coding_matrix_from_correlations(
             correlations_total, False, SMOOTH_SIGMA, SHIFT, N_TBINS_DEFAULT,
+            sliding=sliding_rows_for(correlations_total, cfg),
         )
         ideal = get_simulated_coding_matrix(cfg['capture_type'], N_TBINS_DEFAULT, K)
 
@@ -67,7 +70,7 @@ if __name__ == "__main__":
     #     SMOOTH_SIGMA,
     # )
 
-    if K_last < 7:
+    if K_last < 1:
         plot_correlation_comparison(
             measured_list[0],
             coding_list[0],
