@@ -244,7 +244,7 @@ def scale_photon_count(photon_count, capture_type, k, ideal=False):
         else:
             divisor = 6 #K=4 has 6 different measurements if not ideal
     else:
-        divisor = k   # coarse, trapcoarse, coarsepw all divide by k
+        divisor = k   # coarse, trapcoarse, coarsepw, trapcoarsepw all divide by k
     return photon_count / divisor
 
 
@@ -606,6 +606,9 @@ def get_code(type, k, n_tbins, pulse_width=None, shift=None, gate_width=None):
     if type == 'coarsepw':
         assert pulse_width is not None, 'pulse_width is required for coarsepw'
         return get_coarse_pw_code(k, n_tbins, pulse_width)
+    elif type == 'trapcoarsepw':
+        assert pulse_width is not None, 'pulse_width is required for trapcoarsepw'
+        return get_trap_pw_code(k, n_tbins, pulse_width)
     elif type == 'coarse' or type == 'rect':
         name = 'coarse'
     elif type == 'trapcoarse' or type == 'traprect':
@@ -618,7 +621,7 @@ def get_code(type, k, n_tbins, pulse_width=None, shift=None, gate_width=None):
         assert gate_width is not None, 'width is required for coarsepw'
         return get_sliding_code(k, n_tbins, pulse_width, shift, gate_width)
     else:
-        assert False, 'type must be coarse, rect, trapcoarse, traprect, ham, or coarsepw'
+        assert False, 'type must be coarse, rect, trapcoarse, traprect, ham, coarsepw, trapcoarsepw, or sliding'
     func = getattr(sys.modules[__name__], f"get_{name}_code")
     return func(k, n_tbins, pulse_width=pulse_width) if name == 'ham' else func(k, n_tbins, use_rect=use_rect)
 

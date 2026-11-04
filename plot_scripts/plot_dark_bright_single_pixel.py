@@ -12,7 +12,7 @@ from utils.global_constants import *
 from utils.global_constants import get_single_pixel_coords, get_total_pixels
 from utils.parameter_classes import DecodeConfig
 from utils.tof_utils import build_coding_matrix_from_correlations, get_simulated_coding_matrix, sliding_gate_width_tbins, resolve_roi_pixels, \
-    calculate_tof_domain_params, decode_single_pixel_experiment, correlation_coords
+    calculate_tof_domain_params, decode_single_pixel_experiment, correlation_coords, decode_single_pixel_loo_gt
 import numpy as np
 
 # -----------------------------------------------------------------------------
@@ -21,11 +21,11 @@ import numpy as np
 # List of rows; each row is a list of groups (one subplot per group);
 # each group is a list of exp_paths aggregated into that subplot.
 EXP_PATHS = [
-    [['k3_HIGHSNR'], ['k3_LOWSNR']],
-    [['k4_HIGHSNR'], ['k4_LOWSNR']]
+    #[['k3_HIGHSNR'], ['k3_LOWSNR']],
+    #[['k4_HIGHSNR'], ['k4_LOWSNR']]
     # [['k8_12_16_TRAPCOARSE_HIGHSNR'], ['k8_12_16_TRAPCOARSE_LOWSNR']],
     # [['k8_12_16_COARSE_HIGHSNR'], ['k8_12_16_COARSE_LOWSNR']]
-   #[['k100_300_400_500_SLIDING_HIGHSNR'], ['k100_300_400_500_SLIDING_LOWSNR']]
+   [['k100_300_400_500_SLIDING_HIGHSNR'], ['k100_300_400_500_SLIDING_LOWSNR']]
 ]
 
 N_TBINS = 2000
@@ -110,9 +110,9 @@ if __name__ == '__main__':
                 # ROI can differ from today's constant, so derive the bounds and the pixel count
                 # from the array itself rather than from get_total_pixels().
                 roi_y, roi_x = resolve_roi_pixels(coded_vals, coords['y'], coords['x'])
-                # if "LOWSNR" in capture_folder:
-                #     print('fadfsdffsd')
-                #     roi_x = [90, 100]
+                if "LOWSNR" in capture_folder:
+                    print('fadfsdffsd')
+                    roi_x = [90, 100]
                 total_pixels = (roi_y[1] - roi_y[0]) * (roi_x[1] - roi_x[0])
                 n_pixels_range = np.arange(N_PIXELS_START, total_pixels, N_PIXELS_STEP)
                 mA = params['current']
@@ -170,16 +170,8 @@ if __name__ == '__main__':
 
                 #coded_vals_gt = np.load(gt_coded_vals_path, allow_pickle=True)['coded_vals']
 
-                gt_depths, recon_gt, _ = decode_single_pixel_experiment(
-                    capture_type + "s",
-                    coded_vals,
-                    coding_matrix,
-                    tbin_depth_res,
-                    roi_y,
-                    roi_x,
-                    n_pixels=total_pixels,
-                    pixel_order=pixel_order,
-                )
+                gt_depths, recon_gt = decode_single_pixel_loo_gt(coded_vals, coding_matrix, tbin_depth_res,
+                                                                 roi_y, roi_x)
 
                 for i, n in enumerate(n_pixels_range):
 
@@ -277,8 +269,9 @@ if __name__ == '__main__':
             )
             #ax.set_ylim(0, 200)
             xmax = max(xmax, max(int_times))
-        ax.set_xlim(-0.01, xmax + 0.02)
-        ax.set_ylim(-0.01, 25)
+        add_tmp = 1 if sliding else 0.02
+        ax.set_xlim(-0.01, xmax + add_tmp)
+        ax.set_ylim(0, 25)
         cell_xmax[i][j]  = round(xmax, 6)
         cell_title[i][j] = get_single_pixel_title(exp_paths[i][j])
         ax.legend(fontsize=14, framealpha=1, facecolor='white', edgecolor='black')

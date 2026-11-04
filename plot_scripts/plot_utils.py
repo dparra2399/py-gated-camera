@@ -238,7 +238,9 @@ def plot_correlation_comparison_seperate(
     n_matrices = len(measured_list)
     n_rows = measured_list[0].shape[1]   # K (number of sub-correlations per matrix)
 
-    fig, axs = plt.subplots(n_rows, n_matrices, figsize=(6 * n_matrices, 2 * n_rows),
+    # one small x-y axis per correlation (as in plot_coding_schemes.py): left and
+    # bottom spines only, 0/1 on the y-axis, 0 / d_max on the x-axis
+    fig, axs = plt.subplots(n_rows, n_matrices, figsize=(6 * n_matrices, 1.8 * n_rows + 1.5),
                             squeeze=False)
 
     for col, (meas, ideal) in enumerate(zip(measured_list, coding_list)):
@@ -250,30 +252,37 @@ def plot_correlation_comparison_seperate(
             for i in range(ideal.shape[-1]):
                 ideal[:, i] = np.roll(ideal[:, i], shifts[col])
 
+        n_bins = meas.shape[0]
         for row in range(n_rows):
             ax = axs[row, col]
-            ax.plot(meas[:, row],  color='red',   linewidth=5.0, label='Measured')
-            ax.plot(ideal[:, row], color='black', linewidth=5.0, linestyle='dashed', label='Ideal')
-            ax.set_yticks([0, 1])
-            ax.tick_params(axis='both', labelsize=16)
+            ax.plot(meas[:, row], color='red', linewidth=5, label='Measured')
+            ax.plot(ideal[:, row], color='black', linewidth=5, linestyle='dashed', label='Ideal')
+            ax.set_xlim(0, n_bins - 1)
+            ax.set_ylim(-0.1, 1.1)
+            ax.spines[['top', 'right']].set_visible(False)
 
-            for spine in ax.spines.values():
-                spine.set_linewidth(0.3)
-                spine.set_edgecolor('black')
-                spine.set_alpha(0.5)
+            # 0/1 tick marks on every axis, labelled (with F_i) on the first column only
+            ax.set_yticks([0, 1], labels=['0', '1'] if col == 0 else ['', ''])
+            ax.tick_params(axis='y', labelsize=14)
+            if col == 0:
+                ax.set_ylabel(rf'$F_{{{row + 1}}}$', fontsize=20, rotation=0,
+                              labelpad=15, va='center')
 
-            if row < n_rows - 1:
-                ax.set_xticks([])
-            if row == 0:
-                col_title = labels[col] if (labels is not None and col < len(labels)) else f'Matrix {col + 1}'
-                ax.set_title(col_title, fontsize=24, fontweight='bold')
-            if col == 0 and row==0:
-                ax.legend(fontsize=18, framealpha=1, facecolor='white', edgecolor='black')
-            if col > 0:
-                ax.set_yticks([])
+            # depth ticks on every axis, labelled under the bottom row only
+            last = row == n_rows - 1
+            ax.set_xticks([0, n_bins - 1], labels=['0', r'$d_{max}$'] if last else ['', ''])
+            ax.tick_params(axis='x', labelsize=18)
+            if last:
+                ax.set_xlabel('Depth', fontsize=20)
 
-    fig.subplots_adjust(wspace=0.01, hspace=0.01)
-    plt.tight_layout()
+        col_title = labels[col] if (labels is not None and col < len(labels)) else f'Matrix {col + 1}'
+        axs[0, col].set_title(col_title, fontsize=24, fontweight='bold')
+
+    # one frameless legend above all the columns; tight_layout leaves a strip at
+    # the top for it, so it is inside the figure and shows in plt.show() as well
+    plt.tight_layout(rect=(0, 0, 1, 0.9))
+    fig.legend(*axs[0, 0].get_legend_handles_labels(), loc='upper center',
+               bbox_to_anchor=(0.5, 0.99), ncol=2, frameon=False, fontsize=20)
     #if save_fig:
     plt.savefig(f'figures/correlation_comparison.pdf', dpi=300, bbox_inches='tight', pad_inches=0.1)
     plt.show()
@@ -721,7 +730,7 @@ def get_string_name(capture_type, k, short=False):
         elif capture_type == 'timeslicing':
             name = 'Time-Slicing '
         elif capture_type == 'sliding':
-            name = "Sliding"
+            name = "Dense Sweep"
     else:
 
         if capture_type == 'coarse':
@@ -737,7 +746,7 @@ def get_string_name(capture_type, k, short=False):
         elif capture_type == 'timeslicing':
             name=  'Time-Slicing '
         elif capture_type == 'sliding':
-            name = "Sliding"
+            name = "Dense Sweep"
     if k is not None: name += " K=" + str(k)
     return name
 

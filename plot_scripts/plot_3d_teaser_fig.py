@@ -48,11 +48,11 @@ VIEW_AZIM_DEG = 30.0     # default view: rotation around the vertical axis
 VIEW_ELEV_DEG = 10.0     # default view: rotation above the horizontal
 VIEW_ZOOM     = 0.7
 SHOW_RENDER_WINDOWS = False   # set True if the hidden-window renders come out blank
-CROP_PAD_PX     = 10     # white margin kept around the mesh when cropping the renders
+CROP_PAD_PX     = -10     # white margin kept around the mesh when cropping the renders
 CROP_MIN_PIXELS = 5      # rows/cols with fewer mesh pixels than this are cropped as specks
 
 # --- Poisson mesh reconstruction ---
-MEDIAN_FILTER_SIZE = 5   # median filter on each depth map before meshing (1 = off)
+MEDIAN_FILTER_SIZE = 3   # median filter on each depth map before meshing (1 = off)
 POISSON_DEPTH  = 8       # octree depth (7=smoother/faster, 9=more detail/slower)
 SMOOTH_ITERS   = 5       # Laplacian smoothing iterations
 NORMAL_RADIUS_PX = 5     # neighbourhood for normal estimation, in pixel spacings
@@ -72,7 +72,18 @@ FONT_SIZE = 22        # paper-sized text
 GATE_LW   = 2.5
 PULSE_LW  = 4
 GATE_FILLS = ("0.75", "0.9")   # alternating gate shading (gray levels)
-GATE_START_MARKER, GATE_START_COLOR, GATE_START_MS = "^", "tab:red", 9   # sliding-gate start ticks
+MAX_GATE_ROWS = 4   # gate rows per panel; more gates show the first few, ⋮, and the last
+ROW_AMP = 0.7       # waveform height within its row (rows are spaced 1 apart)
+X_MARGIN = 0.1     # baseline drawn past each end of the period, as a fraction of tau
+
+# --- traffic-light labels under the gate count and MAE in each title ---
+TRAFFIC_COLORS = ("#2ca02c", "#e6b800", "#d62728")   # green / yellow / red = good / medium / bad
+BANDWIDTH_EDGES = (10, 80)   # K < 20 low, 20 <= K < 80 medium, K >= 80 high
+BANDWIDTH_LABELS = ("Low Bandwidth", "Medium Bandwidth", "High Bandwidth")
+# error labels are relative to the schemes shown: the lowest MAE is "low", the
+# highest "high", the rest "medium"; schemes within 2 standard errors of the
+# best (or worst) count as tied with it and share its label
+ERROR_LABELS = ("Low Error", "Medium Error", "High Error")
 plt.rcParams.update({
     'font.size': FONT_SIZE,
     'axes.titlesize': FONT_SIZE,
@@ -84,20 +95,21 @@ plt.rcParams.update({
     'xtick.major.size': 6,
 })
 
-COL_W, GATE_H = 5, 3.2   # inches per column / height of the gate row
+COL_W, GATE_H = 5, 5     # inches per column / height of the gate row
 
 # =============================================================================
 # Simulation parameters (same meaning as in test.py)
 # =============================================================================
 N_TBINS      = 10000
-TRIALS       = 1        # one noisy capture per pixel
+TRIALS       = 100       # noisy captures averaged into the MAE/RMSE (decoded one at a time)
+SEED         = 0        # noise seed, so the MAEs are reproducible run to run
 PHOTON_COUNT = 400_000
 SBR          = 100.0
 SPLIT_ACQUISITION = True
 REP_RATE = 10e6         # 100 ns period, matches the scan
 REP_TAU  = float(1 / REP_RATE)
 
-K_0 = 8
+K_0 = 16
 PULSE_WIDTH = int((N_TBINS // (K_0)) / (2 * np.sqrt(np.log(2))))
 
 print(PULSE_WIDTH)
@@ -106,11 +118,12 @@ RUNS = [
     # {'type': 'ham',        'k': 4, 'photon_count': PHOTON_COUNT, 'pulse_width': PULSE_WIDTH},
     # {'type': 'coarse',     'k': 4, 'photon_count': PHOTON_COUNT},
     # {'type': 'trapcoarse', 'k': 4, 'photon_count': PHOTON_COUNT},
-    {'type': 'coarsepw', 'k': 8, 'photon_count': PHOTON_COUNT, 'pulse_width': PULSE_WIDTH ,  'simulated': True},
-    #{'type': 'coarsepw', 'k': 12, 'photon_count': PHOTON_COUNT, 'pulse_width': PULSE_WIDTH, 'simulated': True},
-    {'type': 'coarsepw', 'k': 16, 'photon_count': PHOTON_COUNT, 'pulse_width': PULSE_WIDTH, 'simulated': True},
-    {'type': 'sliding', "pulse_width": PULSE_WIDTH, "shift": 300,  'photon_count': PHOTON_COUNT, "gate_width": N_TBINS // 2,  'simulated': True},
-    {'type': 'sliding', "pulse_width": PULSE_WIDTH, "shift": 100,  'photon_count': PHOTON_COUNT, "gate_width": N_TBINS // 2, 'simulated': True},
+    {'type': 'coarsepw', 'k': 16, 'photon_count': PHOTON_COUNT, 'pulse_width': PULSE_WIDTH ,  'simulated': True},
+    {'type': 'coarsepw', 'k': 64, 'photon_count': PHOTON_COUNT, 'pulse_width': PULSE_WIDTH, 'simulated': True},
+    {'type': 'sliding', "pulse_width": PULSE_WIDTH, "shift": 200,  'photon_count': PHOTON_COUNT, "gate_width": N_TBINS // 3,  'simulated': True},
+    {'type': 'sliding', "pulse_width": PULSE_WIDTH, "shift": 50,  'photon_count': PHOTON_COUNT, "gate_width": N_TBINS // 3, 'simulated': True},
+
+    {'type': 'ham',        'k': 4, 'photon_count': PHOTON_COUNT, 'pulse_width': PULSE_WIDTH},
 
 ]
 
@@ -192,23 +205,37 @@ for run in RUNS:
 
     coded_values = unique_coded_values[pixel_to_unique]
 
-    decoded_depth, rmse, mae = decode_simulation_depths(
-        coding_matrix=coding_matrix,
-        coded_values=coded_values,
-        depths=depths,
-        trials=TRIALS,
-        tbin_depth_res=tbin_depth_res,
-    )
+    # Decode one noisy capture at a time (all trials at once would need ~3 GB
+    # per trial) and pool the errors. Each scheme gets its own generator from
+    # the same seed, so its numbers don't change when RUNS is edited.
+    rng = np.random.default_rng(SEED)
+    abs_errs, sq_errs = [], []
+    for trial in range(TRIALS):
+        decoded_depth, _, _ = decode_simulation_depths(
+            coding_matrix=coding_matrix,
+            coded_values=coded_values,
+            depths=depths,
+            trials=1,
+            tbin_depth_res=tbin_depth_res,
+            rng=rng,
+        )
+        if trial == 0:
+            depth_map = decoded_depth[0].reshape(gt_depth.shape)   # the 3-D render shows one capture
+        abs_errs.append(np.mean(np.abs(decoded_depth[0] - depths)))
+        sq_errs.append(np.mean((decoded_depth[0] - depths) ** 2))
+    mae, rmse = float(np.mean(abs_errs)), float(np.sqrt(np.mean(sq_errs)))
 
-    print(f"  MAE={mae * 1000:.3f} mm  |  RMSE={rmse * 1000:.3f} mm\n")
+    print(f"  MAE={mae * 1000:.3f} mm  |  RMSE={rmse * 1000:.3f} mm  "
+          f"(over {TRIALS} trials, per-trial MAE std {np.std(abs_errs) * 1000:.3f} mm)\n")
 
     results.append({
         'name':      label,
-        'depth_map': decoded_depth[0].reshape(gt_depth.shape),
+        'depth_map': depth_map,
         'illum':     waveform_or_illum,   # (n_tbins,) or (n_tbins, k) for ham
         'gates':     demodfs_or_cm,       # (n_tbins, k)
         'rmse':      rmse * 1000,
         'mae':       mae  * 1000,
+        'mae_se':    np.std(abs_errs) / np.sqrt(TRIALS) * 1000,   # standard error of the mean MAE
         'k': k,
         'type': cap_type,
     })
@@ -384,7 +411,40 @@ def circular_center(waveform):
     phase = 2 * np.pi * np.arange(N_TBINS) / N_TBINS
     return (np.angle(np.sum(waveform * np.exp(1j * phase))) % (2 * np.pi)) * N_TBINS / (2 * np.pi)
 
-first_sliding_col = next((i for i, r in enumerate(results) if r['type'] == 'sliding'), None)
+def tau_fraction(n_bins):
+    """A duration of `n_bins` time bins as a fraction of the period, e.g. tau/8 or 0.18 tau."""
+    ratio = N_TBINS / n_bins
+    if abs(ratio - round(ratio)) < 0.01:
+        return rf"$\tau/{round(ratio)}$"
+    return rf"${n_bins / N_TBINS:.2f}\,\tau$"
+
+def width_arrow(ax, t_start, t_end, y, text, side="right"):
+    """Double-headed arrow spanning [t_start, t_end] at height y, labelled on `side`."""
+    ax.annotate("", xy=(t_start, y), xytext=(t_end, y),
+                arrowprops=dict(arrowstyle="|-|", lw=1.5, color="k", shrinkA=0, shrinkB=0))
+    pad = 0.02 * rep_tau * 1e9
+    if side == "right":
+        ax.text(t_end + pad, y, text, va="center", ha="left", fontsize=FONT_SIZE - 4)
+    else:
+        ax.text(t_start - pad, y, text, va="center", ha="right", fontsize=FONT_SIZE - 4)
+
+def stacked_title(ax, lines, pad=6):
+    """Stack (text, colour, fontsize, weight) lines above `ax`, first line on top."""
+    y = pad
+    for text, color, size, weight in reversed(lines):
+        ax.annotate(text, xy=(0.5, 1), xycoords="axes fraction", xytext=(0, y),
+                    textcoords="offset points", ha="center", va="bottom",
+                    color=color, fontsize=size, fontweight=weight)
+        y += size * 1.25
+
+# traffic-light levels: 0 = low (green), 1 = medium (yellow), 2 = high (red)
+best = min(results, key=lambda r: r['mae'])
+worst = max(results, key=lambda r: r['mae'])
+def tied(a, b):
+    return abs(a['mae'] - b['mae']) <= 2 * np.hypot(a['mae_se'], b['mae_se'])
+for res in results:
+    res['bandwidth_level'] = int(np.searchsorted(BANDWIDTH_EDGES, res['k'], side='right'))
+    res['error_level'] = 0 if tied(res, best) else 2 if tied(res, worst) else 1
 
 for col, res in enumerate(results):
     axes[0, col].imshow(res['render'])
@@ -392,74 +452,122 @@ for col, res in enumerate(results):
     #     title = 'Less Gates'
     # else:
     #     title = 'More Gates'
-    title = f"Gate Count: {res['k']}"
-    axes[0, col].set_title(f"{title}\nMAE {res['mae']:.1f} mm", fontsize=30)
+    bw, err = res['bandwidth_level'], res['error_level']
+    stacked_title(axes[0, col], [
+        (f"Gate Count: {res['k']}", "k", 30, "normal"),
+        (BANDWIDTH_LABELS[bw], TRAFFIC_COLORS[bw], 24, "bold"),
+        (f"MAE {res['mae']:.1f} mm", "k", 30, "normal"),
+        (ERROR_LABELS[err], TRAFFIC_COLORS[err], 24, "bold"),
+    ])
 
     ax = axes[1, col]
     gates = res['gates']
+    k = gates.shape[1]
     tau_ns = rep_tau * 1e9
-    pulse_center = circular_center(res['illum'].reshape(N_TBINS, -1).sum(axis=1))
-    if res['type'] == 'sliding':
-        # the many overlapping gates are unreadable over a full period: zoom
-        # into the middle quarter period and stack the gates that open inside
-        # it, so the shift between consecutive gates shows as a staircase
-        lo, hi = 3 * N_TBINS // 8, 5 * N_TBINS // 8
-        rising = np.diff(gates[lo - 1:hi], axis=0) > 0
-        opening = np.flatnonzero(rising.any(axis=0))
-        opening = opening[np.argsort(rising[:, opening].argmax(axis=0))]
-        height = len(opening)
-        for row, j in enumerate(opening):
-            ax.fill_between(t_ns[lo:hi], row, row + 0.8 * gates[lo:hi, j],
-                            color=GATE_FILLS[row % 2], lw=0)
-            ax.plot(t_ns[lo:hi], row + 0.8 * gates[lo:hi, j], color="k", lw=GATE_LW)
-            # mark where each gate opens, i.e. one shift step of the sweep
-            t_start = t_ns[lo + rising[:, j].argmax()]
-            ax.plot(t_start, row, marker=GATE_START_MARKER, color=GATE_START_COLOR,
-                    ms=GATE_START_MS, zorder=4, clip_on=False)
-        # the pulse is emitted at t = 0; shift it to the middle of the window
-        illum = np.roll(res['illum'], int(round(N_TBINS / 2 - pulse_center)), axis=0)
-        ax.plot(t_ns[lo:hi], height * illum[lo:hi] / illum.max(), color="blue", lw=PULSE_LW)
-        ax.set_xlim(3 * tau_ns / 8, 5 * tau_ns / 8)
-        ax.set_xticks(tau_ns * np.array([3 / 8, 1 / 2, 5 / 8]),
-                      labels=[r"$3\tau/8$", r"$\tau/2$", r"$5\tau/8$"])
-    else:
-        height = 1
-        # shade every gate, alternating two grays, so neighbouring gates read as
-        # separate windows rather than one row of vertical lines
-        for j in range(gates.shape[1]):
-            ax.fill_between(t_ns, 0, gates[:, j], color=GATE_FILLS[j % 2], lw=0)
-        ax.plot(t_ns, gates, color="k", lw=GATE_LW)
-        # the pulse is emitted at t = 0 and wraps around the period; shift it onto
-        # the centre of the gate nearest the middle so it shows as one pulse
-        # sitting in the middle of a gate
-        gate_centers = np.array([circular_center(gates[:, j]) for j in range(gates.shape[1])])
-        target = gate_centers[np.argmin(np.abs(gate_centers - N_TBINS / 2))]
-        illum = np.roll(res['illum'], int(round(target - pulse_center)), axis=0)
-        ax.plot(t_ns, illum / illum.max(), color="blue", lw=PULSE_LW)
-        # one laser period, labelled in units of tau instead of nanoseconds
-        ax.set_xlim(0, tau_ns)
-        ax.set_xticks(tau_ns * np.array([0, 0.25, 0.5, 0.75, 1]),
-                      labels=["0", r"$\tau/4$", r"$\tau/2$", r"$3\tau/4$", r"$\tau$"])
+
+    # the pulse is emitted at t = 0 and wraps around the period; shift it to
+    # the middle so it shows as one pulse
+    illum_zero = res['illum'].reshape(N_TBINS, -1).sum(axis=1)
+    illum = np.roll(illum_zero, int(round(N_TBINS / 2 - circular_center(illum_zero))))
+    illum_one = np.roll(illum_zero, 1)
+
+    # timing diagram: the illumination on the top row, then one row per gate.
+    # Schemes with more gates than fit show the first few, a ⋮ row and the last
+    shown = list(range(k)) if k <= MAX_GATE_ROWS else list(range(MAX_GATE_ROWS - 2)) + [None, k - 1]
+    labels = [""] + [r"$\vdots$" if j is None else rf"$G_{{{j + 1}}}$" for j in shown]
+    waves  = [illum / illum.max()] + [None if j is None else gates[:, j] for j in shown]
+    wave_one  = [illum_one / illum_one.max()]
+
+    n_rows = len(waves)
+    row_y = n_rows - 1 - np.arange(n_rows)   # baseline of each row, top row highest
+
+    # extend every waveform past both ends of the period, out to the axis limits.
+    # A gate open across t = 0 / tau wraps around the period, so it continues
+    # periodically into the margins with no edge drawn at 0 or tau. Anything
+    # else is zero outside the period, so a gate that really opens at t = 0 or
+    # closes at tau still shows that edge
+    x_lo, x_hi = -X_MARGIN * tau_ns, (1 + X_MARGIN) * tau_ns
+    n_margin = int(np.ceil(X_MARGIN * N_TBINS))
+    ext_idx = np.arange(-n_margin, N_TBINS + n_margin)
+    t_pad = ext_idx * (t_ns[1] - t_ns[0])
+    in_period = (ext_idx >= 0) & (ext_idx < N_TBINS)
+    for i, wave in enumerate(waves):
+        if wave is None:
+            continue
+        wraps = wave[0] > 0.5 and wave[-1] > 0.5
+        wave = wave[ext_idx % N_TBINS] if wraps else np.where(in_period, wave[ext_idx % N_TBINS], 0)
+        if i == 0:
+            # one black baseline shared by both pulses, matching the gate rows;
+            # each pulse is coloured only where it rises off the baseline
+            ax.plot([x_lo, x_hi], [row_y[i]] * 2, color="k", lw=GATE_LW)
+            off_base = lambda w: np.where(w > 1e-3, row_y[i] + ROW_AMP * w, np.nan)
+            ax.plot(t_pad, off_base(wave), color="blue", linestyle='--', lw=PULSE_LW,
+                    label="Received illum.")
+            # unwrap the t = 0 pulse: the second half of the period is really
+            # just before t = 0, so plot it on [-tau/2, tau/2) as one pulse
+            half = N_TBINS // 2
+            t_pulse = t_ns - t_ns[half]
+            pulse = np.roll(wave_one[0], half)
+            ax.plot(t_pulse, off_base(pulse), color="red", lw=PULSE_LW, label="Emitted illum.")
+
+            # t_0: the delay from the red pulse's peak to the blue pulse's peak
+            t_red, t_blue = t_pulse[np.argmax(pulse)], t_pad[np.argmax(wave)]
+            y_peak = row_y[i] + ROW_AMP
+            ax.annotate("", xy=(t_red, y_peak), xytext=(t_blue, y_peak),
+                        arrowprops=dict(arrowstyle="<->", lw=1.5, color="k", shrinkA=0, shrinkB=0))
+            ax.text((t_red + t_blue) / 2, y_peak - 0.05, r"$t_0$", ha="center", va="top",
+                    fontsize=FONT_SIZE - 4)
+            # label each pulse directly above its peak, in its own colour; the
+            # pulses are the same in every column, so label them only in the first
+            if col == 0:
+                ax.text(t_red, y_peak + 0.05, "Emitted", color="red", ha="center", va="bottom",
+                        fontsize=FONT_SIZE - 4)
+                ax.text(t_blue, y_peak + 0.05, "Received", color="blue", ha="center", va="bottom",
+                        fontsize=FONT_SIZE - 4)
+
+        else:
+            ax.fill_between(t_pad, row_y[i], row_y[i] + ROW_AMP * wave, color=GATE_FILLS[0], lw=0)
+            ax.plot(t_pad, row_y[i] + ROW_AMP * wave, color="k", lw=GATE_LW)
+
+    # mark the pulse FWHM on the whole pulse at tau/2, and the first gate's width
+    dt_ns = t_ns[1] - t_ns[0]
+    above_half = np.flatnonzero(illum >= illum.max() / 2)
 
     if col == 0:
-        ax.plot([], [], color="blue", lw=PULSE_LW, label="Illum.")
-        ax.fill_between([], [], [], facecolor=GATE_FILLS[0], edgecolor="k", lw=GATE_LW / 2,
-                        label="Gates")
-    # the gate-start key goes on the first sliding panel only
-    if res['type'] == 'sliding' and col == first_sliding_col:
-        ax.plot([], [], ls="none", marker=GATE_START_MARKER, color=GATE_START_COLOR,
-                ms=GATE_START_MS, label="Gate start")
-    labels = ax.get_legend_handles_labels()[1]
-    if labels == ["Gate start"]:
-        # marker-only entry: shrink the handle box (sized for line samples) so the
-        # triangle sits next to its text
-        ax.legend(frameon=False, loc="upper left", handlelength=0.8, handletextpad=0.4)
-    elif labels:
-        ax.legend(frameon=False, loc="upper right", ncol=2)
-    ax.set_ylim(0, 1.5 * height)   # headroom for the legend
+        width_arrow(ax, t_ns[above_half[0]], t_ns[above_half[-1]] + dt_ns, row_y[0] + ROW_AMP / 2,
+                    "FWHM " + tau_fraction(len(above_half)))
+    # Hamiltonian gates aren't single windows, so they have no one width or shift
+    if res['type'] != 'ham':
+        open_bins = np.flatnonzero(gates[:, shown[0]])
+        width_arrow(ax, t_ns[open_bins[0]], t_ns[open_bins[0]] + len(open_bins) * dt_ns,
+                    row_y[1] + ROW_AMP / 2, "Gate Width " + tau_fraction(len(open_bins)))
+        # shift: on the second gate's row, from t = 0 (where the first gate opens)
+        # to where the second gate opens; the label sits right of the second gate,
+        # where there is free space
+        open_bins_2 = np.flatnonzero(gates[:, shown[1]])
+        y_shift = row_y[2] + ROW_AMP / 2
+        ax.annotate("", xy=(t_ns[open_bins[0]], y_shift), xytext=(t_ns[open_bins_2[0]], y_shift),
+                    arrowprops=dict(arrowstyle="|-|", lw=1.5, color="k", shrinkA=0, shrinkB=0))
+        ax.text(t_ns[open_bins_2[-1]] + dt_ns + 0.02 * tau_ns, y_shift,
+                "Shift " + tau_fraction(open_bins_2[0] - open_bins[0]), va="center",
+                fontsize=FONT_SIZE - 4)
+
+    # dotted reference line at t = 0, drawn on top of every row
+    ax.axvline(0, color="k", linestyle=":", lw=1.5, zorder=5)
+    # pulse legend above the panel; it's the same in every column, so show it once
+    #if col == 0:
+    #    ax.legend(frameon=False, loc="lower center", bbox_to_anchor=(0.5, 1.0), ncol=2)
+
+    # one laser period, labelled in units of tau instead of nanoseconds
+    ax.set_xlim(x_lo, x_hi)
+    ax.set_xticks(tau_ns * np.array([0, 0.25, 0.5, 0.75, 1]),
+                  labels=["0", r"$\tau/4$", r"$\tau/2$", r"$3\tau/4$", r"$\tau$"])
+    ax.set_yticks(row_y + ROW_AMP / 2, labels=labels, fontsize=FONT_SIZE - 4)
+    ax.tick_params(axis="y", length=0)
+    # gap below so the last baseline clears the x-axis, headroom above for the pulse labels
+    ax.set_ylim(-0.5, n_rows - 1 + ROW_AMP + 0.5)
     ax.set_xlabel("Time")
-    ax.set_yticks([])
-    ax.spines[["top", "right"]].set_visible(False)
+    ax.spines[["top", "right", "left"]].set_visible(False)
 
 for ax in axes[0]:
     ax.set_xticks([])

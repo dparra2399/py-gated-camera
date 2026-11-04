@@ -13,17 +13,18 @@ FILENAMES = [
     #"/Users/davidparra/PycharmProjects/py-gated-camera/data/monte_carlo_exp/ntbins1000_trials5000_photons300-9000_sbr0.1-10.0_K3_split_ideal_2.npz",
     #"/Users/davidparra/PycharmProjects/py-gated-camera/data/monte_carlo_exp/ntbins1000_trials5000_photons300-9000_sbr0.1-10.0_K4_split.npz",
 
-    #"/Users/davidparra/PycharmProjects/py-gated-camera/data/monte_carlo_exp/ntbins1000_trials5000_photons300-9000_sbr0.1-10.0_K8_split.npz"
-    #"/Users/davidparra/PycharmProjects/py-gated-camera/data/monte_carlo_exp/ntbins1000_trials5000_photons300-9000_sbr0.1-10.0_Sliding2_split_ideal.npz",
-    #"/Users/davidparra/PycharmProjects/py-gated-camera/data/monte_carlo_exp/ntbins1000_trials5000_photons300-9000_sbr0.1-10.0_Sliding2_split.npz"
-     "/Users/davidparra/PycharmProjects/py-gated-camera/data/monte_carlo_exp/ntbins1000_trials5000_photons300-9000_sbr0.1-10.0_Sliding3_split_ideal.npz"
+    #"/Users/davidparra/PycharmProjects/py-gated-camera/data/monte_carlo_exp/ntbins1500_trials5000_photons300-9000_sbr0.1-10.0_K8InfBandwidth_split_ideal.npz"
+    #"/Users/davidparra/PycharmProjects/py-gated-camera/data/monte_carlo_exp/ntbins1500_trials5000_photons300-9000_sbr0.1-10.0_K8Bandlimited_split_ideal.npz"
+
+    #"/Users/davidparra/PycharmProjects/py-gated-camera/data/monte_carlo_exp/ntbins1500_trials5000_photons300-9000_sbr0.1-10.0_SlidingGood1_split_ideal.npz",
+    "/Users/davidparra/PycharmProjects/py-gated-camera/data/monte_carlo_exp/ntbins1500_trials5000_photons300-9000_sbr0.1-10.0_SlidingGood2__split_ideal.npz"
 
 ]
 
 N_TBINS    = 1000     # time bins used in the sweep (from the filename, ntbins*)
 METRIC     = 'mae'    # 'mae' or 'rmse'
 GRID_SIZE  = 7        # number of tick marks on x/y axes
-Z_MAX      = 50000     # max z-axis value (mm)
+Z_MAX      = 350     # max z-axis value (mm)
 
 # Slice edges off the results to zoom into the interesting region.
 # Set to None to keep the full range on that side.
@@ -51,6 +52,17 @@ def parse_label(label):
         if p.startswith('sh'):
             shift = int(float(p[2:]))
     return cap_type, k, pw, shift
+
+
+def to_plotly_tex(name):
+    """Plotly only renders the $...$ part of a mixed text/math string, so
+    wrap the whole name in one math block with plain text in \\text{}."""
+    if '$' not in name:
+        return name
+    parts = name.split('$')  # even indices: plain text, odd: math
+    body = ''.join(p if i % 2 else (r'\text{' + p + '}' if p else '')
+                   for i, p in enumerate(parts))
+    return f'${body}$'
 
 
 # =============================================================================
@@ -107,9 +119,11 @@ if __name__ == "__main__":
 
 
             #
-            # if cap_type == 'coarse' or (cap_type == 'coarsepw' and k < 8):
-            #    continue
+            if cap_type == 'ham' or (k < 8):
+               continue
 
+            if k in [8, 15, 187]:
+                continue
 
 
 
@@ -130,17 +144,19 @@ if __name__ == "__main__":
 
             # Surfaces don't appear in the legend, so add a dummy legend-only
             # Scatter3d (renders nothing) once per unique label/color.
-            legend_name = get_string_name(cap_type, None, True) + f" (K={k})"
-            if pw is not None:
-                # Express pulse width as a multiple of the "matched" width.
-                if cap_type == 'coarsepw' and k:
-                    ref_pw = (N_TBINS // k) / (2 * np.sqrt(np.log(2)))
-                    print(pw); print(ref_pw); print(k)#; exit(0)
-
-                    mult = pw / ref_pw
-                    legend_name += f' ({mult:.1f}x)'
-                else:
-                    legend_name += ''#f' PW={pw}'
+            legend_name = get_string_name(cap_type, k, True)
+            print(legend_name)
+            # if pw is not None:
+            #     # Express pulse width as a multiple of the "matched" width.
+            #     if cap_type == 'coarsepw' and k:
+            #         ref_pw = (N_TBINS // k) / (2 * np.sqrt(np.log(2)))
+            #         print(pw); print(ref_pw); print(k)#; exit(0)
+            #
+            #         mult = pw / ref_pw
+            #         legend_name += f' ({mult:.1f}x)'
+            #     else:
+            #         legend_name += ''#f' PW={pw}'
+            legend_name = to_plotly_tex(legend_name)
             if legend_name not in legend_seen:
                 legend_seen[legend_name] = color
                 fig.add_trace(go.Scatter3d(

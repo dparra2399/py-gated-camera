@@ -10,7 +10,7 @@ from plot_scripts.plot_utils import plot_single_pixel_dist, plot_single_pixel_co
 from utils.global_constants import *
 from utils.global_constants import get_single_pixel_coords, get_total_pixels
 from utils.tof_utils import build_coding_matrix_from_correlations, get_simulated_coding_matrix, sliding_gate_width_tbins, resolve_roi_pixels, \
-    calculate_tof_domain_params, decode_single_pixel_experiment, correlation_coords
+    calculate_tof_domain_params, decode_single_pixel_experiment, correlation_coords, decode_single_pixel_loo_gt
 from utils.parameter_classes import DecodeConfig
 import numpy as np
 
@@ -151,17 +151,7 @@ if __name__ == '__main__':
         #plt.imshow(np.sum(np.sum(np.sum(coded_vals, axis=-1), axis=0), axis=0))
         #plt.show()
 
-        gt_depths, recon_gt, _ = decode_single_pixel_experiment(
-            capture_type + "s",
-            coded_vals,
-            coding_matrix,
-            tbin_depth_res,
-            roi_y,
-            roi_x,
-            n_pixels=total_pixels,
-            pixel_order=pixel_order,
-
-        )
+        gt_depths, recon_gt = decode_single_pixel_loo_gt(coded_vals, coding_matrix, tbin_depth_res, roi_y, roi_x)
 
         for i, n in enumerate(n_pixels_range):
 

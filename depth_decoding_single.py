@@ -11,6 +11,8 @@ from utils.tof_utils import build_coding_matrix_from_correlations, get_simulated
 EXP_PATH = 'exp_1'
 N_TBINS = 1500
 NUM_TRIALS = 100
+TRIAL_SEED = 0   # seed for the random subset of NUM_TRIALS trials
+N_GT_TRIALS = 350  # held-out trials for the ground truth; same count for every code so all are scored alike
 
 #PLotting utils for visualization
 MEDIAN_FILTER_SIZE = 5
@@ -142,8 +144,13 @@ if __name__ == '__main__':
 
         total_trials = coded_vals.shape[0]
         trials = min(total_trials, args.num_trials)
-        coded_vals_trials = np.sum(coded_vals[:trials, ...], axis=0)
-        coded_vals_total = np.sum(coded_vals, axis=0)
+        # random trials, not the first N, so slow drift over the acquisition averages out
+        trial_order = np.random.default_rng(TRIAL_SEED).permutation(total_trials)
+        # ground truth from held-out trials only, so it shares no photons with the depth map
+        assert trials + N_GT_TRIALS <= total_trials, (
+            f'{trials} trials + {N_GT_TRIALS} ground-truth trials > {total_trials} in the file')
+        coded_vals_trials = np.sum(coded_vals[trial_order[:trials], ...], axis=0)
+        coded_vals_gt = np.sum(coded_vals[trial_order[trials:trials + N_GT_TRIALS], ...], axis=0)
         depth_map, zncc = decode_depth_map(
             coded_vals_trials,
             coding_matrix,
@@ -159,7 +166,7 @@ if __name__ == '__main__':
             coded_vals_filt[:, :, i] = filter_hot_pixels(coded_vals_trials[..., i], hot_mask)
 
         gt_depth_map, zncc = decode_depth_map(
-            coded_vals_total,
+            coded_vals_gt,
             coding_matrix,
             im_width,
             tbin_depth_res,

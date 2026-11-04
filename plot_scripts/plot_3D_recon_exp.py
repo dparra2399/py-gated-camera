@@ -13,14 +13,16 @@ from utils.parameter_classes import DecodeConfig
 # -----------------------------------------------------------------------------
 # CONFIG (capitalized)
 # -----------------------------------------------------------------------------
-EXP_PATH = os.path.join('step_stool_results', 'k4_LOWSNR_1')
+EXP_PATH = os.path.join('step_stool_results', 'k8_k12_HIGHSNR')
 SNR_LABEL     = "highsnr" if "highsnr" in EXP_PATH.lower() else "lowsnr"
 FIGURES_DIR   = "figures"   # where the panel PDF is saved
-VMAX_ERROR    = 2.0 # meters; None = auto (95th percentile across runs)
+VMAX_ERROR    = 3.0 # meters; None = auto (95th percentile across runs)
 PLOT_POINT_CLOUD = True  # True = show point cloud PNG in top row; False = show depth map instead
 ALIGN_DEPTHS = True       # shift each run's depth map so all medians match the first run
 N_TBINS = 3000
 NUM_TRIALS = 200
+TRIAL_SEED = 2   # seed for the random subset of NUM_TRIALS trials
+N_GT_TRIALS = 350  # held-out trials for the ground truth; same count for every code so all are scored alike
 
 BAD_ROWS = [(230, 260), (80, 95)]
 
@@ -61,7 +63,7 @@ FOV_MAJOR_AXIS_DEG = 10.0    # horizontal FOV in degrees
 CAMERA_PARAMS_FILE = "camera_params.json"
 VIEW_ZOOM = 0.8
 SHOW_AXES = False
-PCD_ZOOM_OUT = 5   # mouse-wheel steps applied to the panel renders; bigger = more zoomed out, 0 = saved view
+PCD_ZOOM_OUT = 0  # mouse-wheel steps applied to the panel renders; bigger = more zoomed out, 0 = saved view
 
 
 # -----------------------------------------------------------------------------
@@ -243,6 +245,8 @@ if __name__ == '__main__':
         duty = params['duty']
         rep_tau = params['rep_tau']
 
+        if capture_type == 'ham' and k == 4: continue
+
         corr_path = os.path.join(correlation_folder, make_correlation_filename(capture_type, k,
                                                                                freq_mhz, mV, mA, duty))
 
@@ -280,8 +284,13 @@ if __name__ == '__main__':
         # -----------------------------------------------------------------
         total_trials = coded_vals.shape[0]
         trials = min(total_trials, cfg.num_trials)
-        coded_vals_trials = np.sum(coded_vals[:trials, ...], axis=0)
-        coded_vals_total = np.sum(coded_vals, axis=0)
+        # random trials, not the first N, so slow drift over the acquisition averages out
+        trial_order = np.random.default_rng(TRIAL_SEED).permutation(total_trials)
+        # ground truth from held-out trials only, so it shares no photons with the depth map
+        assert trials + N_GT_TRIALS <= total_trials, (
+            f'{trials} trials + {N_GT_TRIALS} ground-truth trials > {total_trials} in the file')
+        coded_vals_trials = np.sum(coded_vals[trial_order[:trials], ...], axis=0)
+        coded_vals_gt = np.sum(coded_vals[trial_order[trials:trials + N_GT_TRIALS], ...], axis=0)
         depth_map, zncc = decode_depth_map(
             coded_vals_trials,
             coding_matrix,
@@ -302,7 +311,7 @@ if __name__ == '__main__':
 
 
         gt_depth_map, zncc = decode_depth_map(
-            coded_vals_total,
+            coded_vals_gt,
             coding_matrix,
             im_width,
             tbin_depth_res,
@@ -318,7 +327,7 @@ if __name__ == '__main__':
 
         if cfg.mask_background_pixels:
             if "horse" in coded_vals_path:
-                tmp = np.sum(coded_vals_total, axis=-1)
+                tmp = np.sum(coded_vals_gt, axis=-1)
                 depth_map[tmp < 1e4] = np.nan
 
             else:
