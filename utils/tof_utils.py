@@ -576,6 +576,31 @@ def get_coarse_pw_code(k, n_tbins, pulse_width):
     return illum, np.transpose(coding_matrix), filtered_coding_matrix
 
 
+def get_trap_pw_code(k, n_tbins, pulse_width):
+    """Trapezoidal coarse gating with a custom illumination pulse width (in time bins).
+    The detector gates are identical to get_trap_code — only the illum width changes."""
+    coding_matrix = np.zeros((k, n_tbins))
+
+    step = n_tbins // k
+    block_len = 2 * step
+
+    for i in range(k):
+        start = i * step
+        cols = (np.arange(start, start + block_len) % n_tbins)
+        coding_matrix[i, cols] = 1
+
+    # illumination pulse with the requested width — Gaussian with sigma=pulse_width
+    illum = gaussian_pulse(np.arange(n_tbins), 0, pulse_width, circ_shifted=True)
+
+    filtered_coding_matrix = np.fft.ifft(
+        np.fft.fft(illum[..., np.newaxis], axis=0).conj()
+        * np.fft.fft(coding_matrix.T, axis=0),
+        axis=0,
+    ).real
+
+    return illum, np.transpose(coding_matrix), filtered_coding_matrix
+
+
 def get_sliding_code(k, n_tbins, pulse_width, shift, gate_width):
     coding_matrix = np.zeros((k, n_tbins))
 
