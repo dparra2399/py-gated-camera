@@ -236,11 +236,13 @@ def build_coding_matrix_from_correlations(
     # coding_matrix = (coding_matrix - mins) / (maxs - mins)
     return coding_matrix
 
-def scale_photon_count(photon_count, capture_type, k, single_gate_per_frame=True):
-    # single_gate_per_frame: the camera opens one gate per frame, so ham codes with multiple
-    # gate openings per demodulation function need extra frames. An ideal sensor splits by k.
-    if capture_type == 'ham' and single_gate_per_frame:
-        divisor = k if k <= 3 else 6
+
+def scale_photon_count(photon_count, capture_type, k, ideal=False):
+    if capture_type == 'ham':
+        if k <= 3 or ideal==True:
+            divisor = k
+        else:
+            divisor = 6 #K=4 has 6 different measurements if not ideal
     else:
         divisor = k   # coarse, trapcoarse, coarsepw all divide by k
     return photon_count / divisor
@@ -491,7 +493,7 @@ def get_ham_code(k, n_tbins, pulse_width=40):
 
 def _make_illum(n_tbins, k, add, use_rect):
     #width = n_tbins // (k + add)
-    width = (n_tbins // (k)) / (2 * np.sqrt(np.log(2))) * 0.86 #make it FWHM
+    width = (n_tbins // (k)) / (2 * np.sqrt(np.log(2))) #make it FWHM
     if use_rect:
         width = n_tbins // k
         pulse = np.zeros(n_tbins)
