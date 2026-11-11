@@ -26,9 +26,24 @@ ILLUM_CONFIG = {
 
     # ---- K = 8 ----
     (8, "coarse", "gaussian"): {"duty": 12, "high_level_amplitude": 1.2,  "low_level_amplitude": -0.5, "gate_shrinkage": 0},
+    (10, "coarse", "gaussian"): {"duty": 12, "high_level_amplitude": 1.2, "low_level_amplitude": -0.5,
+                                 "gate_shrinkage": 0},
     (12, "coarse", "gaussian"): {"duty": 12, "high_level_amplitude": 1.2, "low_level_amplitude": -0.5,
                                 "gate_shrinkage": 0},
+    (14, "coarse", "gaussian"): {"duty": 12, "high_level_amplitude": 1.2, "low_level_amplitude": -0.5,
+                                 "gate_shrinkage": 0},
     (16, "coarse", "gaussian"): {"duty": 12, "high_level_amplitude": 1.2, "low_level_amplitude": -0.5,
+                                 "gate_shrinkage": 0},
+
+    (8, "trapcoarse", "gaussian"): {"duty": 12, "high_level_amplitude": 1.2, "low_level_amplitude": -0.5,
+                                "gate_shrinkage": 0},
+    (10, "trapcoarse", "gaussian"): {"duty": 12, "high_level_amplitude": 1.2, "low_level_amplitude": -0.5,
+                                     "gate_shrinkage": 0},
+    (12, "trapcoarse", "gaussian"): {"duty": 12, "high_level_amplitude": 1.2, "low_level_amplitude": -0.5,
+                                 "gate_shrinkage": 0},
+    (14, "trapcoarse", "gaussian"): {"duty": 12, "high_level_amplitude": 1.2, "low_level_amplitude": -0.5,
+                                     "gate_shrinkage": 0},
+    (16, "trapcoarse", "gaussian"): {"duty": 12, "high_level_amplitude": 1.2, "low_level_amplitude": -0.5,
                                  "gate_shrinkage": 0},
 
     # ---- sliding ----

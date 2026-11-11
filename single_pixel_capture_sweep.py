@@ -6,12 +6,14 @@ from illum_config import get_illum, ILLUM_CONFIG
 
 SCRIPT = "single_pixel_capture.py"
 
-K_VALUES = [4]  # <-- sweep these; illum combos are resolved from illum_config per K
+K_VALUES = [8, 12, 16]  # <-- sweep these; illum combos are resolved from illum_config per K
 
 BASE = [
     "python", SCRIPT,
     "--im_width", "128",
-    "--burst_time", "0.05",
+    #"--burst_time", "10",
+    "--burst_time", "0.08",
+    #"--int_time", "120",
     "--int_time", "2",
     "--split_acquisition", "1",
     "--bit_depth", "12",
@@ -21,17 +23,17 @@ BASE = [
     "--save_into_file", "1",
     "--iterations", "1",
     "--current", "16",
-    "--trials", "10",
+    "--trials", "100",
 ]
 
 # Capture types to run. The illum_type for each is looked up from illum_config
 # per K, so ham -> square at k=3, ham -> pulse at k=4, and ham is skipped
 # wherever no row is configured (e.g. k=8).
-CAPTURE_TYPES = ['ham'] #'["coarse", "trapcoarse"]
+CAPTURE_TYPES = ["coarse", "trapcoarse"]#, 'coarse'] #'["coarse", "trapcoarse"]
 
 # sliding only: gate width in ns. k is the number of shifts, so the shift is tau/k and the gate
 # width is independent of it -- wide overlapping gates with fine shifts is the whole point.
-SLIDING_GATE_WIDTH = 50
+SLIDING_GATE_WIDTH = 60
 
 phase_shifts = np.arange(20, 340, 30).tolist()
 
@@ -49,7 +51,7 @@ def runs_for_k(k):
     return combos
 
 
-run_id = 5
+run_id = 1
 
 # OUTER LOOP = K             -> each K gets its own run_id folder
 # INNER LOOP = capture types -> share the SAME run_id folder

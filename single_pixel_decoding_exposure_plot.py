@@ -17,8 +17,8 @@ import numpy as np
 # -----------------------------------------------------------------------------
 # CONFIG (capitalized)
 # ----------------------------------------------------------------------------
-EXP_PATH = os.path.join('k4_LOWSNR')
-N_TBINS = 3000
+EXP_PATH = os.path.join('exp_1')
+N_TBINS = 2000
 
 #Which correlation functions to use
 SIMULATED_CORRELATIONS = False
@@ -31,7 +31,7 @@ SHIFT_SIZE = None #None if no shifting
 # n-pixel sweep knobs. The upper bound is derived per-capture at runtime,
 # because the ROI (and so its pixel count) depends on the capture's im_width.
 N_PIXELS_START = 10
-N_PIXELS_STEP = 10
+N_PIXELS_STEP = 5
 
 # -----------------------------------------------------------------------------
 # MAIN
@@ -88,7 +88,7 @@ if __name__ == '__main__':
         # ROI depends on the captured frame width (512 vs cropped)
         coords = get_single_pixel_coords(im_width)
         total_pixels = get_total_pixels(coords)
-        n_pixels_range = np.arange(N_PIXELS_START, total_pixels // 3, N_PIXELS_STEP)
+        n_pixels_range = np.arange(N_PIXELS_START, total_pixels, N_PIXELS_STEP)
         mA = params['current']
         mV = params['high_level_amplitude'] * 1000
         capture_type = params['capture_type']

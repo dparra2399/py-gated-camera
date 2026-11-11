@@ -555,7 +555,7 @@ def plot_results_summary(results):
         # cm has shape (n_bins, n_codes); each column is one code curve.
         # If there are too many codes, plotting every column is unreadable,
         # so only plot an evenly-spaced subset.
-        max_codes = 12
+        max_codes = 17
         n_codes = cm.shape[1] if cm.ndim > 1 else 1
         if n_codes > max_codes:
             idxs = np.linspace(0, n_codes - 1, max_codes).astype(int)

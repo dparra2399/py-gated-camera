@@ -371,10 +371,10 @@ def decode_from_correlations(
     # background (if you want it per channel, include duty cycle)
     clean_coded_vals = clean_coded_vals + ((photon_count / sbr) / coding_matrix.shape[-1])
 
-    #coded_vals = rng.poisson(clean_coded_vals, size=(trials, clean_coded_vals.shape[0], clean_coded_vals.shape[1]))
+    coded_vals = rng.poisson(clean_coded_vals, size=(trials, clean_coded_vals.shape[0], clean_coded_vals.shape[1]))
     #gauss_sigma = 20.0  # in "counts" units; tune this
-    gauss_sigma = np.sqrt(clean_coded_vals)  # example
-    coded_vals = clean_coded_vals + rng.normal(0.0, gauss_sigma, size=(trials, *clean_coded_vals.shape))
+    #gauss_sigma = np.sqrt(clean_coded_vals)  # example
+    #coded_vals = clean_coded_vals + rng.normal(0.0, gauss_sigma, size=(trials, *clean_coded_vals.shape))
 
     if print_depths is not None:
         print(f'depth: {print_depths[0]}')

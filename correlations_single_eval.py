@@ -39,14 +39,17 @@ DEFAULT_RUNS = [
     # "ham,3,10,500,16,20,True",
     # "coarse,3,10,420,16,30,False",
     # "coarse,3,10,420,16,30,True",
-    "coarse,8,10,1200,16,12,False",
-    "coarse,12,10,1200,16,12,False",
-    "coarse,16,10,1200,16,12,False",
+    # "coarse,8,10,1200,16,12,False",
+    # "coarse,12,10,1200,16,12,False",
+    # "coarse,16,10,1200,16,12,False",
     # "trapcoarse,8,10,1200,16,12,False",
     # "trapcoarse,12,10,1200,16,12,False",
-    # "trapcoarse,16,10,1200,16,12,False",
+    # "trapcoarse,14,10,1200,16,12,False",
     #"rect,3,10,230,16,30,True",
 
+    "sliding,10,10,1200,16,12,False",
+    "sliding,100,10,1200,16,12,False",
+    "sliding,200,10,1200,16,12,False",
 
     # "ham,4,10,770,16,15,False",
     # "ham,4,10,770,16,15,True",
@@ -106,6 +109,8 @@ if __name__ == "__main__":
     else:
         depths = np.arange(args.depth_margin, args.n_tbins - args.depth_margin, 1)
     folder = get_data_folder(READ_PATH_CORRELATIONS_SINGLE_PIXEL_MAC, READ_PATH_CORRELATIONS_SINGLE_PIXEL_WINDOWS)
+    #folder = get_data_folder(READ_PATH_CORRELATIONS_MAC, READ_PATH_CORRELATIONS_WINDOWS)
+
     #folder = os.path.join(folder, "feb10th_2026")
 
     results = []
@@ -149,7 +154,7 @@ if __name__ == "__main__":
                 args.n_tbins,
             )
 
-        photon_count = args.photon_count * 1.7 if r['capture_type'] == 'ham' else args.photon_count
+        photon_count = args.photon_count * 1.5 if r['capture_type'] == 'ham' else args.photon_count
         decoded_depths = decode_from_correlations(
             coding_matrix=coding_matrix,
             depths=depths,

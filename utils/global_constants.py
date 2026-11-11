@@ -54,7 +54,7 @@ FOCAL_LENGTH = 25 #in mm
 
 
 SINGLE_PIXEL_COORDS_BY_WIDTH = {
-    128: {'x': [20, 30],   'y': [260, 280]},
+    128: {'x': [90, 100],   'y': [260, 280]},
     512: {'x': [210, 220], 'y': [260, 280]},
 }
 
@@ -106,7 +106,7 @@ def check_exposure_time(int_time, burst_time, label='exposure'):
     int_time must already be split by total_count when split_acquisition is on -- that split
     is what makes the per-gate budget, and hence the chunks, small enough to matter.
     """
-    shortest = smallest_acquisition(int_time, burst_time)
+    shortest = min(int_time, burst_time)
     if shortest >= MIN_INT_TIME:
         return shortest
     import sys
