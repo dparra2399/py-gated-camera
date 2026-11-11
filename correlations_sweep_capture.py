@@ -5,16 +5,16 @@ from illum_config import get_illum, ILLUM_CONFIG
 
 SCRIPT = "correlations_single_capture.py"
 
-K_VALUES = [16]  # <-- sweep these; illum combos are resolved from illum_config per K
+K_VALUES = [3]  # <-- sweep these; illum combos are resolved from illum_config per K
 
 REP_RATE = 10000000
 
 BASE = [
     "python", SCRIPT,
     "--im_width", "128",
-    "--burst_time", "0.05",
+    "--burst_time", "10",
     "--bit_depth", "12",
-    "--int_time", "2",
+    "--int_time", "120",
     "--split_acquisition", "1",
     "--gate_step_size", "1200",
     "--rep_rate", str(REP_RATE),
@@ -28,10 +28,10 @@ BASE = [
 
 # Capture types to run. The illum_type for each is looked up from illum_config
 # per K, so a type is skipped wherever no row is configured for that K.
-CAPTURE_TYPES = ["coarse"]  # ["ham", "coarse", "trapcoarse", "sliding"]
+CAPTURE_TYPES = ["ham"]  # ["ham", "coarse", "trapcoarse", "sliding"]
 
 # sliding only: gate width in ns (k sets the shift, the width is independent)
-SLIDING_GATE_WIDTH = 50
+SLIDING_GATE_WIDTH = 60
 
 
 def runs_for_k(k):

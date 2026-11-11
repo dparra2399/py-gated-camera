@@ -5,19 +5,19 @@ from itertools import product
 from illum_config import get_illum
 
 SCRIPT = "depth_map_capture.py"
-
+K = 3
 
 
 BASE = [
     "python", SCRIPT,
-    "--k", "4",
+    "--k", str(K),
     "--im_width", "512",
     "--bit_depth", "12",
     "--split_acquisition", "1",
-    "--int_time", "1",
+    "--int_time", "100",
     "--burst_time", "100",
     "--max_trials", "50",
-    "--ground_truth_int_time", "5000",
+    "--ground_truth_int_time", "2000",
     "--ground_truth", "1",
     "--rep_rate", "10000000",
     "--save_into_file", "1",
@@ -26,15 +26,14 @@ BASE = [
 ]
 
 # sweeps
-K = 4  # must match "--k" in BASE; used to look up illumination config
 # (capture_type, illum_type) pairs to run; illumination pulled from illum_config
-RUNS = [("coarse", "gaussian"), ("ham", "pulse")]
+RUNS = [('ham', 'square')] #[("coarse", "gaussian"), ("ham", "pulse")]
 phases = [60]   # <-- set whatever you want
 
 # sliding only: gate width in ns (k sets the shift, the width is independent)
 SLIDING_GATE_WIDTH = 50
 
-run_id = 5
+run_id = 0
 
 # OUTER LOOP = things that define a "run folder"
 for phase in phases:
