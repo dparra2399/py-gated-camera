@@ -208,9 +208,11 @@ def plot_correlation_comparison(
     fig, axs = plt.subplots(1, 1, figsize=(8, 4))
     axs.plot(measured_coding_matrix, label='Measured')
     #axs.plot(coding_matrix, linestyle='dashed', label='Ideal')
-    axs.set_title('Measured vs. Ideal Gate Profiles (Correlations)')
-    axs.legend()
+    axs.set_title('Measured vs. Ideal Gate Profiles (Correlations)', fontsize=28)
+    axs.tick_params(axis='both', labelsize=24)   # tick numbers
+    axs.legend(fontsize=24)
     plt.show()
+
 
 
 def plot_correlation_comparison_seperate(
@@ -236,7 +238,9 @@ def plot_correlation_comparison_seperate(
     n_matrices = len(measured_list)
     n_rows = measured_list[0].shape[1]   # K (number of sub-correlations per matrix)
 
-    fig, axs = plt.subplots(n_rows, n_matrices, figsize=(6 * n_matrices, 2 * n_rows),
+    # one small x-y axis per correlation (as in plot_coding_schemes.py): left and
+    # bottom spines only, 0/1 on the y-axis, 0 / d_max on the x-axis
+    fig, axs = plt.subplots(n_rows, n_matrices, figsize=(6 * n_matrices, 1.8 * n_rows + 1.5),
                             squeeze=False)
 
     for col, (meas, ideal) in enumerate(zip(measured_list, coding_list)):
@@ -248,32 +252,39 @@ def plot_correlation_comparison_seperate(
             for i in range(ideal.shape[-1]):
                 ideal[:, i] = np.roll(ideal[:, i], shifts[col])
 
+        n_bins = meas.shape[0]
         for row in range(n_rows):
             ax = axs[row, col]
-            ax.plot(meas[:, row],  color='red',   linewidth=3.0, label='Measured')
-            ax.plot(ideal[:, row], color='black', linewidth=3.0, linestyle='dashed', label='Ideal')
-            ax.set_yticks([0, 1])
-            ax.tick_params(axis='both', labelsize=12)
+            ax.plot(meas[:, row], color='red', linewidth=5, label='Measured')
+            ax.plot(ideal[:, row], color='black', linewidth=5, linestyle='dashed', label='Ideal')
+            ax.set_xlim(0, n_bins - 1)
+            ax.set_ylim(-0.1, 1.1)
+            ax.spines[['top', 'right']].set_visible(False)
 
-            for spine in ax.spines.values():
-                spine.set_linewidth(0.3)
-                spine.set_edgecolor('black')
-                spine.set_alpha(0.5)
-
-            if row < n_rows - 1:
-                ax.set_xticks([])
-            if row == 0:
-                col_title = labels[col] if (labels is not None and col < len(labels)) else f'Matrix {col + 1}'
-                ax.set_title(col_title, fontsize=14, fontweight='bold')
+            # 0/1 tick marks on every axis, labelled (with F_i) on the first column only
+            ax.set_yticks([0, 1], labels=['0', '1'] if col == 0 else ['', ''])
+            ax.tick_params(axis='y', labelsize=14)
             if col == 0:
-                ax.legend(fontsize=10, framealpha=1, facecolor='white', edgecolor='black')
-            else:
-                ax.set_yticks([])
+                ax.set_ylabel(rf'$F_{{{row + 1}}}$', fontsize=20, rotation=0,
+                              labelpad=15, va='center')
 
-    fig.subplots_adjust(wspace=0.01, hspace=0.01)
-    plt.tight_layout()
+            # depth ticks on every axis, labelled under the bottom row only
+            last = row == n_rows - 1
+            ax.set_xticks([0, n_bins - 1], labels=['0', r'$d_{max}$'] if last else ['', ''])
+            ax.tick_params(axis='x', labelsize=18)
+            if last:
+                ax.set_xlabel('Depth', fontsize=20)
+
+        col_title = labels[col] if (labels is not None and col < len(labels)) else f'Matrix {col + 1}'
+        axs[0, col].set_title(col_title, fontsize=24, fontweight='bold')
+
+    # one frameless legend above all the columns; tight_layout leaves a strip at
+    # the top for it, so it is inside the figure and shows in plt.show() as well
+    plt.tight_layout(rect=(0, 0, 1, 0.9))
+    fig.legend(*axs[0, 0].get_legend_handles_labels(), loc='upper center',
+               bbox_to_anchor=(0.5, 0.99), ncol=2, frameon=False, fontsize=20)
     #if save_fig:
-    #    plt.savefig(f'figures/correlation_comparison.pdf', dpi=300, bbox_inches='tight', pad_inches=0.1)
+    plt.savefig(f'figures/correlation_comparison.pdf', dpi=300, bbox_inches='tight', pad_inches=0.1)
     plt.show()
 
 def plot_capture_comparison(depths_maps_dict, x=20, y=20, width=220, height=320,
@@ -707,35 +718,35 @@ def get_string_name(capture_type, k, short=False):
     name = ''
     if short:
         if capture_type == 'coarse' or capture_type == 'coarsepw':
-            name = 'Triangle'
+            name = r'Coarse $\rho=1$'
         elif capture_type == 'trapcoarse':
-            name = 'Trapezoidal'
+            name = r'Coarse $\rho=2$'
         elif capture_type == 'rect':
             name = 'Triangle'
         elif capture_type == 'traprect':
             name = 'Trapezoidal'
         elif capture_type == 'ham':
-            name = 'SiP Ham.'
+            name = 'Hamiltonian'
         elif capture_type == 'timeslicing':
             name = 'Time-Slicing '
         elif capture_type == 'sliding':
-            name = "Sliding"
+            name = "Dense Sweep"
     else:
 
         if capture_type == 'coarse':
-            name = 'Triangle (Gauss.)'
+            name = r'Coarse $\rho=1$ (Gauss.)'
         elif capture_type == 'trapcoarse':
-            name = 'Trapezoidal (Gauss.)'
+            name = r'Coarse $\rho=2$ (Gauss.)'
         elif capture_type == 'rect':
             name = 'Triangle (Rect.)'
         elif capture_type == 'traprect':
             name = 'Trapezoidal (Rect.)'
         elif capture_type == 'ham':
-            name = 'SiP Hamiltonian'
+            name = 'Hamiltonian'
         elif capture_type == 'timeslicing':
             name=  'Time-Slicing '
         elif capture_type == 'sliding':
-            name = "Sliding"
+            name = "Dense Sweep"
     if k is not None: name += " K=" + str(k)
     return name
 
@@ -775,11 +786,15 @@ def plot_3d_recon_comparison(runs, snr_label="", vmax_error=None,
         ax_top = axes[0, j]
         if plot_point_cloud:
             png_path = os.path.join(figures_dir, f"recon_{tag}_pcd.png")
-            if os.path.isfile(png_path):
+            # prefer an image rendered in memory; fall back to a saved PNG
+            img = r.get('pcd_image')
+            if img is None and os.path.isfile(png_path):
+                img = plt.imread(png_path)
+            if img is not None:
                 if "high" in snr_label:
-                    img = plt.imread(png_path)[290:, 500:-450, :]
+                    img = img[290:, 500:-450, :]
                 else:
-                    img = plt.imread(png_path)[100:, 400:-400, :]
+                    img = img[100:, 400:-400, :]
                 ax_top.imshow(img)
             else:
                 ax_top.text(0.5, 0.5, f'No image\n({png_path})',
@@ -805,7 +820,7 @@ def plot_3d_recon_comparison(runs, snr_label="", vmax_error=None,
         error_map = np.abs(r['depth_map'] - r['gt_depth_map'])
         mae_mm    = np.nanmean(error_map) * 1000
         rmse_mm   = np.sqrt(np.nanmean(error_map ** 2)) * 1000
-        im = ax_err.imshow(error_map / 10, vmin=0, vmax=vmax_error)
+        im = ax_err.imshow(error_map * 100, vmin=0, vmax=vmax_error)
         ax_err.set_xticks([])
         ax_err.set_yticks([])
         for spine in ax_err.spines.values():
@@ -857,7 +872,7 @@ def get_cap_color(capture_type, k, shift=None):
         # Light -> dark red as k increases, sampled from the Reds colormap so
         # any k works. Anchored so k=3 stays light and k=12 stays dark; other
         # k interpolate/clamp (k=16 clamps to the dark end).
-        K_LIGHT, K_DARK = 8, 20
+        K_LIGHT, K_DARK = 4, 20
         pos = 0.30 + 0.60 * (k - K_LIGHT) / (K_DARK - K_LIGHT)
         pos = min(0.98, max(0.15, pos))   # clamp away from near-white/black
         return to_hex(plt.get_cmap('Reds')(pos))
@@ -871,17 +886,16 @@ def get_cap_color(capture_type, k, shift=None):
         # Light -> dark orange as k increases, sampled from the Oranges colormap
         # so any k works. Anchored so k=8 stays light and k=20 stays dark;
         # other k interpolate/clamp.
-        K_LIGHT, K_DARK = 8, 20
+        K_LIGHT, K_DARK = 4, 20
         pos = 0.30 + 0.60 * (k - K_LIGHT) / (K_DARK - K_LIGHT)
         pos = min(0.98, max(0.15, pos))   # clamp away from near-white/black
         return to_hex(plt.get_cmap('Oranges')(pos))
     elif capture_type == 'sliding':
-        if shift is None:
+        if k is None:
             return 'green'
-        # Light -> dark green as shift increases, sampled from the Greens
-        # colormap so any shift works. Tune the anchors to your shift range.
-        S_LIGHT, S_DARK = 1, 200
-        pos = 0.30 + 0.60 * (shift - S_LIGHT) / (S_DARK - S_LIGHT)
+        # Light -> dark green as k increases (k=100 light, k=500 dark), like trapcoarse.
+        K_LIGHT, K_DARK = 100, 500
+        pos = 0.30 + 0.60 * (k - K_LIGHT) / (K_DARK - K_LIGHT)
         pos = min(0.98, max(0.15, pos))   # clamp away from near-white/black
         return to_hex(plt.get_cmap('Greens')(pos))
     elif capture_type == 'ham':
@@ -889,7 +903,7 @@ def get_cap_color(capture_type, k, shift=None):
             if k == 4 and False:
                 return 'lightblue'
             else:
-                return 'navy'
+                return 'blue'
         else:
             return 'blue'
     elif capture_type == 'slicing':

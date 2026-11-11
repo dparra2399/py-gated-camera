@@ -35,7 +35,10 @@ def filter_capture_files(npz_files):
     filtered = []
     for f in npz_files:
         base_first = os.path.basename(f)
-        keep = "gt" not in base_first
+        # Must actually be an .npz. Without this, recover_npz's backups (foo.npz.corrupt) get
+        # picked up as captures; the read fails, recover_npz renames the backup to
+        # foo.npz.corrupt.corrupt and retries, and they pile up on every plotting run.
+        keep = base_first.endswith('.npz') and "gt" not in base_first
         if keep:
             filtered.append(f)
     return filtered
@@ -241,7 +244,52 @@ def save_capture_data(save_path, cfg_dict, coded_vals):
     save_npz_atomic(out_file, coded_vals=coded_vals, cfg=cfg_dict)
     print(f"✅ Saved Capture data to {out_file}")
 
+def sliding_correlation_roll(cfg_dict):
+    """Samples of shift between consecutive sliding correlation rows, or None.
+
+    Every sliding gate is the same gate at a different offset, so correlation row i is row 0
+    shifted by the sliding step. Only row 0 is stored; this is what rebuilds the rest.
+    """
+    if cfg_dict.get('capture_type') != 'sliding':
+        return None
+    k = int(cfg_dict['k'])
+    slide_step = int((1 / cfg_dict['rep_rate']) * 1e12) // k
+    return k, slide_step / cfg_dict['gate_step_size']
+
+
+def load_correlations(path):
+    """Correlations plus the info needed to rebuild sliding rows.
+
+    Returns (correlations, sliding) where sliding is (k, roll) for a sliding capture stored
+    as a single row, else None. Rebuilding is deferred to
+    build_coding_matrix_from_correlations so it happens *after* the ROI crop -- expanding the
+    full frame first would be 13 GB at k=300 instead of 40 MB.
+    """
+    npz = load_correlation_npz(path)
+    correlations = npz['correlations']
+    try:
+        cfg_dict = npz['cfg'].item()
+    except Exception:
+        return correlations, None
+    return correlations, sliding_rows_for(correlations, cfg_dict)
+
+
+def sliding_rows_for(correlations, cfg_dict):
+    """(k, roll) when this array is a sliding capture stored as one row, else None."""
+    sliding = sliding_correlation_roll(cfg_dict)
+    if sliding is not None and correlations.shape[-2] == 1 and sliding[0] > 1:
+        return sliding
+    return None
+
+
 def save_correlation_data(save_path, cfg_dict, correlations):
+
+    if cfg_dict.get('capture_type') == 'sliding' and correlations.shape[-2] > 1:
+        # rows 1..k-1 are shifts of row 0, so storing one row is lossless and makes the file
+        # a flat ~43 MB regardless of k (k=300 was 13 GB raw / 3.9 GB zipped)
+        print(f'sliding: storing 1 of {correlations.shape[-2]} correlation rows '
+              f'(the rest are shifts of it, rebuilt on load)')
+        correlations = correlations[..., 0:1, :]
 
     save_name = make_correlation_filename(cfg_dict['capture_type'],cfg_dict['k'], cfg_dict['rep_rate'] * 1e-6,
                               cfg_dict['high_level_amplitude'] * 1000, cfg_dict['current'],cfg_dict['duty'])

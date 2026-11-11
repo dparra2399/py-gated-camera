@@ -7,8 +7,9 @@ from plot_scripts.plot_utils import plot_single_pixel_dist, plot_single_pixel_co
     plot_single_pixel_error_per_trial, plot_single_pixel_error_per_pixel
 from utils.global_constants import *
 from utils.global_constants import get_single_pixel_coords, get_total_pixels
-from utils.tof_utils import build_coding_matrix_from_correlations, get_simulated_coding_matrix, sliding_gate_width_tbins, \
-    calculate_tof_domain_params, decode_single_pixel_experiment, decode_per_pixel_experiment
+from utils.tof_utils import build_coding_matrix_from_correlations, get_simulated_coding_matrix, sliding_gate_width_tbins, resolve_roi_pixels, \
+    calculate_tof_domain_params, decode_single_pixel_experiment, decode_per_pixel_experiment, correlation_coords, \
+    decode_single_pixel_loo_gt
 from utils.parameter_classes import DecodeConfig
 import numpy as np
 
@@ -83,7 +84,11 @@ if __name__ == '__main__':
         im_width = params['im_width']
         # ROI depends on the captured frame width (512 vs cropped)
         coords = get_single_pixel_coords(im_width)
-        total_pixels = get_total_pixels(coords)
+        # The stored frame may already be cropped to an ROI (sliding captures are), and that
+        # ROI can differ from today's constant, so derive the bounds and the pixel count
+        # from the array itself rather than from get_total_pixels().
+        roi_y, roi_x = resolve_roi_pixels(coded_vals, coords['y'], coords['x'])
+        total_pixels = (roi_y[1] - roi_y[0]) * (roi_x[1] - roi_x[0])
         mA = params['current']
         mV = params['high_level_amplitude'] * 1000
         capture_type = params['capture_type']
@@ -105,7 +110,7 @@ if __name__ == '__main__':
                                           make_capture_filename(capture_type, k, freq_mhz, mV, mA, duty,
                                                                 None, True))
 
-        correlations_total = load_correlation_npz(corr_path)['correlations']
+        correlations_total, sliding_rows = load_correlations(corr_path)
 
         if cfg.simulated_correlations:
             coding_matrix = get_simulated_coding_matrix(capture_type, cfg.n_tbins, k,
@@ -117,6 +122,8 @@ if __name__ == '__main__':
                 cfg.smooth_sigma,
                 cfg.shift,
                 cfg.n_tbins,
+                sliding=sliding_rows,
+                coords=correlation_coords(coded_vals, params, roi_y, roi_x),
             )
 
         # plt.plot(coding_matrix)
@@ -135,24 +142,14 @@ if __name__ == '__main__':
             coded_vals,
             coding_matrix,
             tbin_depth_res,
-            coords['y'],
-            coords['x'],
+            roi_y,
+            roi_x,
             n_pixels=200,
             pixel_order=pixel_order,
         )
         
 
-        gt_depths, zncc_gt, _ = decode_single_pixel_experiment(
-            capture_type + "s",
-            #coded_vals_gt,
-            coded_vals,
-            coding_matrix,
-            tbin_depth_res,
-            coords['y'],
-            coords['x'],
-            n_pixels=total_pixels,
-            pixel_order = pixel_order,
-        )
+        gt_depths, zncc_gt = decode_single_pixel_loo_gt(coded_vals, coding_matrix, tbin_depth_res, roi_y, roi_x)
 
         # decode each ROI pixel on its own (no pooling) so error can be
         # inspected per pixel rather than only in aggregate
@@ -161,8 +158,8 @@ if __name__ == '__main__':
             coded_vals,
             coding_matrix,
             tbin_depth_res,
-            coords['y'],
-            coords['x'],
+            roi_y,
+            roi_x,
         )
 
         #if capture_type == 'coarse': depths = np.roll(depths, -1, axis=-1)
@@ -171,7 +168,8 @@ if __name__ == '__main__':
 
         print(f'capture type: {capture_type}')
         print(f'depth: {gt_depths[0, 0]:.3f}')
-        counts = np.sum(coded_vals[0, 0, coords['y'][0]:coords['y'][1], coords['x'][0]:coords['x'][1], :])
+        yp, xp = resolve_roi_pixels(coded_vals, coords['y'], coords['x'])
+        counts = np.sum(coded_vals[0, 0, yp[0]:yp[1], xp[0]:xp[1], :])
         print(f'total counts: {counts:.3f}')
         print('----------------------------------')
 

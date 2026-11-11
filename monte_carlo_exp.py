@@ -17,25 +17,47 @@ from utils.tof_utils import (
 # =============================
 # Defaults
 # =============================
-PHOTON_COUNTS = np.linspace(300, 3000, 10).tolist()
-SBRS = np.linspace(0.1, 10, 10).tolist()
-TRIALS = 100
-N_TBINS = 999
-SMOOTH_SIGMA = 1
+PHOTON_COUNTS = np.linspace(300, 9000, 20).tolist()
+#PHOTON_COUNTS = np.linspace(100, 3000, 20).tolist()
+SBRS = np.linspace(0.1, 10, 20).tolist()
+TRIALS = 5000
+N_TBINS = 1500
+SMOOTH_SIGMA = None
 SHIFT = None
 DEPTH_MARGIN = 3.0
 REP_RATE = 5 * 1e6
-DEPTH_SAMPLE = 0.01
+DEPTH_SAMPLE = 0.02
 SPLIT_ACQUISITION = True  # if True, scale photon count by acquisition splits per capture type/k
-TRIAL_CHUNK = 500         # trials processed at once per worker — keeps memory bounded
+IDEAL = True #if True, make ideal coding functions
+TRIAL_CHUNK = 100         # trials processed at once per worker — keeps memory bounded
+
+PULSE_WIDTH =  1 #int((N_TBINS // (8)) / (2 * np.sqrt(np.log(2))))
 DEFAULT_RUNS = [
-    {'type': 'ham',      'k': 3},
-    {'type': 'coarse',   'k': 3},
-    # coarsepw — one entry per pulse width
-    # {'type': 'coarsepw', 'k': 3, 'pulse_width': N_TBINS // 8},
-    # {'type': 'coarsepw', 'k': 3, 'pulse_width': N_TBINS // 4},
-    # {'type': 'coarsepw', 'k': 3, 'pulse_width': N_TBINS // 2},
-    # {'type': 'trapcoarse', 'k': 3},
+    # {'type': 'sliding', "pulse_width": PULSE_WIDTH, "shift": 187, "gate_width":  int(N_TBINS * .6), 'simulated': True},
+    # {'type': 'sliding', "pulse_width": PULSE_WIDTH, "shift": 100, "gate_width":  int(N_TBINS * .6), 'simulated': True},
+    # {'type': 'sliding', "pulse_width": PULSE_WIDTH, "shift": 4, "gate_width":  int(N_TBINS * .6), 'simulated': True},
+    # {'type': 'sliding', "pulse_width": PULSE_WIDTH, "shift": 5, "gate_width":  int(N_TBINS * .6), 'simulated': True},
+    # {'type': 'sliding', "pulse_width": PULSE_WIDTH, "shift": 8, "gate_width": int(N_TBINS * .6), 'simulated': True},
+    # {'type': 'sliding', "pulse_width": PULSE_WIDTH, "shift": 10, "gate_width": int(N_TBINS * .6), 'simulated': True},
+    # {'type': 'sliding', "pulse_width": PULSE_WIDTH, "shift": 15, "gate_width": int(N_TBINS * .6), 'simulated': True},
+
+
+    #{'type': 'ham','k': 4, 'pulse_width': PULSE_WIDTH},
+    # {'type': 'coarse','k': 4, 'simulated': True},
+    # {'type': 'trapcoarse','k': 4, 'simulated': True},
+
+
+
+    # coarsepw — one entry per pulse width you want to test
+    # {'type': 'coarsepw', 'k': 16, 'pulse_width': (N_TBINS // (8)) / (2 * np.sqrt(np.log(2))), 'simulated': True},
+    # {'type': 'coarsepw', 'k': 12, 'pulse_width': (N_TBINS // (8)) / (2 * np.sqrt(np.log(2))), 'simulated': True},
+    # {'type': 'coarsepw', 'k': 8, 'pulse_width': (N_TBINS // (8)) / (2 * np.sqrt(np.log(2))),  'simulated': True},
+    # {'type': 'coarsepw', 'k': 6, 'pulse_width': (N_TBINS // (8)) / (2 * np.sqrt(np.log(2))), 'simulated': True},
+    # {'type': 'coarsepw', 'k': 4, 'pulse_width': (N_TBINS // (8)) / (2 * np.sqrt(np.log(2))), 'simulated': True},
+
+    # {'type': 'coarsepw', 'k': 4, 'photon_count': PHOTON_COUNT // 4, 'pulse_width': N_TBINS // 4,  'simulated': True},
+    # {'type': 'coarsepw', 'k': 4, 'photon_count': PHOTON_COUNT // 4, 'pulse_width': N_TBINS // 2,  'simulated': True},
+    # {'type': 'trapcoarse','k': 8, 'photon_count': PHOTON_COUNT // 8, 'simulated': True},
 ]
 
 
@@ -56,10 +78,11 @@ def run_one(idx, cap_type, k, photon_count_base, sbr, x, y,
         k = int(n_tbins / shift)
 
     depths = np.arange(depth_margin, (n_tbins * tbin_depth_res) - depth_margin, depth_sample)
+    
     waveform_or_illum, demodfs_or_cm, coding_matrix = get_code(
         cap_type, k, n_tbins, pulse_width=pulse_width, shift=shift, gate_width=gate_width)
 
-    photon_count = scale_photon_count(photon_count_base, cap_type, k) if SPLIT_ACQUISITION else photon_count_base
+    photon_count = scale_photon_count(photon_count_base, cap_type, k, ideal=IDEAL) if SPLIT_ACQUISITION else photon_count_base
 
     if cap_type == 'ham':
         _, coded_values = simulate_counts(
@@ -159,7 +182,7 @@ if __name__ == "__main__":
         mae_results[idx, x, y]  = mae
         rmse_results[idx, x, y] = rmse
 
-    save_dir = "/Users/davidparra/PycharmProjects/py-gated-camera/data/monte_carlo_exp"
+    save_dir = "/home/deparra/projects/py-gated-camera/plot_scripts/data/monte_carlo_exp"
     os.makedirs(save_dir, exist_ok=True)
 
     def _label(r):
@@ -178,8 +201,12 @@ if __name__ == "__main__":
     photon_max = int(max(args.photon_counts))
     sbr_min    = f"{min(args.sbrs):.1f}"
     sbr_max    = f"{max(args.sbrs):.1f}"
-    runs_str   = "_".join(run_labels)
-    filename   = f"ntbins{args.n_tbins}_trials{args.trials}_photons{photon_min}-{photon_max}_sbr{sbr_min}-{sbr_max}_{runs_str}.npz"
+    #runs_str   = "_".join(run_labels)
+    runs_str = 'K8BandlimitedTrap'
+    filename   = f"ntbins{args.n_tbins}_trials{args.trials}_photons{photon_min}-{photon_max}_sbr{sbr_min}-{sbr_max}_{runs_str}"
+    filename = filename + "_split" if SPLIT_ACQUISITION else filename
+    filename = filename + "_ideal" if IDEAL else filename
+    filename = filename + ".npz"
     save_path  = os.path.join(save_dir, filename)
     np.savez(
         save_path,
@@ -189,5 +216,6 @@ if __name__ == "__main__":
         sbrs=np.array(args.sbrs),
         run_labels=np.array(run_labels),
         split_acquisition=SPLIT_ACQUISITION,
+        ideal=IDEAL,
     )
     print(f"\nSaved to {save_path}")

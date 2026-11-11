@@ -11,8 +11,8 @@ from plot_scripts.plot_utils import plot_single_pixel_dist, plot_single_pixel_co
 from utils.global_constants import *
 from utils.global_constants import get_single_pixel_coords, get_total_pixels
 from utils.parameter_classes import DecodeConfig
-from utils.tof_utils import build_coding_matrix_from_correlations, get_simulated_coding_matrix, sliding_gate_width_tbins, \
-    calculate_tof_domain_params, decode_single_pixel_experiment
+from utils.tof_utils import build_coding_matrix_from_correlations, get_simulated_coding_matrix, sliding_gate_width_tbins, resolve_roi_pixels, \
+    calculate_tof_domain_params, decode_single_pixel_experiment, correlation_coords, decode_single_pixel_loo_gt
 import numpy as np
 
 # -----------------------------------------------------------------------------
@@ -21,9 +21,11 @@ import numpy as np
 # List of rows; each row is a list of groups (one subplot per group);
 # each group is a list of exp_paths aggregated into that subplot.
 EXP_PATHS = [
-    # [['k3_HIGHSNR'], ['k3_LOWSNR']],
-    # [['k4_HIGHSNR'], ['k4_LOWSNR']]
-    [['k8_12_16_HIGHSNR'], ['k8_12_16_LOWSNR']]
+    #[['k3_HIGHSNR'], ['k3_LOWSNR']],
+    #[['k4_HIGHSNR'], ['k4_LOWSNR']]
+    # [['k8_12_16_TRAPCOARSE_HIGHSNR'], ['k8_12_16_TRAPCOARSE_LOWSNR']],
+    # [['k8_12_16_COARSE_HIGHSNR'], ['k8_12_16_COARSE_LOWSNR']]
+   [['k100_300_400_500_SLIDING_HIGHSNR'], ['k100_300_400_500_SLIDING_LOWSNR']]
 ]
 
 N_TBINS = 2000
@@ -39,7 +41,7 @@ SHIFT_SIZE = None #None if no shifting
 #Not apart of the defaults
 # n-pixel sweep knobs. The upper bound is derived per-capture at runtime,
 # because the ROI (and so its pixel count) depends on the capture's im_width.
-N_PIXELS_START = 11
+N_PIXELS_START = 10
 N_PIXELS_STEP = 10
 
 # -----------------------------------------------------------------------------
@@ -104,7 +106,14 @@ if __name__ == '__main__':
                 im_width = params['im_width']
                 # ROI depends on the captured frame width (512 vs cropped)
                 coords = get_single_pixel_coords(im_width)
-                total_pixels = get_total_pixels(coords)
+                # The stored frame may already be cropped to an ROI (sliding captures are), and that
+                # ROI can differ from today's constant, so derive the bounds and the pixel count
+                # from the array itself rather than from get_total_pixels().
+                roi_y, roi_x = resolve_roi_pixels(coded_vals, coords['y'], coords['x'])
+                if "LOWSNR" in capture_folder:
+                    print('fadfsdffsd')
+                    roi_x = [90, 100]
+                total_pixels = (roi_y[1] - roi_y[0]) * (roi_x[1] - roi_x[0])
                 n_pixels_range = np.arange(N_PIXELS_START, total_pixels, N_PIXELS_STEP)
                 mA = params['current']
                 mV = params['high_level_amplitude'] * 1000
@@ -114,7 +123,6 @@ if __name__ == '__main__':
                 freq_mhz = freq * 1e-6
                 duty = params['duty']
                 rep_tau = params['rep_tau']
-
 
                 gate_widths, gate_starts = get_gate_shifts(capture_type, freq, k, params.get('sliding_gate_width'))
                 total_count = sum(len(sublist) for sublist in gate_widths)
@@ -129,8 +137,9 @@ if __name__ == '__main__':
                                                   make_capture_filename(capture_type, k, freq_mhz, mV, mA, duty,
                                                                         None, True))
 
-                correlations_total = load_correlation_npz(corr_path)['correlations']
+                correlations_total, sliding_rows = load_correlations(corr_path)
 
+                #print(correlations_total.shape); exit(0)
                 if cfg.simulated_correlations:
                     coding_matrix = get_simulated_coding_matrix(capture_type, cfg.n_tbins, k,
                                                         sliding_gate_width_tbins(params.get('sliding_gate_width'), rep_tau, cfg.n_tbins))
@@ -141,8 +150,12 @@ if __name__ == '__main__':
                         cfg.smooth_sigma,
                         cfg.shift,
                         cfg.n_tbins,
+                        sliding=sliding_rows,
+                        coords=correlation_coords(coded_vals, params, roi_y, roi_x),
                     )
 
+                #plt.plot(coding_matrix[:, :4])
+                #print(coding_matrix.shape)
                 n_tbins = cfg.n_tbins if cfg.n_tbins is not None else coding_matrix.shape[0]
                 (rep_tau, rep_freq, tbin_res,
                  t_domain, max_depth, tbin_depth_res,) = calculate_tof_domain_params(n_tbins, rep_tau)
@@ -157,16 +170,8 @@ if __name__ == '__main__':
 
                 #coded_vals_gt = np.load(gt_coded_vals_path, allow_pickle=True)['coded_vals']
 
-                gt_depths, recon_gt, _ = decode_single_pixel_experiment(
-                    capture_type + "s",
-                    coded_vals,
-                    coding_matrix,
-                    tbin_depth_res,
-                    coords['y'],
-                    coords['x'],
-                    n_pixels=total_pixels,
-                    pixel_order=pixel_order,
-                )
+                gt_depths, recon_gt = decode_single_pixel_loo_gt(coded_vals, coding_matrix, tbin_depth_res,
+                                                                 roi_y, roi_x)
 
                 for i, n in enumerate(n_pixels_range):
 
@@ -175,8 +180,8 @@ if __name__ == '__main__':
                         coded_vals,
                         coding_matrix,
                         tbin_depth_res,
-                        coords['y'],
-                        coords['x'],
+                        roi_y,
+                        roi_x,
                         n_pixels=n,
                         pixel_order=pixel_order
                     )
@@ -244,7 +249,7 @@ if __name__ == '__main__':
             int_times = inner_dict['int_times']
             capture_type = inner_dict['capture_type']
             k = inner_dict['k']
-            capture_type = capture_type + "pw" if k > 4 else capture_type
+            capture_type = capture_type + "pw" if (capture_type == 'coarse' and k > 4) else capture_type
 
             if ERROR_TYPE == "MAE":
                 error = mae
@@ -264,7 +269,9 @@ if __name__ == '__main__':
             )
             #ax.set_ylim(0, 200)
             xmax = max(xmax, max(int_times))
-        ax.set_xlim(-0.01, xmax + 0.01)
+        add_tmp = 1 if sliding else 0.02
+        ax.set_xlim(-0.01, xmax + add_tmp)
+        ax.set_ylim(0, 25)
         cell_xmax[i][j]  = round(xmax, 6)
         cell_title[i][j] = get_single_pixel_title(exp_paths[i][j])
         ax.legend(fontsize=14, framealpha=1, facecolor='white', edgecolor='black')

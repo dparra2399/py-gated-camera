@@ -7,7 +7,7 @@ from scipy.ndimage import gaussian_filter, gaussian_filter1d, median_filter
 from felipe_utils.research_utils import signalproc_ops, np_utils
 from felipe_utils.tof_utils_felipe import zero_norm_t
 from utils.global_constants import EPILSON, SPEED_OF_LIGHT, SINGLE_PIXEL_COORDS, \
-    get_single_pixel_coords
+    SLIDING_LEGACY_CROP_ROI, get_single_pixel_coords
 from felipe_utils import tof_utils_felipe
 from felipe_utils import CodingFunctionsFelipe
 from felipe_utils.research_utils.signalproc_ops import gaussian_pulse, max_gaussian_center_of_mass_mle
@@ -58,7 +58,7 @@ def get_simulated_coding_matrix(type, n_tbins, k, gate_width=None):
         (modfs, demodfs) = func(N=n_tbins)
         #Dt = demodfs.sum(axis=1)
         #print(Dt.min(), Dt.max(), Dt.mean(), Dt.std())
-        irf = gaussian_pulse(np.arange(n_tbins), 0, 80, circ_shifted=True)
+        irf = gaussian_pulse(np.arange(n_tbins), 0, 1, circ_shifted=True)
         coding_matrix = np.fft.ifft(np.fft.fft(modfs, axis=0).conj() * np.fft.fft(demodfs, axis=0), axis=0).real
 
         coding_matrix = np.fft.ifft(
@@ -142,15 +142,46 @@ def sliding_gate_width_tbins(sliding_gate_width, rep_tau, n_tbins):
         return None
     return int(round(sliding_gate_width * 1e-9 / rep_tau * n_tbins))
 
+def expand_sliding_rows(arr, k, roll, axis=-2):
+    """Rebuild k sliding correlation rows from the single stored row.
+
+    Row i is row 0 shifted by i*roll samples along the last axis. The shift is negative here
+    (positive at capture time) because sliding_correlation_capture flips the sweep before
+    saving. Fractional rolls interpolate, matching how capture built them.
+    """
+    arr = np.moveaxis(arr, axis, -2)
+    n = arr.shape[-1]
+    sample = np.arange(n)
+    out = np.empty(arr.shape[:-2] + (k, n), dtype=arr.dtype)
+    for i in range(k):
+        src = (sample - i * roll) % n
+        low = np.floor(src).astype(int)
+        frac = src - low
+        high = (low + 1) % n
+        out[..., i, :] = arr[..., 0, low] * (1 - frac) + arr[..., 0, high] * frac
+    return np.moveaxis(out, -2, axis)
+
+
 def build_coding_matrix_from_correlations(
     correlations_total: np.ndarray,
     use_full,
     sigma_size,
     shift_size,
     n_tbins=None,
+    sliding=None,
+    coords=None,
 ) -> np.ndarray:
+    # A sliding capture stores only correlation row 0; `sliding` is the (k, roll) needed to
+    # rebuild the rest. Fail loudly rather than silently building a 1-column coding matrix.
+    if sliding is None and correlations_total.shape[-2] == 1:
+        raise ValueError(
+            'correlations have a single code row, which means a sliding capture stored one '
+            'row. Load with file_utils.load_correlations() and pass its `sliding` through.')
+
     if use_full:
         # correlations_total: (H, W, n_tbins, K)
+        if sliding is not None:
+            correlations_total = expand_sliding_rows(correlations_total, *sliding, axis=-1)
         coding_matrix = gaussian_filter(
             correlations_total.swapaxes(-1, -2),  # -> (H,W,K,n_tbins)
             sigma=(3, 3, 0, 0),
@@ -164,8 +195,12 @@ def build_coding_matrix_from_correlations(
         return coding_matrix  # (H,W,n_tbins,K)
 
     # legacy path: spatial-sum correlations
-    # correlations_total is (H, W, ...), so W is im_width -- pick the ROI to match
-    coords = get_single_pixel_coords(correlations_total.shape[1])
+    # correlations_total is (H, W, ...), so W is im_width -- pick the ROI to match.
+    # Callers that select their own ROI must pass it in: the coded values and the coding
+    # matrix have to be summed over the *same* pixels, and overriding only the caller's side
+    # silently decodes one ROI against a coding matrix measured at another.
+    if coords is None:
+        coords = get_single_pixel_coords(correlations_total.shape[1])
     coding_matrix = np.transpose(
         #np.mean(np.mean(correlations_total[:, 20:correlations_total.shape[1]//2-20, :], axis=0), axis=0)
         #np.mean(np.mean(correlations_total[280:300, 140:150, :], axis=0), axis=0)
@@ -175,6 +210,10 @@ def build_coding_matrix_from_correlations(
         np.sum(np.sum(correlations_total[coords['y'][0]:coords['y'][1], coords['x'][0]:coords['x'][1], :], axis=0), axis=0)
 
     )  # (n_tbins,K)
+
+    if sliding is not None:
+        # after the ROI sum the array is tiny, so this is the cheap place to rebuild the rows
+        coding_matrix = expand_sliding_rows(coding_matrix[None, ...], *sliding, axis=-1)[0]
 
     #coding_matrix[:, 2] = np.roll(coding_matrix[:, 2], shift=2, axis=-1)
     if shift_size is not None:
@@ -197,11 +236,15 @@ def build_coding_matrix_from_correlations(
     # coding_matrix = (coding_matrix - mins) / (maxs - mins)
     return coding_matrix
 
-def scale_photon_count(photon_count, capture_type, k):
+
+def scale_photon_count(photon_count, capture_type, k, ideal=False):
     if capture_type == 'ham':
-        divisor = k if k <= 3 else 6
+        if k <= 3 or ideal==True:
+            divisor = k
+        else:
+            divisor = 6 #K=4 has 6 different measurements if not ideal
     else:
-        divisor = k   # coarse, trapcoarse, coarsepw all divide by k
+        divisor = k   # coarse, trapcoarse, coarsepw, trapcoarsepw all divide by k
     return photon_count / divisor
 
 
@@ -230,6 +273,29 @@ def decode_depth_map(
     depth_map = depths.reshape((512, im_width)) * tbin_depth_res
     return depth_map, zncc
 
+def resolve_roi_pixels(coded_vals, y_pixels, x_pixels):
+    """ROI bounds for a capture array, whether or not it was saved pre-cropped.
+
+    Sliding captures are stored already cropped to the ROI (a full frame is hundreds of GB
+    at high k), so the absolute coords would index past the end and silently return an empty
+    slice. A frame smaller than the coords already IS the ROI, so take it whole.
+    """
+    if coded_vals.shape[-3] < y_pixels[1] or coded_vals.shape[-2] < x_pixels[1]:
+        return [0, coded_vals.shape[-3]], [0, coded_vals.shape[-2]]
+    return y_pixels, x_pixels
+
+
+def correlation_coords(coded_vals, params, roi_y, roi_x):
+    """Absolute sensor ROI to sum the full-frame correlations over for these coded values.
+
+    A pre-cropped frame (fewer than the sensor's 512 rows) indexes from its own corner, so
+    using its ROI on the full-frame correlations would sum the wrong pixels.
+    """
+    if coded_vals.shape[-3] == 512:
+        return {'y': roi_y, 'x': roi_x}
+    return params.get('roi_coords', SLIDING_LEGACY_CROP_ROI)
+
+
 def decode_single_pixel_experiment(
     capture_type: str,
     coded_vals: np.ndarray,
@@ -243,11 +309,7 @@ def decode_single_pixel_experiment(
     gt: bool = False,
 ):
 
-    # sliding captures are saved already cropped to the ROI, so the absolute coords would
-    # index past the end -- detect the smaller frame and take it whole instead
-    if coded_vals.shape[-3] < y_pixels[1] or coded_vals.shape[-2] < x_pixels[1]:
-        y_pixels, x_pixels = [0, coded_vals.shape[-3]], [0, coded_vals.shape[-2]]
-
+    y_pixels, x_pixels = resolve_roi_pixels(coded_vals, y_pixels, x_pixels)
     sub = coded_vals[..., y_pixels[0]:y_pixels[1], x_pixels[0]:x_pixels[1], :]
     sub = sub.reshape(*sub.shape[:-3], -1, sub.shape[-1])
     total_pixels = sub.shape[-2]
@@ -293,6 +355,7 @@ def decode_per_pixel_experiment(
     depths : np.ndarray
         Shape (..., roi_h, roi_w), e.g. (trials, n_phase_shifts, roi_h, roi_w).
     """
+    y_pixels, x_pixels = resolve_roi_pixels(coded_vals, y_pixels, x_pixels)
     sub = coded_vals[..., y_pixels[0]:y_pixels[1], x_pixels[0]:x_pixels[1], :]
     roi_h, roi_w = sub.shape[-3], sub.shape[-2]
 
@@ -430,7 +493,7 @@ def get_ham_code(k, n_tbins, pulse_width=40):
 
 def _make_illum(n_tbins, k, add, use_rect):
     #width = n_tbins // (k + add)
-    width = (n_tbins // (k)) / (2 * np.sqrt(np.log(2))) * 0.86 #make it FWHM
+    width = (n_tbins // (k)) / (2 * np.sqrt(np.log(2))) #make it FWHM
     if use_rect:
         width = n_tbins // k
         pulse = np.zeros(n_tbins)
@@ -513,6 +576,31 @@ def get_coarse_pw_code(k, n_tbins, pulse_width):
     return illum, np.transpose(coding_matrix), filtered_coding_matrix
 
 
+def get_trap_pw_code(k, n_tbins, pulse_width):
+    """Trapezoidal coarse gating with a custom illumination pulse width (in time bins).
+    The detector gates are identical to get_trap_code — only the illum width changes."""
+    coding_matrix = np.zeros((k, n_tbins))
+
+    step = n_tbins // k
+    block_len = 2 * step
+
+    for i in range(k):
+        start = i * step
+        cols = (np.arange(start, start + block_len) % n_tbins)
+        coding_matrix[i, cols] = 1
+
+    # illumination pulse with the requested width — Gaussian with sigma=pulse_width
+    illum = gaussian_pulse(np.arange(n_tbins), 0, pulse_width, circ_shifted=True)
+
+    filtered_coding_matrix = np.fft.ifft(
+        np.fft.fft(illum[..., np.newaxis], axis=0).conj()
+        * np.fft.fft(coding_matrix.T, axis=0),
+        axis=0,
+    ).real
+
+    return illum, np.transpose(coding_matrix), filtered_coding_matrix
+
+
 def get_sliding_code(k, n_tbins, pulse_width, shift, gate_width):
     coding_matrix = np.zeros((k, n_tbins))
 
@@ -543,6 +631,9 @@ def get_code(type, k, n_tbins, pulse_width=None, shift=None, gate_width=None):
     if type == 'coarsepw':
         assert pulse_width is not None, 'pulse_width is required for coarsepw'
         return get_coarse_pw_code(k, n_tbins, pulse_width)
+    elif type == 'trapcoarsepw':
+        assert pulse_width is not None, 'pulse_width is required for trapcoarsepw'
+        return get_trap_pw_code(k, n_tbins, pulse_width)
     elif type == 'coarse' or type == 'rect':
         name = 'coarse'
     elif type == 'trapcoarse' or type == 'traprect':
@@ -555,7 +646,7 @@ def get_code(type, k, n_tbins, pulse_width=None, shift=None, gate_width=None):
         assert gate_width is not None, 'width is required for coarsepw'
         return get_sliding_code(k, n_tbins, pulse_width, shift, gate_width)
     else:
-        assert False, 'type must be coarse, rect, trapcoarse, traprect, ham, or coarsepw'
+        assert False, 'type must be coarse, rect, trapcoarse, traprect, ham, coarsepw, trapcoarsepw, or sliding'
     func = getattr(sys.modules[__name__], f"get_{name}_code")
     return func(k, n_tbins, pulse_width=pulse_width) if name == 'ham' else func(k, n_tbins, use_rect=use_rect)
 

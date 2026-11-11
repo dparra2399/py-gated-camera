@@ -9,7 +9,7 @@ from utils.file_utils import build_parser_from_config, save_correlation_data
 from utils.parameter_classes import  Config
 from spad_lib.spad512utils import (set_up_spad512, get_gate_shifts, correlation_capture,
                                    sliding_correlation_capture)
-from utils.instrument_utils import SDG5162_GATED_PROJECT, NIDAQ_LDC220
+from utils.instrument_utils import SDG5162_GATED_PROJECT, NIDAQ_LDC220, register_laser_shutdown
 from plot_scripts.plot_utils import plot_correlation_functions
 from dataclasses import asdict
 ##### Editable parameters (defaults; can be overridden via CLI)  #####
@@ -103,6 +103,11 @@ if __name__ == "__main__":
     cfg = apply_defaults(cfg)
     cfg.gate_steps = int(((1 / cfg.rep_rate)*1e12) // cfg.gate_step_size)
 
+    gate_widths, gate_starts = get_gate_shifts(cfg.capture_type, cfg.rep_rate, cfg.k, cfg.sliding_gate_width)
+    total_count = sum(len(sublist) for sublist in gate_widths)
+    cfg.int_time = cfg.int_time/total_count if cfg.split_acquisition else cfg.int_time
+    check_exposure_time(cfg.int_time, cfg.burst_time)
+
     SPAD1 = set_up_spad512()
 
     sdg = SDG5162_GATED_PROJECT(
@@ -111,6 +116,7 @@ if __name__ == "__main__":
 
     ldc220 = NIDAQ_LDC220(max_amps=40)
     ldc220.set_current(0)
+    register_laser_shutdown(ldc220, sdg)
 
     sdg.set_waveform_and_trigger(cfg.illum_type, cfg.duty, cfg.rep_rate,
                                  cfg.high_level_amplitude, cfg.low_level_amplitude, 0, cfg.edge)
@@ -119,10 +125,6 @@ if __name__ == "__main__":
     ldc220.set_current(cfg.current)
 
 
-    gate_widths, gate_starts = get_gate_shifts(cfg.capture_type, cfg.rep_rate, cfg.k, cfg.sliding_gate_width)
-    total_count = sum(len(sublist) for sublist in gate_widths)
-    cfg.int_time = cfg.int_time/total_count if cfg.split_acquisition else cfg.int_time
-    check_exposure_time(cfg.int_time, cfg.burst_time)
 
     time.sleep(45)
     # every sliding gate is the same gate, so one sweep measures all k correlation functions

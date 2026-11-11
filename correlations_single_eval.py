@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from plot_scripts.plot_utils import plot_coding_curve, plot_coding_error, plot_correlations_one_plot, \
     plot_results_summary, plot_depth_error_distribution
 from utils.global_constants import *
-from utils.file_utils import get_data_folder, make_correlation_filename, corr_parse_run, load_correlation_npz
+from utils.file_utils import sliding_rows_for, get_data_folder, make_correlation_filename, corr_parse_run, load_correlation_npz
 from utils.tof_utils import (
     build_coding_matrix_from_correlations,
     decode_from_correlations,
@@ -152,6 +152,7 @@ if __name__ == "__main__":
                 args.smooth_sigma,
                 args.shift,
                 args.n_tbins,
+                sliding=sliding_rows_for(correlations_total, cfg),
             )
 
         photon_count = args.photon_count * 1.5 if r['capture_type'] == 'ham' else args.photon_count
