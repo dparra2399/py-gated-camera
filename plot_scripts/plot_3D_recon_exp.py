@@ -11,21 +11,22 @@ from utils.parameter_classes import DecodeConfig
 # -----------------------------------------------------------------------------
 # CONFIG (capitalized)
 # -----------------------------------------------------------------------------
-EXP_PATH = os.path.join('step_stool_results', 'k3_HIGHSNR_1')
+EXP_PATH = os.path.join('exp_0')
+#EXP_PATH = os.path.join('step_stool_results', 'k3_HIGHSNR_1')
 SNR_LABEL     = "highsnr" if "highsnr" in EXP_PATH.lower() else "lowsnr"
 FIGURES_DIR   = "figures"   # where 3d_recon_single.py saved its PNGs
 VMAX_ERROR    = 0.01# metres; None = auto (95th percentile across runs)
-PLOT_POINT_CLOUD = True  # True = show point cloud PNG in top row; False = show depth map instead
+PLOT_POINT_CLOUD = False  # True = show point cloud PNG in top row; False = show depth map instead
 ALIGN_DEPTHS = True       # shift each run's depth map so all medians match the first run
-N_TBINS = 3000
+N_TBINS = 1500
 NUM_TRIALS = 200
 
-BAD_ROWS = [(230, 260), (80, 95)]
+BAD_ROWS = None #[(230, 260), (80, 95)]
 
 #PLotting utils for visualization
 PLOT_DEPTH_MAPS = True
-VMINS = None
-VMAXS = None
+VMINS = 11.0
+VMAXS = 11.5
 MEDIAN_FILTER_SIZE = 1
 
 #Masking or normalizing depth maps
@@ -42,7 +43,7 @@ SHIFT_SIZE = 70 #None if no shifting
 
 #Corrections to depth map
 CORRECT_DEPTH_DISTORTION = False
-CORRECT_MASTER = True
+CORRECT_MASTER = False
 
 
 # -----------------------------------------------------------------------------
