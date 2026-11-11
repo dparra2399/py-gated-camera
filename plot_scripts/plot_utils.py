@@ -265,24 +265,25 @@ def plot_correlation_comparison_seperate(
             ax.set_yticks([0, 1], labels=['0', '1'] if col == 0 else ['', ''])
             ax.tick_params(axis='y', labelsize=14)
             if col == 0:
-                ax.set_ylabel(rf'$F_{{{row + 1}}}$', fontsize=20, rotation=0,
+                ax.set_ylabel(rf'$F_{{{row + 1}}}$', fontsize=24, rotation=0,
                               labelpad=15, va='center')
 
             # depth ticks on every axis, labelled under the bottom row only
             last = row == n_rows - 1
             ax.set_xticks([0, n_bins - 1], labels=['0', r'$d_{max}$'] if last else ['', ''])
-            ax.tick_params(axis='x', labelsize=18)
+            ax.tick_params(axis='x', labelsize=22)
             if last:
-                ax.set_xlabel('Depth', fontsize=20)
+                # negative labelpad pulls 'Depth' up into the empty space between the 0 / d_max labels
+                ax.set_xlabel('Depth', fontsize=24, labelpad=-20)
 
         col_title = labels[col] if (labels is not None and col < len(labels)) else f'Matrix {col + 1}'
-        axs[0, col].set_title(col_title, fontsize=24, fontweight='bold')
+        axs[0, col].set_title(col_title, fontsize=28, fontweight='bold')
 
     # one frameless legend above all the columns; tight_layout leaves a strip at
     # the top for it, so it is inside the figure and shows in plt.show() as well
     plt.tight_layout(rect=(0, 0, 1, 0.9))
     fig.legend(*axs[0, 0].get_legend_handles_labels(), loc='upper center',
-               bbox_to_anchor=(0.5, 0.99), ncol=2, frameon=False, fontsize=20)
+               bbox_to_anchor=(0.5, 0.99), ncol=2, frameon=False, fontsize=24)
     #if save_fig:
     plt.savefig(f'figures/correlation_comparison.pdf', dpi=300, bbox_inches='tight', pad_inches=0.1)
     plt.show()
@@ -718,9 +719,9 @@ def get_string_name(capture_type, k, short=False):
     name = ''
     if short:
         if capture_type == 'coarse' or capture_type == 'coarsepw':
-            name = r'Coarse $\rho=1$'
+            name = r'Binning $\rho=1$'
         elif capture_type == 'trapcoarse':
-            name = r'Coarse $\rho=2$'
+            name = r'Binning $\rho=2$'
         elif capture_type == 'rect':
             name = 'Triangle'
         elif capture_type == 'traprect':
@@ -730,13 +731,13 @@ def get_string_name(capture_type, k, short=False):
         elif capture_type == 'timeslicing':
             name = 'Time-Slicing '
         elif capture_type == 'sliding':
-            name = "Dense Sweep"
+            name = "Sweeping"
     else:
 
         if capture_type == 'coarse':
-            name = r'Coarse $\rho=1$ (Gauss.)'
+            name = r'Gate Binning $\rho=1$'
         elif capture_type == 'trapcoarse':
-            name = r'Coarse $\rho=2$ (Gauss.)'
+            name = r'Gate Binning $\rho=2$'
         elif capture_type == 'rect':
             name = 'Triangle (Rect.)'
         elif capture_type == 'traprect':
@@ -746,7 +747,7 @@ def get_string_name(capture_type, k, short=False):
         elif capture_type == 'timeslicing':
             name=  'Time-Slicing '
         elif capture_type == 'sliding':
-            name = "Dense Sweep"
+            name = "Gate Sweeping"
     if k is not None: name += " K=" + str(k)
     return name
 
@@ -760,11 +761,11 @@ def get_single_pixel_title(paths):
 
 def plot_3d_recon_comparison(runs, snr_label="", vmax_error=None,
                               figures_dir="plot_scripts/figures", save_path=None,
-                              plot_point_cloud=True):
+                              plot_point_cloud=True, plot_error_map=True):
     n = len(runs)
-    fig, axes = plt.subplots(2, n, figsize=(4.5 * n, 8))
-    if n == 1:
-        axes = axes.reshape(2, 1)
+    # without the error-map row, MAE / RMSE go underneath the top row instead
+    n_rows = 2 if plot_error_map else 1
+    fig, axes = plt.subplots(n_rows, n, figsize=(4.5 * n, 4 * n_rows), squeeze=False)
 
     # compute global vmax_error if not given
     if vmax_error is None:
@@ -810,16 +811,20 @@ def plot_3d_recon_comparison(runs, snr_label="", vmax_error=None,
         for spine in ax_top.spines.values():
             spine.set_visible(False)
         # Right-side row label on the last column only
-        if j == n - 1:
-            ax_top.yaxis.set_label_position('right')
-            ax_top.set_ylabel(top_row_label, fontsize=16, rotation=270, labelpad=14, va='bottom')
+        #if j == n - 1:
+            #ax_top.yaxis.set_label_position('right')
+            #ax_top.set_ylabel(top_row_label, fontsize=16, rotation=270, labelpad=14, va='bottom')
 
-
-        # ── Row 1: error map ───────────────────────────────────────────────
-        ax_err = axes[1, j]
         error_map = np.abs(r['depth_map'] - r['gt_depth_map'])
         mae_mm    = np.nanmean(error_map) * 1000
         rmse_mm   = np.sqrt(np.nanmean(error_map ** 2)) * 1000
+
+        if not plot_error_map:
+            ax_top.set_xlabel(f"MAE: {mae_mm / 10:.2f} cm  |  RMSE: {rmse_mm / 10:.2f} cm", fontsize=15)
+            continue
+
+        # ── Row 1: error map ───────────────────────────────────────────────
+        ax_err = axes[1, j]
         im = ax_err.imshow(error_map * 100, vmin=0, vmax=vmax_error)
         ax_err.set_xticks([])
         ax_err.set_yticks([])
@@ -839,18 +844,19 @@ def plot_3d_recon_comparison(runs, snr_label="", vmax_error=None,
     # Finalize layout first so axis positions are set, then manually add a
     # shared colorbar in the right margin — this keeps all subplots the same size.
     plt.tight_layout()
-    fig.subplots_adjust(right=0.88)   # reserve ~12 % on the right for the colorbar
+    if plot_error_map:
+        fig.subplots_adjust(right=0.88)   # reserve ~12 % on the right for the colorbar
 
-    # Use the finalised positions of the bottom-row axes to place the colorbar
-    y0  = axes[1, 0].get_position().y0
-    y1  = axes[1, 0].get_position().y1
-    x1  = axes[1, -1].get_position().x1
-    cbar_ax = fig.add_axes([x1 + 0.015, y0, 0.018, y1 - y0])
-    cbar = fig.colorbar(im, cax=cbar_ax)
-    # flip the label so it reads top->bottom (rotation=90 is the default)
-    cbar.set_label('Depth Error (cm)', rotation=270, labelpad=18, fontsize=16)
-    # round the tick labels to 2 decimal places
-    cbar.ax.yaxis.set_major_formatter(FormatStrFormatter('%.2f'))
+        # Use the finalised positions of the bottom-row axes to place the colorbar
+        y0  = axes[1, 0].get_position().y0
+        y1  = axes[1, 0].get_position().y1
+        x1  = axes[1, -1].get_position().x1
+        cbar_ax = fig.add_axes([x1 + 0.015, y0, 0.018, y1 - y0])
+        cbar = fig.colorbar(im, cax=cbar_ax)
+        # flip the label so it reads top->bottom (rotation=90 is the default)
+        cbar.set_label('Depth Error (cm)', rotation=270, labelpad=18, fontsize=16)
+        # round the tick labels to 2 decimal places
+        cbar.ax.yaxis.set_major_formatter(FormatStrFormatter('%.2f'))
 
     #if snr_label:
     #    fig.suptitle(snr_label.replace('snr', ' SNR').upper(), fontsize=14, fontweight='bold')

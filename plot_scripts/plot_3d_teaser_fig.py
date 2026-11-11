@@ -101,8 +101,8 @@ COL_W, GATE_H = 5, 5     # inches per column / height of the gate row
 # Simulation parameters (same meaning as in test.py)
 # =============================================================================
 N_TBINS      = 10000
-TRIALS       = 100       # noisy captures averaged into the MAE/RMSE (decoded one at a time)
-SEED         = 0        # noise seed, so the MAEs are reproducible run to run
+TRIALS       = 1       # noisy captures averaged into the MAE/RMSE (decoded one at a time)
+SEED         = 1        # noise seed, so the MAEs are reproducible run to run
 PHOTON_COUNT = 400_000
 SBR          = 100.0
 SPLIT_ACQUISITION = True
@@ -120,8 +120,8 @@ RUNS = [
     # {'type': 'trapcoarse', 'k': 4, 'photon_count': PHOTON_COUNT},
     {'type': 'coarsepw', 'k': 16, 'photon_count': PHOTON_COUNT, 'pulse_width': PULSE_WIDTH ,  'simulated': True},
     {'type': 'coarsepw', 'k': 64, 'photon_count': PHOTON_COUNT, 'pulse_width': PULSE_WIDTH, 'simulated': True},
-    {'type': 'sliding', "pulse_width": PULSE_WIDTH, "shift": 200,  'photon_count': PHOTON_COUNT, "gate_width": N_TBINS // 3,  'simulated': True},
-    {'type': 'sliding', "pulse_width": PULSE_WIDTH, "shift": 50,  'photon_count': PHOTON_COUNT, "gate_width": N_TBINS // 3, 'simulated': True},
+    {'type': 'sliding', "pulse_width": PULSE_WIDTH, "shift": 600,  'photon_count': PHOTON_COUNT, "gate_width": N_TBINS // 3,  'simulated': True},
+    {'type': 'sliding', "pulse_width": PULSE_WIDTH, "shift": 62,  'photon_count': PHOTON_COUNT, "gate_width": N_TBINS // 3, 'simulated': True},
 
     {'type': 'ham',        'k': 4, 'photon_count': PHOTON_COUNT, 'pulse_width': PULSE_WIDTH},
 
@@ -168,7 +168,7 @@ for run in RUNS:
     k = int(N_TBINS / shift) if k is None else k
 
     photon_count_base = run['photon_count']
-    photon_count = scale_photon_count(photon_count_base, cap_type, k) if SPLIT_ACQUISITION else photon_count_base // k
+    photon_count = scale_photon_count(photon_count_base, cap_type, k, ideal=True) if SPLIT_ACQUISITION else photon_count_base // k
 
     label  = f"{cap_type}_k{k}" + (f"_pw{pulse_width}" if pulse_width is not None else "")
 

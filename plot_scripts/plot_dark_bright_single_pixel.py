@@ -23,9 +23,9 @@ import numpy as np
 EXP_PATHS = [
     #[['k3_HIGHSNR'], ['k3_LOWSNR']],
     #[['k4_HIGHSNR'], ['k4_LOWSNR']]
-    # [['k8_12_16_TRAPCOARSE_HIGHSNR'], ['k8_12_16_TRAPCOARSE_LOWSNR']],
-    # [['k8_12_16_COARSE_HIGHSNR'], ['k8_12_16_COARSE_LOWSNR']]
-   [['k100_300_400_500_SLIDING_HIGHSNR'], ['k100_300_400_500_SLIDING_LOWSNR']]
+    #[['k8_12_16_TRAPCLOARSE_HIGHSNR'], ['k8_12_16_TRAPCOARSE_LOWSNR']],
+    #[['k8_12_16_COARSE_HIGHSNR'], ['k8_12_16_COARSE_LOWSNR']]
+    [['k100_300_400_500_SLIDING_HIGHSNR'], ['k100_300_400_500_SLIDING_LOWSNR']]
 ]
 
 N_TBINS = 2000
@@ -225,11 +225,28 @@ if __name__ == '__main__':
 
       all_depths_dicts.append(row_depths_dicts)
 
+    # same look as plot_gate_sweeping_bounds.py / plot_coarse_binning_bounds.py
+    plt.rcParams.update({
+        "font.size": 24,
+        "axes.titlesize": 26,
+        "axes.labelsize": 26,
+        "xtick.labelsize": 24,
+        "ytick.labelsize": 24,
+        "legend.fontsize": 20,
+        "axes.titleweight": "bold",
+        "axes.linewidth": 2,
+        "xtick.major.width": 2,
+        "ytick.major.width": 2,
+        "xtick.major.size": 8,
+        "ytick.major.size": 8,
+    })
+    # data lines in the bounds plots' Monte Carlo marker style (filled dots with a white edge)
+    line_style = dict(lw=3.5, marker="o", ms=10, mec="white", mew=1.5, zorder=3)
 
     n_rows = len(exp_paths)
     n_cols = max(len(row) for row in exp_paths)
     fig, axs = plt.subplots(n_rows, n_cols,
-                            figsize=(6 * n_cols, 4 * n_rows), squeeze=False)
+                            figsize=(7.5 * n_cols, 6 * n_rows), squeeze=False)
 
     # per-cell bookkeeping for the shared-axis / shared-title post-pass
     cell_title = [[None] * n_cols for _ in range(n_rows)]
@@ -239,6 +256,14 @@ if __name__ == '__main__':
       # hide any unused axes in a short row
       for j in range(len(row_depths_dicts), n_cols):
           axs[i][j].set_axis_off()
+
+      # K goes in the legend only when a panel mixes several K; otherwise it labels the row
+      row_ks = sorted({d['k'] for depths_dict in row_depths_dicts for d in depths_dict})
+      k_in_legend = any(len({d['k'] for d in depths_dict}) > 1 for depths_dict in row_depths_dicts)
+      if not k_in_legend and row_ks:
+          axs[i][0].annotate(f"K = {', '.join(str(rk) for rk in row_ks)}", xy=(0, 0.5),
+                             xycoords='axes fraction', xytext=(-105, 0), textcoords='offset points',
+                             rotation=90, ha='center', va='center', fontweight='bold')
 
       for j, depths_dict in enumerate(row_depths_dicts):
         ax = axs[i][j]
@@ -260,33 +285,31 @@ if __name__ == '__main__':
             ax.plot(
                 int_times,
                 error,
-                marker='o',
-                linewidth=2,
-                markerfacecolor='none',
-                markeredgewidth=2,
-                label=get_string_name(capture_type, None, True) + f" (K={k})",
-                color=get_cap_color(capture_type, k)
+                label=get_string_name(capture_type, None, True) + (f" (K={k})" if k_in_legend else ""),
+                color=get_cap_color(capture_type, k),
+                **line_style,
             )
             #ax.set_ylim(0, 200)
             xmax = max(xmax, max(int_times))
+        sliding = any(d['capture_type'] == 'sliding' for d in depths_dict)
         add_tmp = 1 if sliding else 0.02
         ax.set_xlim(-0.01, xmax + add_tmp)
         ax.set_ylim(0, 25)
         cell_xmax[i][j]  = round(xmax, 6)
         cell_title[i][j] = get_single_pixel_title(exp_paths[i][j])
-        ax.legend(fontsize=14, framealpha=1, facecolor='white', edgecolor='black')
-        ax.set_xlabel('Total Integration Time (seconds)', fontsize=16)
-        if ERROR_TYPE == "MAE":
-            ax.set_ylabel('Mean Abs. Error (mm)', fontsize=16)
-        elif ERROR_TYPE == "RMSE":
-            ax.set_ylabel('Mean Squared Depth Error (mm)', fontsize=16)
+        ax.set_xlabel('Total Exposure Time (s)')
+        # every panel shares the 0-25 mm range, so label the y-axis on the first column only
+        if j == 0:
+            if ERROR_TYPE == "MAE":
+                ax.set_ylabel('Mean Abs. Error (mm)')
+            elif ERROR_TYPE == "RMSE":
+                ax.set_ylabel('Depth RMSE (mm)')
+            else:
+                raise ValueError(f"Unknown error type {ERROR_TYPE}")
         else:
-            raise ValueError(f"Unknown error type {ERROR_TYPE}")
-        ax.tick_params(axis='both', labelsize=14)
-        ax.grid(True, alpha=0.5)
-        for spine in ax.spines.values():
-            spine.set_linewidth(2)
-            spine.set_edgecolor('black')
+            ax.tick_params(axis='y', labelleft=False)
+        ax.grid(True, which='major', color='0.9', lw=1.2)
+        ax.spines[['top', 'right']].set_visible(False)
 
     # ---- per-column post-pass: shared x-axis + shared column titles ----
     for j in range(n_cols):
@@ -310,16 +333,25 @@ if __name__ == '__main__':
         titles = {cell_title[i][j] for i in rows_present}
         if len(titles) == 1:
             top = rows_present[0]
-            axs[top][j].set_title(cell_title[top][j], fontsize=24, fontweight='bold')
+            axs[top][j].set_title(cell_title[top][j])
             for i in rows_present[1:]:
                 axs[i][j].set_title("")
         else:
             for i in rows_present:
-                axs[i][j].set_title(cell_title[i][j], fontsize=24, fontweight='bold')
+                axs[i][j].set_title(cell_title[i][j])
 
-    #plt.rcParams['svg.fonttype'] = 'path'
-    #timeslicing = if
-    plt.subplots_adjust(wspace=0.2, hspace=0.05)
+    # one legend under the figure; panels repeat the same captures, so keep each label once
+    legend_entries = {}
+    for ax in axs.flat:
+        for handle, label in zip(*ax.get_legend_handles_labels()):
+            legend_entries.setdefault(label, handle)
+    fig.tight_layout()
+    fig.legend(list(legend_entries.values()), list(legend_entries.keys()), loc='upper center',
+               bbox_to_anchor=(0.5, 0.0), ncol=len(legend_entries), frameon=False)
+    #fig.suptitle(rf"Gate Binning: MAE vs Exposure", y=1.05, fontweight="bold")
+    fig.suptitle(rf"Gate Sweeping: MAE vs Exposure", y=1.05, fontweight="bold")
+
     plt.savefig(f'figures/single_pixel_k{k}.pdf', dpi=300, bbox_inches='tight', pad_inches=0.1)
+
     plt.show()
     print(len(all_depths_dicts))

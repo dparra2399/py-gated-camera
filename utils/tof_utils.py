@@ -334,6 +334,18 @@ def decode_single_pixel_experiment(
     return depths, recon, n_pixels
 
 
+def decode_single_pixel_loo_gt(coded_vals, coding_matrix, tbin_depth_res, y_pixels, x_pixels):
+    """Leave-one-out ground truth: trial t is decoded from every ROI pixel of all *other* trials,
+    so it shares no photons with the trial being evaluated. Axis 0 of coded_vals is trials.
+    Always ZNCC, for every capture type, matching the previous ground-truth decode.
+    """
+    y_pixels, x_pixels = resolve_roi_pixels(coded_vals, y_pixels, x_pixels)
+    sub = coded_vals[..., y_pixels[0]:y_pixels[1], x_pixels[0]:x_pixels[1], :]
+    per_trial = sub.sum(axis=(-3, -2))                       # (trials, ..., K)
+    others = per_trial.sum(axis=0, keepdims=True) - per_trial
+    return zncc_decoding(others, coding_matrix, tbin_depth_res)
+
+
 def decode_per_pixel_experiment(
     capture_type: str,
     coded_vals: np.ndarray,
@@ -684,8 +696,10 @@ def simulate_counts_shared_illum(illum, coding_matrix, depths, photon_count, sbr
     return shifted_illums, coded_values
 
 
-def decode_simulation_depths(coding_matrix, coded_values, depths, trials, tbin_depth_res):
-    rng = np.random.default_rng()
+def decode_simulation_depths(coding_matrix, coded_values, depths, trials, tbin_depth_res, rng=None):
+    # pass a seeded generator for reproducible noise; default is a fresh unseeded one
+    if rng is None:
+        rng = np.random.default_rng()
     noisy_coded_values = rng.poisson(
         coded_values,
         size=(trials, coded_values.shape[0], coded_values.shape[1]),

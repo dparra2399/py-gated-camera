@@ -14,9 +14,9 @@ from utils.tof_utils import (
 # =============================================================================
 # Global parameters
 # =============================================================================
-N_TBINS      = 1500
+N_TBINS      = 10000
 TRIALS       = 500
-PHOTON_COUNT = 3000
+PHOTON_COUNT = 5_000
 SBR          = 1.0
 SPLIT_ACQUISITION = True
 REP_RATE = 5e6
@@ -33,16 +33,16 @@ DEPTH_SAMPLE = 0.1
 #   photon_count  : photons per measurement (tune per scheme as needed)
 #   simulated     : passed through to results dict (used by some plot helpers)
 # =============================================================================
-PULSE_WIDTH = 1 #int((N_TBINS // (1500)) / (2 * np.sqrt(np.log(2))))
+PULSE_WIDTH = int((N_TBINS // (200)) / (2 * np.sqrt(np.log(2))))
 
 RUNS = [
     #{'type': 'ham',      'k': 3, 'photon_count': PHOTON_COUNT, 'pulse_width':  PULSE_WIDTH,},
-    #{'type': 'coarse',   'k': 3, 'photon_count': PHOTON_COUNT, 'simulated': True},
+    {'type': 'coarse',   'k': 200, 'photon_count': PHOTON_COUNT, 'simulated': True},
     #{'type': 'trapcoarse', 'k': 3, 'photon_count': PHOTON_COUNT, 'simulated': True},
-    {'type': 'sliding','photon_count': PHOTON_COUNT, "pulse_width": PULSE_WIDTH, "shift": 3, "gate_width":  int(N_TBINS * .6), 'simulated': True},
-    {'type': 'sliding','photon_count': PHOTON_COUNT, "pulse_width": PULSE_WIDTH, "shift": 4, "gate_width":  int(N_TBINS * .6), 'simulated': True},
-    {'type': 'sliding','photon_count': PHOTON_COUNT, "pulse_width": PULSE_WIDTH, "shift": 5, "gate_width":  int(N_TBINS * .6), 'simulated': True},
-    {'type': 'sliding','photon_count': PHOTON_COUNT, "pulse_width": PULSE_WIDTH, "shift": 8, "gate_width": int(N_TBINS * .6), 'simulated': True},
+    {'type': 'sliding','photon_count': PHOTON_COUNT, "pulse_width": PULSE_WIDTH, "shift": 50, "gate_width":  N_TBINS // 3, 'simulated': True},
+    # {'type': 'sliding','photon_count': PHOTON_COUNT, "pulse_width": PULSE_WIDTH, "shift": 4, "gate_width":  int(N_TBINS * .6), 'simulated': True},
+    # {'type': 'sliding','photon_count': PHOTON_COUNT, "pulse_width": PULSE_WIDTH, "shift": 5, "gate_width":  int(N_TBINS * .6), 'simulated': True},
+    # {'type': 'sliding','photon_count': PHOTON_COUNT, "pulse_width": PULSE_WIDTH, "shift": 8, "gate_width": int(N_TBINS * .6), 'simulated': True},
 
 
     # coarsepw — one entry per pulse width you want to test
@@ -149,6 +149,6 @@ for run in RUNS:
 # Plot
 # =============================================================================
 # plot_correlations_one_plot(results)
-# plot_coding_error(results)
+#plot_coding_error(results)
 plot_results_summary(results)
 # plot_coding_curve(results)

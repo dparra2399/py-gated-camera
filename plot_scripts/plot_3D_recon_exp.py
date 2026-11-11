@@ -13,18 +13,19 @@ from utils.parameter_classes import DecodeConfig
 # -----------------------------------------------------------------------------
 # CONFIG (capitalized)
 # -----------------------------------------------------------------------------
-EXP_PATH = os.path.join('step_stool_results', 'k8_k12_HIGHSNR')
+EXP_PATH = os.path.join('horse_results', 'k3_HIGHSNR')
 SNR_LABEL     = "highsnr" if "highsnr" in EXP_PATH.lower() else "lowsnr"
 FIGURES_DIR   = "figures"   # where the panel PDF is saved
 VMAX_ERROR    = 3.0 # meters; None = auto (95th percentile across runs)
 PLOT_POINT_CLOUD = True  # True = show point cloud PNG in top row; False = show depth map instead
+PLOT_ERROR_MAP = False    # True = error-map row on the bottom; False = no error maps, MAE / RMSE written under the top row
 ALIGN_DEPTHS = True       # shift each run's depth map so all medians match the first run
 N_TBINS = 3000
 NUM_TRIALS = 200
 TRIAL_SEED = 2   # seed for the random subset of NUM_TRIALS trials
 N_GT_TRIALS = 350  # held-out trials for the ground truth; same count for every code so all are scored alike
 
-BAD_ROWS = [(230, 260), (80, 95)]
+BAD_ROWS = [(230, 260), (80, 95)] if 'step_stool' in EXP_PATH else None
 
 #PLotting utils for visualization
 PLOT_DEPTH_MAPS = True
@@ -51,14 +52,14 @@ CORRECT_MASTER = True
 # --- point-cloud rendering (top row of the panel) ---
 # Point clouds render off-screen straight into the panel (no windows, no PNGs).
 # True = also open an interactive viewer per run first, to re-aim the camera and press S.
-INTERACTIVE_VIEWER = False
+INTERACTIVE_VIEWER = True
 # The point cloud gets its own post-processing, separate from the error maps
-PCD_BAD_ROWS = [(230, 260), (70, 95)]
-PCD_COL_CROP = (100, -100)   # tighter column crop than the error maps' (20, -20)
+PCD_BAD_ROWS = [(230, 260), (80, 95)] if 'step_stool' in EXP_PATH else None
+PCD_COL_CROP = (100, -100)  if 'step_stool' in EXP_PATH else (1, -1) # tighter column crop than the error maps' (20, -20)
 PCD_MASTER_OFFSET = 0.009    # m added to the master (left) half when CORRECT_MASTER
 PCD_VMIN = None              # shared clip range across runs; None = auto
 PCD_VMAX = None
-FOV_MAJOR_AXIS_DEG = 10.0    # horizontal FOV in degrees
+FOV_MAJOR_AXIS_DEG = 40.0    # horizontal FOV in degrees
 # Press S in the viewer window to save the current camera view; it reloads on the next run.
 CAMERA_PARAMS_FILE = "camera_params.json"
 VIEW_ZOOM = 0.8
@@ -69,9 +70,14 @@ PCD_ZOOM_OUT = 0  # mouse-wheel steps applied to the panel renders; bigger = mor
 # -----------------------------------------------------------------------------
 # POINT-CLOUD HELPERS
 # -----------------------------------------------------------------------------
-def pointcloud_depth_map(depth_map, im_width, correct_master, mask_background, median_size):
+def pointcloud_depth_map(depth_map, im_width, correct_master, mask_background, median_size, background=None):
     """Post-process a decoded depth map for the point cloud (not for the error maps)."""
     depth_map = depth_map.astype(float)
+    # mask before the master offset, otherwise zero-depth pixels become z > 0 and survive
+    if mask_background:
+        depth_map[depth_map == 0] = np.nan
+        if background is not None:
+            depth_map[background] = np.nan
     if not correct_master:
         depth_map = depth_map[:, : im_width // 2]
     else:
@@ -245,7 +251,7 @@ if __name__ == '__main__':
         duty = params['duty']
         rep_tau = params['rep_tau']
 
-        if capture_type == 'ham' and k == 4: continue
+        #if capture_type == 'ham' and k == 4: continue
 
         corr_path = os.path.join(correlation_folder, make_correlation_filename(capture_type, k,
                                                                                freq_mhz, mV, mA, duty))
@@ -270,7 +276,9 @@ if __name__ == '__main__':
                 sliding=sliding_rows,
             )
 
-        # plt.imshow(np.sum(np.sum(correlations_total, axis=-1), axis=-1))
+        # tmp = np.sum(np.sum(coded_vals, axis=0), axis=-1)
+        # tmp[tmp < 1.5e4] = 0
+        # plt.imshow(tmp)
         # plt.show()
         # mn = coding_matrix.min()
         # mx = coding_matrix.max()
@@ -302,8 +310,10 @@ if __name__ == '__main__':
 
         depth_map = filter_hot_pixels(depth_map, hot_mask)
         # copy: the error-map crop below is a view that gets edited in place
+        # same low-photon-count background mask the horse depth map gets below
+        background = np.sum(coded_vals, axis=(0, -1)) < 1.5e4 if "horse" in coded_vals_path else None
         pcd_depth_map = pointcloud_depth_map(depth_map.copy(), im_width, cfg.correct_master,
-                                             cfg.mask_background_pixels, cfg.median_filter_size)
+                                             cfg.mask_background_pixels, cfg.median_filter_size, background)
 
         coded_vals_filt = np.zeros_like(coded_vals_trials)
         for i in range(coded_vals_trials.shape[-1]):
@@ -327,7 +337,8 @@ if __name__ == '__main__':
 
         if cfg.mask_background_pixels:
             if "horse" in coded_vals_path:
-                tmp = np.sum(coded_vals_gt, axis=-1)
+                tmp = np.sum(np.sum(coded_vals, axis=0), axis=-1)
+                tmp[tmp < 1.5e4] = 0
                 depth_map[tmp < 1e4] = np.nan
 
             else:
@@ -411,4 +422,5 @@ if __name__ == '__main__':
         figures_dir=FIGURES_DIR,
         save_path=save_panel,
         plot_point_cloud=PLOT_POINT_CLOUD,
+        plot_error_map=PLOT_ERROR_MAP,
     )

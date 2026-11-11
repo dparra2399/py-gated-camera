@@ -1,3 +1,5 @@
+from fractions import Fraction
+
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
@@ -27,6 +29,7 @@ PULSE_COLOR = 'red'
 GATE_FILL   = '0.75'
 ROW_AMP     = 0.7    # waveform height within its row (rows are spaced 1 apart)
 X_MARGIN    = 0.1    # gate baselines drawn past each end of the period, as a fraction of tau
+ANNOT_SIZE  = FONT_SIZE - 2   # w_p / D / W / Delta annotations
 
 
 def to_unit(wave):
@@ -54,6 +57,39 @@ def extend_period(wave, n_margin):
     return idx, np.where((idx >= 0) & (idx < len(wave)), wave[idx % len(wave)], 0)
 
 
+def tau_fraction(n_bins):
+    """A duration of `n_bins` time bins as a fraction of the period, e.g. tau/3, 2tau/3 or 0.18 tau.
+    Math-mode text without the $...$, so it can sit inside a larger label."""
+    exact = n_bins / N_TBINS
+    frac = Fraction(exact).limit_denominator(12)
+    if abs(frac - exact) > 0.01 * exact:
+        return rf'{exact:.2f}\,\tau'
+    num = '' if frac.numerator == 1 else str(frac.numerator)
+    return rf'{num}\tau' if frac.denominator == 1 else rf'{num}\tau/{frac.denominator}'
+
+
+def half_max_run(wave):
+    """(start bin, length in bins) of the part of `wave` at or above half its maximum.
+    A run that wraps past tau starts at its later end; None if the wave has several runs."""
+    on = np.flatnonzero(wave >= 0.5 * wave.max())
+    gaps = np.flatnonzero(np.diff(on) > 1)
+    if len(gaps) > 1:
+        return None
+    start = on[gaps[0] + 1] if len(gaps) else on[0]
+    return start, len(on)
+
+
+def width_arrow(ax, x_start, x_end, y, text, side='right'):
+    """Double-headed |-| arrow spanning [x_start, x_end] at height y, as in plot_3d_teaser_fig.py,
+    labelled on the right or centred above it."""
+    ax.annotate('', xy=(x_start, y), xytext=(x_end, y),
+                arrowprops=dict(arrowstyle='|-|', lw=1.5, color='k', shrinkA=0, shrinkB=0))
+    if side == 'right':
+        ax.text(x_end + 0.02 * N_TBINS, y, text, va='center', ha='left', fontsize=ANNOT_SIZE)
+    else:
+        ax.text((x_start + x_end) / 2, y + 0.08, text, va='bottom', ha='center', fontsize=ANNOT_SIZE)
+
+
 def finish_axis(ax, row_y, row_labels, x_ticks, x_labels, bottom, xlabel):
     """Teaser-style axis: rows labelled on the left, only the bottom spine kept."""
     ax.set_yticks(row_y + ROW_AMP / 2, labels=row_labels, fontsize=FONT_SIZE - 2)
@@ -66,7 +102,7 @@ def finish_axis(ax, row_y, row_labels, x_ticks, x_labels, bottom, xlabel):
     ax.spines[['top', 'right', 'left']].set_visible(False)
 
 
-def plot_illum(ax, modf):
+def plot_illum(ax, modf, width_symbol):
     # the pulse in red on a black baseline; one sample either side of the pulse stays
     # red so a rectangular pulse keeps red edges
     pulse = to_unit(np.roll(modf, MODF_SHIFT))
@@ -76,9 +112,14 @@ def plot_illum(ax, modf):
     ax.plot(np.where(on, ROW_AMP * pulse, np.nan), color=PULSE_COLOR, lw=LW)
     ax.axvline(MODF_SHIFT, color='k', linestyle=':', lw=1.5, zorder=5)   # emission, t = 0
     ax.set_xlim(0, N_TBINS - 1)
+    # width at half maximum: pulse width w_p (Gaussian FWHM) or square duty D, per width_symbol
+    run = half_max_run(pulse)
+    if run is not None:
+        start, length = run
+        width_arrow(ax, start, start + length, ROW_AMP / 2, rf'${width_symbol}={tau_fraction(length)}$')
 
 
-def plot_gates(ax, demodfs, rows):
+def plot_gates(ax, demodfs, rows, annotate=True):
     n_margin = int(np.ceil(X_MARGIN * N_TBINS))
     row_y = len(rows) - 1 - np.arange(len(rows))   # top row highest
     for y, ki in zip(row_y, rows):
@@ -89,6 +130,20 @@ def plot_gates(ax, demodfs, rows):
         ax.plot(idx, y + ROW_AMP * gate, color='k', lw=LW)
     ax.axvline(0, color='k', linestyle=':', lw=1.5, zorder=5)   # emission, t = 0
     ax.set_xlim(-n_margin, N_TBINS + n_margin)
+    if not annotate:
+        return row_y
+    # gate width W: how long the top gate is open (skipped if the gate opens more than once per period)
+    first = half_max_run(to_unit(demodfs[:, rows[0]]))
+    if first is not None:
+        start, length = first
+        width_arrow(ax, start, start + length, row_y[0] + ROW_AMP / 2, rf'$W={tau_fraction(length)}$')
+    # shift Delta: on the second gate's row, from where the first gate opens to where the second
+    # does; that stretch of the row is empty, so the label sits above the arrow
+    second = half_max_run(to_unit(demodfs[:, rows[1]])) if len(rows) > 1 and rows[1] is not None else None
+    if first is not None and second is not None:
+        shift = (second[0] - first[0]) % N_TBINS
+        width_arrow(ax, first[0], first[0] + shift, row_y[1] + ROW_AMP / 2,
+                    rf'$\Delta={tau_fraction(shift)}$', side='above')
     return row_y
 
 
@@ -150,7 +205,8 @@ for j, (capture_type, k) in enumerate(zip(TYPES, KS)):
 
     # --- col 0: modfs ---
     ax = fig.add_subplot(gs_main[j, 0])
-    plot_illum(ax, modfs if modfs.ndim == 1 else modfs[:, 0])
+    # Hamiltonian illuminates with a square wave (duty D); the other schemes with a pulse (width w_p)
+    plot_illum(ax, modfs if modfs.ndim == 1 else modfs[:, 0], 'D' if capture_type == 'ham' else 'w_p')
     finish_axis(ax, np.array([0]), [''], [MODF_SHIFT], ['0'], bottom, 'Time')
     ax.set_ylabel(get_string_name(capture_type, None, short=True), fontsize=FONT_SIZE)
     if j == 0:
@@ -158,7 +214,8 @@ for j, (capture_type, k) in enumerate(zip(TYPES, KS)):
 
     # --- col 1: demodfs, one row per gate ---
     ax = fig.add_subplot(gs_main[j, 1])
-    row_y = plot_gates(ax, demodfs, rows)
+    # Hamiltonian gates are periodic codes, not one sliding window, so W and Delta don't describe them
+    row_y = plot_gates(ax, demodfs, rows, annotate=capture_type != 'ham')
     finish_axis(ax, row_y, [r'$\vdots$' if ki is None else rf'$G_{{{ki + 1}}}$' for ki in rows],
                 [0, N_TBINS], ['0', r'$\tau$'], bottom, 'Time')
     if j == 0:

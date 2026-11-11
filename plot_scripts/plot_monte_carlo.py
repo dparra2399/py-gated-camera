@@ -11,13 +11,17 @@ from plot_scripts.plot_utils import get_cap_color, get_string_name
 # =============================================================================
 FILENAMES = [
     #"/Users/davidparra/PycharmProjects/py-gated-camera/data/monte_carlo_exp/ntbins1000_trials5000_photons300-9000_sbr0.1-10.0_K3_split_ideal_2.npz",
-    #"/Users/davidparra/PycharmProjects/py-gated-camera/data/monte_carlo_exp/ntbins1000_trials5000_photons300-9000_sbr0.1-10.0_K4_split.npz",
+    #"/Users/davidparra/PycharmProjects/py-gated-camera/data/monte_carlo_exp/ntbins1000_trials5000_photons300-9000_sbr0.1-10.0_K4_split_ideal.npz",
+    #"/Users/davidparra/PycharmProjects/py-gated-camera/data/monte_carlo_exp/ntbins1000_trials5000_photons300-9000_sbr0.1-10.0_K4_split_ideal.npz",
 
     #"/Users/davidparra/PycharmProjects/py-gated-camera/data/monte_carlo_exp/ntbins1500_trials5000_photons300-9000_sbr0.1-10.0_K8InfBandwidth_split_ideal.npz"
     #"/Users/davidparra/PycharmProjects/py-gated-camera/data/monte_carlo_exp/ntbins1500_trials5000_photons300-9000_sbr0.1-10.0_K8Bandlimited_split_ideal.npz"
 
+    # "/Users/davidparra/PycharmProjects/py-gated-camera/data/monte_carlo_exp/ntbins1500_trials5000_photons300-9000_sbr0.1-10.0_K8InfBandwidth_split_ideal.npz"
+    # "/Users/davidparra/PycharmProjects/py-gated-camera/data/monte_carlo_exp/ntbins1500_trials5000_photons300-9000_sbr0.1-10.0_K8Bandlimited_split_ideal.npz"
+
     #"/Users/davidparra/PycharmProjects/py-gated-camera/data/monte_carlo_exp/ntbins1500_trials5000_photons300-9000_sbr0.1-10.0_SlidingGood1_split_ideal.npz",
-    "/Users/davidparra/PycharmProjects/py-gated-camera/data/monte_carlo_exp/ntbins1500_trials5000_photons300-9000_sbr0.1-10.0_SlidingGood2__split_ideal.npz"
+    #"/Users/davidparra/PycharmProjects/py-gated-camera/data/monte_carlo_exp/ntbins1500_trials5000_photons300-9000_sbr0.1-10.0_SlidingGood2__split_ideal.npz"
 
 ]
 
@@ -119,11 +123,11 @@ if __name__ == "__main__":
 
 
             #
-            if cap_type == 'ham' or (k < 8):
-               continue
-
-            if k in [8, 15, 187]:
-                continue
+            # if cap_type == 'ham' or (k < 8):
+            #    continue
+            #
+            # if k in [8, 15, 187]:
+            #     continue
 
 
 
@@ -201,7 +205,7 @@ if __name__ == "__main__":
                 showgrid=True, gridcolor='lightgray', backgroundcolor='white',
                 range=[0, Z_MAX],
             ),
-            camera=dict(eye=dict(x=2.0, y=-2.0, z=1.2)),
+            camera=dict(eye=dict(x=2.0, y=-2.0, z=2.0)),
             bgcolor='white',
         )
 
