@@ -212,6 +212,59 @@ def GetHamK5(N=1000, N2=None, modDuty = 1. / 30.):
 
 	return (modFs, demodFs)
 
+
+def GetHamK6(N=1000, N2=None, modDuty = 1. / 60.):
+	"""GetHamK6: Get modulation and demodulation functions for the coding scheme HamK6.
+		60-segment Hamiltonian cycle on the 6-cube (single-bit flips, every code at 50% duty).
+		62 segments is impossible (000000 and 111111 have the same parity), so the complementary
+		odd-weight pair 000111/111000 is also excluded. Cycle picked by Monte Carlo
+		(N=1500, 5 MHz, ZNCC) out of ~1000 random candidates.
+	Args:
+		N (int): N
+	Returns:
+		modFs: NxK matrix
+		demodFs: NxK matrix
+	"""
+	#### Set some parameters
+	if N2 is None:
+		N2 = N
+	K = 6
+	dt = float(TauDefault) / float(N)
+	#### Allocate modulation and demodulation vectors
+	modFs = np.zeros((N2,K))
+	demodFs = np.zeros((N2,K))
+	#### Prepare modulation functions
+	for i in range(0,K):
+		modFs[0:math.floor(modDuty*N),i] = AveragePowerDefault
+	#### Prepare demodulation functions
+	## Make shape of function
+	demodDuty1 = np.array([30.,30.]) / 60.
+	shift1 = 30./60.
+	demodDuty2 = np.array([10.,4.,4.,3.,2.,7.,6.,3.,2.,3.,6.,10.]) / 60.
+	shift2 = 6./60.
+	demodDuty3 = np.array([30.,30.]) / 60.
+	shift3 = 14./60.
+	demodDuty4 = np.array([3.,3.,2.,5.,5.,2.,3.,6.,3.,3.,6.,3.,2.,2.,2.,3.,4.,3.]) / 60.
+	shift4 = 5./60.
+	demodDuty5 = np.array([4.,2.,3.,10.,9.,2.,2.,3.,3.,2.,9.,11.]) / 60.
+	shift5 = 3./60.
+	demodDuty6 = np.array([3.,6.,5.,2.,2.,2.,5.,6.,7.,9.,6.,3.,2.,2.]) / 60.
+	shift6 = 1./60.
+	shifts = [shift1*N, shift2*N, shift3*N, shift4*N, shift5*N, shift6*N]
+	demodDutys = [demodDuty1, demodDuty2, demodDuty3, demodDuty4, demodDuty5, demodDuty6]
+	for i in range(0,K):
+		demodDuty = demodDutys[i]
+		startIndeces = np.floor((np.cumsum(demodDuty) - demodDuty)*N)
+		endIndeces = startIndeces + np.floor(demodDuty*N) - 1
+		for j in range(len(demodDuty)):
+			if((j%2) == 0):
+				demodFs[int(startIndeces[j]):int(endIndeces[j]),i] = 1.
+
+	## Apply necessary phase shift
+	demodFs = ApplyKPhaseShifts(demodFs, shifts)
+
+	return (modFs, demodFs)
+
 def GetMultiFreqCosK5(N=1000, highFreqFactor=7.):
 	"""GetMultiFreqCos: Returns a coding scheme based on square waves that goes the following way. 
 	Let w be the repetition frequency. The first code is a SqCode with rep freq w. The second

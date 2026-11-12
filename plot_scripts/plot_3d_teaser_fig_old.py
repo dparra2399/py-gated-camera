@@ -16,6 +16,7 @@ sys.path.append('.')
 
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.transforms import offset_copy
 import open3d as o3d
 from scipy.ndimage import median_filter
 
@@ -76,14 +77,17 @@ MAX_GATE_ROWS = 4   # gate rows per panel; more gates show the first few, ⋮, a
 ROW_AMP = 0.7       # waveform height within its row (rows are spaced 1 apart)
 X_MARGIN = 0.1     # baseline drawn past each end of the period, as a fraction of tau
 
-# --- traffic-light labels under the gate count and MAE in each title ---
-TRAFFIC_COLORS = ("#2ca02c", "#e6b800", "#d62728")   # green / yellow / red = good / medium / bad
-BANDWIDTH_EDGES = (10, 80)   # K < 20 low, 20 <= K < 80 medium, K >= 80 high
-BANDWIDTH_LABELS = ("Low Bandwidth", "Medium Bandwidth", "High Bandwidth")
-# error labels are relative to the schemes shown: the lowest MAE is "low", the
-# highest "high", the rest "medium"; schemes within 2 standard errors of the
-# best (or worst) count as tied with it and share its label
-ERROR_LABELS = ("Low Error", "Medium Error", "High Error")
+# --- arrows above the renders comparing pairs of runs ---
+# (index of left run in RUNS, index of right run, label, colour); the arrow
+# points from the left face to the right one, i.e. towards more gates. Give the
+# same index twice for a label over a single face with no arrow
+ARROWS = [
+    (0, 1, "Binning: more gates = higher error", "#d62728"),
+    (2, 3, "Sweeping: more gates = same error", "#2ca02c"),
+    (4, 4, "Hamiltonian: \n fewer gates = decent precision", "#1f77b4"),
+]
+ARROW_Y_PT = 15     # arrow height above the top of the renders, in points
+ARROW_LW = 3
 plt.rcParams.update({
     'font.size': FONT_SIZE,
     'axes.titlesize': FONT_SIZE,
@@ -96,6 +100,7 @@ plt.rcParams.update({
 })
 
 COL_W, GATE_H = 5, 5     # inches per column / height of the gate row
+PLOT_GATES = False        # False = only the 3-D renders, no gate/pulse timing row
 
 # =============================================================================
 # Simulation parameters (same meaning as in test.py)
@@ -109,7 +114,7 @@ SPLIT_ACQUISITION = True
 REP_RATE = 10e6         # 100 ns period, matches the scan
 REP_TAU  = float(1 / REP_RATE)
 
-K_0 = 16
+K_0 = 8
 PULSE_WIDTH = int((N_TBINS // (K_0)) / (2 * np.sqrt(np.log(2))))
 
 print(PULSE_WIDTH)
@@ -118,11 +123,10 @@ RUNS = [
     # {'type': 'ham',        'k': 4, 'photon_count': PHOTON_COUNT, 'pulse_width': PULSE_WIDTH},
     # {'type': 'coarse',     'k': 4, 'photon_count': PHOTON_COUNT},
     # {'type': 'trapcoarse', 'k': 4, 'photon_count': PHOTON_COUNT},
-    {'type': 'coarsepw', 'k': 16, 'photon_count': PHOTON_COUNT, 'pulse_width': PULSE_WIDTH ,  'simulated': True},
+    {'type': 'coarsepw', 'k': 4, 'photon_count': PHOTON_COUNT, 'pulse_width': int((N_TBINS // (4)) / (2 * np.sqrt(np.log(2)))) ,  'simulated': True},
     {'type': 'coarsepw', 'k': 64, 'photon_count': PHOTON_COUNT, 'pulse_width': PULSE_WIDTH, 'simulated': True},
-    {'type': 'sliding', "pulse_width": PULSE_WIDTH, "shift": 600,  'photon_count': PHOTON_COUNT, "gate_width": N_TBINS // 3,  'simulated': True},
+    {'type': 'sliding', "pulse_width": int((N_TBINS // (4)) / (2 * np.sqrt(np.log(2)))), "shift": 2500,  'photon_count': PHOTON_COUNT, "gate_width": N_TBINS // 3,  'simulated': True},
     {'type': 'sliding', "pulse_width": PULSE_WIDTH, "shift": 62,  'photon_count': PHOTON_COUNT, "gate_width": N_TBINS // 3, 'simulated': True},
-
     {'type': 'ham',        'k': 4, 'photon_count': PHOTON_COUNT, 'pulse_width': PULSE_WIDTH},
 
 ]
@@ -400,8 +404,11 @@ render_aspect = (r1 - r0) / (c1 - c0)   # height / width of the cropped renders
 # Plot
 # =============================================================================
 render_h = COL_W * render_aspect   # top row sized to the cropped render, no letterboxing
-fig, axes = plt.subplots(2, len(results), figsize=(COL_W * len(results), render_h + GATE_H + 1),
-                         squeeze=False, gridspec_kw={'height_ratios': [render_h, GATE_H]},
+n_plot_rows = 2 if PLOT_GATES else 1
+height_ratios = [render_h, GATE_H] if PLOT_GATES else [render_h]
+fig, axes = plt.subplots(n_plot_rows, len(results),
+                         figsize=(COL_W * len(results), sum(height_ratios) + 1),
+                         squeeze=False, gridspec_kw={'height_ratios': height_ratios},
                          constrained_layout=True)
 
 t_ns = t_domain * 1e9
@@ -437,28 +444,45 @@ def stacked_title(ax, lines, pad=6):
                     color=color, fontsize=size, fontweight=weight)
         y += size * 1.25
 
-# traffic-light levels: 0 = low (green), 1 = medium (yellow), 2 = high (red)
-best = min(results, key=lambda r: r['mae'])
-worst = max(results, key=lambda r: r['mae'])
-def tied(a, b):
-    return abs(a['mae'] - b['mae']) <= 2 * np.hypot(a['mae_se'], b['mae_se'])
-for res in results:
-    res['bandwidth_level'] = int(np.searchsorted(BANDWIDTH_EDGES, res['k'], side='right'))
-    res['error_level'] = 0 if tied(res, best) else 2 if tied(res, worst) else 1
+def pair_arrow(ax_a, ax_b, text, color):
+    """Arrow from above the centre of `ax_a` to above the centre of `ax_b`, labelled at its midpoint.
+
+    If `ax_a` is `ax_b` there is nothing to compare, so only the label is
+    drawn, centred above that one render at the arrows' height.
+    """
+    above = lambda ax: offset_copy(ax.transAxes, fig=fig, y=ARROW_Y_PT, units="points")
+    if ax_a is ax_b:
+        label = ax_a.annotate(text, xy=(0.5, 1), xycoords=above(ax_a), xytext=(0, 6),
+                              textcoords="offset points", ha="center", va="bottom",
+                              color=color, fontsize=FONT_SIZE + 4, fontweight="bold")
+        label.set_in_layout(False)
+        return [label]
+    arrow = ax_a.annotate("", xy=(0.5, 1), xycoords=above(ax_b), xytext=(0.5, 1), textcoords=above(ax_a),
+                          arrowprops=dict(arrowstyle="-|>,head_width=0.5,head_length=1",
+                                          lw=ARROW_LW, color=color, shrinkA=0, shrinkB=0))
+    # label positioned relative to the arrow itself, so it stays centred
+    # wherever the layout puts the two columns
+    label = ax_a.annotate(text, xy=(0.5, 1), xycoords=arrow.arrow_patch, xytext=(0, 6),
+                          textcoords="offset points", ha="center", va="bottom",
+                          color=color, fontsize=FONT_SIZE + 4, fontweight="bold")
+    # the arrow spans two columns, so if constrained_layout counted it as part
+    # of ax_a it would shrink the renders and push the columns apart; keep it
+    # out of the layout and add it back when cropping the saved figure instead
+    for artist in (arrow, label):
+        artist.set_in_layout(False)
+    return [arrow, label]
 
 for col, res in enumerate(results):
     axes[0, col].imshow(res['render'])
-    # if res['k'] == K_0:
-    #     title = 'Less Gates'
-    # else:
-    #     title = 'More Gates'
-    bw, err = res['bandwidth_level'], res['error_level']
-    stacked_title(axes[0, col], [
-        (f"Gate Count: {res['k']}", "k", 30, "normal"),
-        (BANDWIDTH_LABELS[bw], TRAFFIC_COLORS[bw], 24, "bold"),
-        (f"MAE {res['mae']:.1f} mm", "k", 30, "normal"),
-        (ERROR_LABELS[err], TRAFFIC_COLORS[err], 24, "bold"),
-    ])
+    axes[0, col].text(
+        0.5, 0.02, f"Gate Count: {res['k']}\nMAE {res['mae']:.1f} mm",
+        transform=axes[0, col].transAxes, color="white", fontsize=FONT_SIZE,
+        ha="center", va="bottom", multialignment="center",
+        bbox=dict(facecolor="black", alpha=0.8, pad=2),
+    )
+
+    if not PLOT_GATES:
+        continue
 
     ax = axes[1, col]
     gates = res['gates']
@@ -573,6 +597,12 @@ for ax in axes[0]:
     ax.set_xticks([])
     ax.set_yticks([])
     ax.spines[:].set_visible(False)
+
+arrow_artists = []
+for i_a, i_b, text, color in ARROWS:
+    arrow_artists += pair_arrow(axes[0, i_a], axes[0, i_b], text, color)
 plt.subplots_adjust(left=0.05, right=0.05, top=0.05, bottom=0.05)
-plt.savefig("figures/3d_teaser_fig.pdf", bbox_inches="tight")
+# the arrows are out of the layout, so list them explicitly or the tight crop cuts them off
+plt.savefig("figures/3d_teaser_fig.pdf", bbox_inches="tight",
+            bbox_extra_artists=fig.get_default_bbox_extra_artists() + arrow_artists)
 plt.show()

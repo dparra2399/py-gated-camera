@@ -1,15 +1,15 @@
 """Plot the depth-error lower bounds from Theorem 1 and Corollaries 1 and 2.
 
 The pulse FWHM is w_p = kappa * s with kappa = 2 sqrt(2 ln 2).
-Fixed pulse:   w_p = tau / K0, i.e. s = tau / (kappa K0), the same for every K   (Corollary 2)
-Scaled pulse:  w_p = tau / K,  i.e. s = tau / (kappa K), shrinks as K grows      (Corollary 1)
+mismatched pulse:   w_p = tau / K0, i.e. s = tau / (kappa K0), the same for every K   (Corollary 2)
+matched pulse:  w_p = tau / K,  i.e. s = tau / (kappa K), shrinks as K grows      (Corollary 1)
 
 Both curves use the same Theorem 1 formulas; the only difference is the s you pass in.
 
 Monte Carlo lines follow test.py: codes from get_code, counts from simulate_counts_shared_illum,
 photons split with scale_photon_count, ZNCC decoding with decode_simulation_depths, error against
-the true depths. Scaled pulse uses 'coarse' / 'trapcoarse' (built-in pulse, FWHM = n_tbins // K bins),
-fixed pulse uses 'coarsepw' / 'trapcoarsepw' with the K = K0 width, like test.py's coarsepw runs.
+the true depths. matched pulse uses 'coarse' / 'trapcoarse' (built-in pulse, FWHM = n_tbins // K bins),
+mismatched pulse uses 'coarsepw' / 'trapcoarsepw' with the K = K0 width, like test.py's coarsepw runs.
 SBR is the global SBR passed to the simulator, as in test.py; the bounds use the matching
 background rate a = n / (SBR tau), so every scheme and every K sees the same scene.
 """
@@ -24,10 +24,10 @@ from utils.tof_utils import (get_code, simulate_counts_shared_illum, decode_simu
 # ---------------- parameters (edit these) ----------------
 c = 3e8          # speed of light (m/s)
 tau = 100e-9     # laser period (s)
-K0 = 8           # gate count the fixed pulse is matched to
+K0 = 8           # gate count the mismatched pulse is matched to
 kappa = 2 * np.sqrt(2 * np.log(2))  # FWHM / standard deviation of a Gaussian pulse
-s_fixed = tau / (kappa * K0)  # fixed pulse standard deviation (s)
-rhos = [2]    # overlap factors, one row each: 1 = triangle coding, 2 = trapezoidal coding
+s_mismatched = tau / (kappa * K0)  # mismatched pulse standard deviation (s)
+rhos = [1]    # overlap factors, one row each: 1 = triangle coding, 2 = trapezoidal coding
 N = 5000         # total expected signal photons over the exposure
 T = 1e-3         # total exposure time (s)
 SBR = 0.1        # global signal-to-background ratio over the whole period, same definition as test.py
@@ -71,24 +71,24 @@ def sigma_background(K, s, rho):
 
 
 def sigma_background_simple(K, s, rho):
-    """Corollary 2(ii): weaker bound that grows as sqrt(K), fixed s."""
+    """Corollary 2(ii): weaker bound that grows as sqrt(K), mismatched s."""
     return (c / 2) * np.sqrt(4 * np.sqrt(np.pi) * s**3 * a * K / (rho * N * n))
 
 
 # ---------------- evaluate ----------------
-s_scaled = tau / (kappa * K)
+s_matched = tau / (kappa * K)
 to_mm = 1e3
 
 
 def bound_curves(rho):
     return {
         "No background": {
-            "fixed": sigma_no_background(K, s_fixed, rho) * to_mm,
-            "scaled": sigma_no_background(K, s_scaled, rho) * to_mm,
+            "mismatched": sigma_no_background(K, s_mismatched, rho) * to_mm,
+            "matched": sigma_no_background(K, s_matched, rho) * to_mm,
         },
         "With background": {
-            "fixed": sigma_background(K, s_fixed, rho) * to_mm,
-            "scaled": sigma_background(K, s_scaled, rho) * to_mm,
+            "mismatched": sigma_background(K, s_mismatched, rho) * to_mm,
+            "matched": sigma_background(K, s_matched, rho) * to_mm,
         },
     }
 
@@ -97,16 +97,16 @@ def bound_curves(rho):
 (_, _, _, _, max_depth, tbin_depth_res) = calculate_tof_domain_params(n_tbins, tau)
 mc_depths = np.arange(depth_margin, max_depth - depth_margin, depth_step)
 mc_sbrs = {"No background": np.inf, "With background": SBR}
-# fixed pulse: the width get_code('coarse') uses at K = K0, as in test.py's coarsepw runs
-fixed_pulse_width = (n_tbins // K0) / (2 * np.sqrt(np.log(2)))
+# mismatched pulse: the width get_code('coarse') uses at K = K0, as in test.py's coarsepw runs
+mismatched_pulse_width = (n_tbins // K0) / (2 * np.sqrt(np.log(2)))
 
 
-def mc_rmse(Kval, rho, sbr, fixed):
+def mc_rmse(Kval, rho, sbr, mismatched):
     """Simulated depth RMSE (mm) for one K, overlap rho, global SBR and pulse mode, run like test.py."""
     cap_type = "coarse" if rho == 1 else "trapcoarse"
-    if fixed:
+    if mismatched:
         cap_type += "pw"
-        illum, cm, coding_matrix = get_code(cap_type, Kval, n_tbins, pulse_width=fixed_pulse_width)
+        illum, cm, coding_matrix = get_code(cap_type, Kval, n_tbins, pulse_width=mismatched_pulse_width)
     else:
         illum, cm, coding_matrix = get_code(cap_type, Kval, n_tbins)
     _, coded_values = simulate_counts_shared_illum(
@@ -133,15 +133,18 @@ def mc_curves(rho):
     if not recompute_mc and os.path.exists(cache):
         saved = np.load(cache)
         if saved["params"].shape == params.shape and np.allclose(saved["params"], params):
-            return {title: {"fixed": saved[f"{title}_fixed"], "scaled": saved[f"{title}_scaled"]}
-                    for title in mc_sbrs}
-
+            try:
+                return {title: {"mismatched": saved[f"{title}_mismatched"], "matched": saved[f"{title}_matched"]}
+                        for title in mc_sbrs}
+            except:
+                return {title: {"mismatched": saved[f"{title}_fixed"], "matched": saved[f"{title}_scaled"]}
+                        for title in mc_sbrs}
     out = {}
     for title, sbr in mc_sbrs.items():
         print(f"Monte Carlo rho={rho}, {title}...")
         out[title] = {
-            "fixed": np.array([mc_rmse(k, rho, sbr, fixed=True) for k in K]),
-            "scaled": np.array([mc_rmse(k, rho, sbr, fixed=False) for k in K]),
+            "mismatched": np.array([mc_rmse(k, rho, sbr, mismatched=True) for k in K]),
+            "matched": np.array([mc_rmse(k, rho, sbr, mismatched=False) for k in K]),
         }
     os.makedirs(os.path.dirname(cache), exist_ok=True)
     np.savez(cache, params=params,
@@ -178,11 +181,11 @@ mc_style = dict(lw=3.5, ls=":", marker="o", ms=10, mec="white", mew=1.5, zorder=
 for row, rho in enumerate(rhos):
     mc = mc_curves(rho) if run_mc else None
     for ax, (title, cur) in zip(axes[row], bound_curves(rho).items()):
-        ax.plot(K, cur["fixed"], color=BLUE, lw=5, label=r"CRLB bound, fixed pulse ($w_p=\tau/K_0$)")
-        ax.plot(K, cur["scaled"], color=ORANGE, lw=5, label=r"CRLB bound, scaled pulse ($w_p=\tau/K$)")
+        ax.plot(K, cur["mismatched"], color=BLUE, lw=5, label=r"CRLB bound, mismatched pulse ($w_p=\tau/K_0$)")
+        ax.plot(K, cur["matched"], color=ORANGE, lw=5, label=r"CRLB bound, matched pulse ($w_p=\tau/K$)")
         if mc is not None:
-            ax.plot(K, mc[title]["fixed"], color=BLUE, label="Monte Carlo, fixed pulse", **mc_style)
-            ax.plot(K, mc[title]["scaled"], color=ORANGE, label="Monte Carlo, scaled pulse", **mc_style)
+            ax.plot(K, mc[title]["mismatched"], color=BLUE, label="Monte Carlo, mismatched pulse", **mc_style)
+            ax.plot(K, mc[title]["matched"], color=ORANGE, label="Monte Carlo, matched pulse", **mc_style)
 
         ax.set_yscale("log")
         ax.yaxis.set_major_locator(LogLocator(subs=(1, 2, 5)))

@@ -761,7 +761,8 @@ def get_single_pixel_title(paths):
 
 def plot_3d_recon_comparison(runs, snr_label="", vmax_error=None,
                               figures_dir="plot_scripts/figures", save_path=None,
-                              plot_point_cloud=True, plot_error_map=True):
+                              plot_point_cloud=True, plot_error_map=True,
+                              recon_label='Point Cloud Reconstruction'):
     n = len(runs)
     # without the error-map row, MAE / RMSE go underneath the top row instead
     n_rows = 2 if plot_error_map else 1
@@ -800,7 +801,7 @@ def plot_3d_recon_comparison(runs, snr_label="", vmax_error=None,
             else:
                 ax_top.text(0.5, 0.5, f'No image\n({png_path})',
                             ha='center', va='center', transform=ax_top.transAxes, fontsize=8)
-            top_row_label = 'Point Cloud Reconstruction'
+            top_row_label = recon_label
         else:
             ax_top.imshow(r['depth_map'], vmin=depth_vmin, vmax=depth_vmax)
             top_row_label = 'Depth Map'

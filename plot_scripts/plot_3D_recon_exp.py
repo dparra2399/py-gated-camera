@@ -1,5 +1,7 @@
 import numpy as np
 import open3d as o3d
+from matplotlib.path import Path as MplPath
+from matplotlib.widgets import PolygonSelector
 from scipy.ndimage import median_filter
 
 from spad_lib.spad512utils import *
@@ -13,29 +15,34 @@ from utils.parameter_classes import DecodeConfig
 # -----------------------------------------------------------------------------
 # CONFIG (capitalized)
 # -----------------------------------------------------------------------------
-EXP_PATH = os.path.join('horse_results', 'k3_HIGHSNR')
+EXP_PATH = 'exp_0' #os.path.join('horse_results', 'k3_HIGHSNR')
 SNR_LABEL     = "highsnr" if "highsnr" in EXP_PATH.lower() else "lowsnr"
 FIGURES_DIR   = "figures"   # where the panel PDF is saved
-VMAX_ERROR    = 3.0 # meters; None = auto (95th percentile across runs)
-PLOT_POINT_CLOUD = True  # True = show point cloud PNG in top row; False = show depth map instead
-PLOT_ERROR_MAP = False    # True = error-map row on the bottom; False = no error maps, MAE / RMSE written under the top row
+VMAX_ERROR    = 10.0 # meters; None = auto (95th percentile across runs)
+PLOT_POINT_CLOUD = False  # True = show point cloud PNG in top row; False = show depth map instead
+PLOT_ERROR_MAP = True    # True = error-map row on the bottom; False = no error maps, MAE / RMSE written under the top row
 ALIGN_DEPTHS = True       # shift each run's depth map so all medians match the first run
 N_TBINS = 3000
 NUM_TRIALS = 200
-TRIAL_SEED = 2   # seed for the random subset of NUM_TRIALS trials
-N_GT_TRIALS = 350  # held-out trials for the ground truth; same count for every code so all are scored alike
+TRIAL_SEED = 0   # seed for the random subset of NUM_TRIALS trials
+N_GT_TRIALS = 600  # held-out trials for the ground truth; same count for every code so all are scored alike
 
 BAD_ROWS = [(230, 260), (80, 95)] if 'step_stool' in EXP_PATH else None
 
 #PLotting utils for visualization
 PLOT_DEPTH_MAPS = True
-VMINS = None
-VMAXS = None
-MEDIAN_FILTER_SIZE = 1
+VMINS = 9
+VMAXS = 10
+MEDIAN_FILTER_SIZE = 3
 
 #Masking or normalizing depth maps
 NORMALIZE_DEPTH_MAPS = False
 MASK_BACKGROUND_PIXELS = True
+# Background mask (used when MASK_BACKGROUND_PIXELS): a hand-drawn polygon ROI, one per scene.
+# Drawn once on the first run, saved to ROI_MASK_FILE, and reused by every code / k after that.
+# Clicking needs a real window: turn off PyCharm's "Show plots in tool window" (Settings > Tools > Python Plots).
+ROI_MASK_FILE = os.path.join(FIGURES_DIR, f"roi_mask_{os.path.basename(os.path.normpath(EXP_PATH))}.npy")
+ROI_REDRAW = False         # True = ignore the saved mask and draw a new one
 
 #Which correlation functions to use
 SIMULATED_CORRELATIONS = False
@@ -53,18 +60,67 @@ CORRECT_MASTER = True
 # Point clouds render off-screen straight into the panel (no windows, no PNGs).
 # True = also open an interactive viewer per run first, to re-aim the camera and press S.
 INTERACTIVE_VIEWER = True
+# What the top row shows when PLOT_POINT_CLOUD: 'pointcloud' = raw back-projected points,
+# 'poisson' = watertight surface from Poisson surface reconstruction, trimmed to where the points are
+RECON_MODE = 'pointcloud'
+POISSON_DEPTH = 9               # octree depth; higher = finer detail but follows noise more (8-10 typical)
+POISSON_DENSITY_QUANTILE = 0.05 # drop mesh vertices in the lowest X of point support (Poisson's invented surface)
+NORMAL_RADIUS_MULT = 4.0        # normal-estimation radius, in multiples of the mean point spacing
+MESH_COLOR = (0.7, 0.7, 0.7)    # flat mesh color; shading comes from the lighting
 # The point cloud gets its own post-processing, separate from the error maps
 PCD_BAD_ROWS = [(230, 260), (80, 95)] if 'step_stool' in EXP_PATH else None
 PCD_COL_CROP = (100, -100)  if 'step_stool' in EXP_PATH else (1, -1) # tighter column crop than the error maps' (20, -20)
-PCD_MASTER_OFFSET = 0.009    # m added to the master (left) half when CORRECT_MASTER
-PCD_VMIN = None              # shared clip range across runs; None = auto
-PCD_VMAX = None
-FOV_MAJOR_AXIS_DEG = 40.0    # horizontal FOV in degrees
+PCD_MASTER_OFFSET = 0.000    # m added to the master (left) half when CORRECT_MASTER
+PCD_VMIN = VMINS             # shared depth range (m) across runs; points outside it are dropped; None = auto
+PCD_VMAX = VMAXS
+FOV_MAJOR_AXIS_DEG = 5.0    # horizontal FOV in degrees
 # Press S in the viewer window to save the current camera view; it reloads on the next run.
 CAMERA_PARAMS_FILE = "camera_params.json"
 VIEW_ZOOM = 0.8
 SHOW_AXES = False
 PCD_ZOOM_OUT = 0  # mouse-wheel steps applied to the panel renders; bigger = more zoomed out, 0 = saved view
+
+
+# -----------------------------------------------------------------------------
+# BACKGROUND-MASK HELPERS
+# -----------------------------------------------------------------------------
+def draw_roi_mask(image, save_path):
+    """Draw a polygon on `image` and save a boolean mask of the same shape (True = keep)."""
+    fig, ax = plt.subplots(figsize=(10, 8))
+    ax.imshow(image, cmap='gray')
+    ax.set_title('Click polygon corners around the object. Enter = save, Esc = start over')
+    verts = []
+
+    def on_select(v):
+        verts[:] = v
+
+    def on_key(event):
+        if event.key == 'enter':
+            plt.close(fig)
+
+    # keep a reference to the selector, otherwise it is garbage-collected and stops responding
+    fig._roi_selector = PolygonSelector(ax, on_select, useblit=True)
+    fig.canvas.mpl_connect('key_press_event', on_key)
+    plt.show()  # blocks until Enter / the window is closed
+
+    assert len(verts) >= 3, 'ROI needs at least 3 polygon corners; nothing saved'
+    h, w = image.shape
+    yy, xx = np.mgrid[:h, :w]
+    mask = MplPath(verts).contains_points(np.c_[xx.ravel(), yy.ravel()]).reshape(h, w)
+    os.makedirs(os.path.dirname(save_path) or '.', exist_ok=True)
+    np.save(save_path, mask)
+    print(f"Saved ROI mask ({mask.mean():.1%} of pixels) to {save_path}")
+    return mask
+
+
+def load_or_draw_roi_mask(image, save_path, redraw=False):
+    """Reuse the saved ROI mask for this scene, or draw one if there is none (or redraw=True)."""
+    if not redraw and os.path.isfile(save_path):
+        mask = np.load(save_path)
+        if mask.shape == image.shape:
+            return mask
+        print(f"Saved ROI mask {save_path} is {mask.shape}, frame is {image.shape}; drawing a new one")
+    return draw_roi_mask(image, save_path)
 
 
 # -----------------------------------------------------------------------------
@@ -164,7 +220,8 @@ def render_point_cloud(depth_map, run_tag):
     points = depth_to_pointcloud(depth_map, FOV_MAJOR_AXIS_DEG)
     print(f"  {run_tag}: point cloud {len(points):,} points")
     # centre at origin so open3d zoom/pan works correctly
-    points = points - points.mean(axis=0)
+    center = points.mean(axis=0)
+    points = points - center
 
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(points)
@@ -172,9 +229,37 @@ def render_point_cloud(depth_map, run_tag):
     z_norm = (z - z.min()) / (z.max() - z.min() + 1e-8)
     pcd.colors = o3d.utility.Vector3dVector(plt.get_cmap("gray")(0.3 + 0.4 * z_norm)[:, :3])
 
+    if RECON_MODE == 'poisson':
+        # the sensor sat at the origin before centring, i.e. at -mean now
+        geometry = poisson_mesh(pcd, camera_location=-center, run_tag=run_tag)
+        title = f"Poisson Mesh — {run_tag}"
+    elif RECON_MODE == 'pointcloud':
+        geometry = pcd
+        title = f"Point Cloud — {run_tag}"
+    else:
+        raise ValueError(f"RECON_MODE must be 'pointcloud' or 'poisson', got {RECON_MODE!r}")
+
     if INTERACTIVE_VIEWER:
-        aim_camera(pcd, title=f"Point Cloud — {run_tag}")
-    return render_offscreen(pcd)
+        aim_camera(geometry, title=title)
+    return render_offscreen(geometry)
+
+
+def poisson_mesh(pcd, camera_location, run_tag=''):
+    """Poisson surface reconstruction of a single-view point cloud, trimmed to where there is data."""
+    spacing = float(np.mean(pcd.compute_nearest_neighbor_distance()))
+    pcd.estimate_normals(o3d.geometry.KDTreeSearchParamHybrid(radius=NORMAL_RADIUS_MULT * spacing, max_nn=30))
+    # single view: every normal should face the sensor, else Poisson flips patches inside-out
+    pcd.orient_normals_towards_camera_location(camera_location)
+
+    mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(pcd, depth=POISSON_DEPTH)
+    # Poisson closes the surface everywhere, including behind the object; low density = no points there
+    densities = np.asarray(densities)
+    mesh.remove_vertices_by_mask(densities < np.quantile(densities, POISSON_DENSITY_QUANTILE))
+    mesh = mesh.crop(pcd.get_axis_aligned_bounding_box())
+    mesh.compute_vertex_normals()
+    mesh.paint_uniform_color(MESH_COLOR)
+    print(f"  {run_tag}: Poisson mesh {len(mesh.vertices):,} vertices, {len(mesh.triangles):,} triangles")
+    return mesh
 
 
 # -----------------------------------------------------------------------------
@@ -234,6 +319,7 @@ if __name__ == '__main__':
     capture_paths = filter_capture_files(capture_paths)
 
     depth_map_dict = {}
+    roi_redrawn = False
 
     for i, coded_vals_name in enumerate(capture_paths):
         if coded_vals_name.startswith('.'): continue
@@ -309,9 +395,15 @@ if __name__ == '__main__':
 
 
         depth_map = filter_hot_pixels(depth_map, hot_mask)
+        # full-frame hand-drawn ROI (one per scene); shared by the point cloud and the error maps
+        foreground = None
+        if cfg.mask_background_pixels:
+            # draw on log intensity: the object outline is clearer there than in a noisy depth map
+            intensity = filter_hot_pixels(np.log10(np.sum(coded_vals_trials, axis=-1) + 1.0), hot_mask)
+            foreground = load_or_draw_roi_mask(intensity, ROI_MASK_FILE, redraw=ROI_REDRAW and not roi_redrawn)
+            roi_redrawn = True  # ROI_REDRAW redraws once, then every other code / k reuses that mask
+        background = ~foreground if foreground is not None else None
         # copy: the error-map crop below is a view that gets edited in place
-        # same low-photon-count background mask the horse depth map gets below
-        background = np.sum(coded_vals, axis=(0, -1)) < 1.5e4 if "horse" in coded_vals_path else None
         pcd_depth_map = pointcloud_depth_map(depth_map.copy(), im_width, cfg.correct_master,
                                              cfg.mask_background_pixels, cfg.median_filter_size, background)
 
@@ -334,19 +426,19 @@ if __name__ == '__main__':
             depth_map = depth_map[:, : im_width // 2]
             gt_depth_map = gt_depth_map[:, : im_width // 2]
             coded_vals_trials = coded_vals_trials[:, : im_width // 2]
+            if foreground is not None:
+                foreground = foreground[:, : im_width // 2]
 
         if cfg.mask_background_pixels:
-            if "horse" in coded_vals_path:
-                tmp = np.sum(np.sum(coded_vals, axis=0), axis=-1)
-                tmp[tmp < 1.5e4] = 0
-                depth_map[tmp < 1e4] = np.nan
-
-            else:
+            depth_map = depth_map.astype(float)
+            gt_depth_map = gt_depth_map.astype(float)
+            # mask before the crop so the mask and the maps stay aligned
+            depth_map[~foreground] = np.nan
+            if 'step_stool' in coded_vals_path:
                 depth_map = depth_map[40:450, 20:-20]
                 gt_depth_map = gt_depth_map[40:450, 20:-20]
             depth_map[depth_map == 0] = np.nan
             gt_depth_map[gt_depth_map == 0] = np.nan
-            mask = None
 
         if BAD_ROWS is not None and type(BAD_ROWS) == list:
             depth_map = depth_map.astype(float)
@@ -387,7 +479,7 @@ if __name__ == '__main__':
         d['depth_map']    = np.clip(d['depth_map'],    vmin_clip, vmax_clip)
         d['gt_depth_map'] = np.clip(d['gt_depth_map'], vmin_clip, vmax_clip)
 
-    # --- point clouds: align, clip to one shared range, render off-screen for the panel ---
+    # --- point clouds: align, drop points outside one shared range, render off-screen for the panel ---
     if PLOT_POINT_CLOUD:
         pcd_maps = [d['pcd_depth_map'] for d in depth_map_dict.values()]
         if ALIGN_DEPTHS:
@@ -398,8 +490,9 @@ if __name__ == '__main__':
         pcd_vmax = PCD_VMAX if PCD_VMAX is not None else float(np.nanmax(all_vals))
         print(f"\n  Point-cloud depth range: vmin={pcd_vmin:.3f}  vmax={pcd_vmax:.3f}")
         for d, m in zip(depth_map_dict.values(), pcd_maps):
-            d['pcd_image'] = render_point_cloud(np.clip(m, pcd_vmin, pcd_vmax),
-                                                f"{d['capture_type']}_k{d['k']}_{SNR_LABEL}")
+            # NaN out-of-range pixels so they're removed, not clipped onto flat planes at vmin / vmax
+            m = np.where((m >= pcd_vmin) & (m <= pcd_vmax), m, np.nan)
+            d['pcd_image'] = render_point_cloud(m, f"{d['capture_type']}_k{d['k']}_{SNR_LABEL}")
 
     # --- 3-D recon comparison panel ---
     recon_runs = []
@@ -410,8 +503,7 @@ if __name__ == '__main__':
             'snr_label':    SNR_LABEL,
             'depth_map':    d['depth_map'],
             'gt_depth_map': d['gt_depth_map'],
-            'pcd_image':    d.get('pcd_image'),
-        })
+            'pcd_image':    d.get('pcd_image'),        })
 
 
     save_panel = os.path.join(FIGURES_DIR, f"3d_recon_panel_{SNR_LABEL}_k{d['k']}.pdf")
@@ -423,4 +515,5 @@ if __name__ == '__main__':
         save_path=save_panel,
         plot_point_cloud=PLOT_POINT_CLOUD,
         plot_error_map=PLOT_ERROR_MAP,
+        recon_label='Mesh Reconstruction' if RECON_MODE == 'poisson' else 'Point Cloud Reconstruction',
     )
